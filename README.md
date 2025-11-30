@@ -46,6 +46,21 @@ How to export the CSV from Viva Insights:
 
 Contributions: open PRs/issues. Please keep CSP-tight changes and avoid introducing analytics without a clear opt-in.
 
+## AI-Assisted Development
+
+This project was primarily developed with the assistance of **OpenAI Codex** and **GitHub Copilot** AI agents. While Christoffer Besler Hansen provided direction, requirements, and review, the majority of the code was generated through AI-assisted development.
+
+### Disclaimer
+
+⚠️ **Use at your own risk.** This software is provided "as is", without warranty of any kind. The AI-generated code has been reviewed but may contain bugs, security vulnerabilities, or unexpected behavior. Users are encouraged to:
+
+- Review the code before deploying in production environments
+- Test thoroughly with non-sensitive data first
+- Report any issues via GitHub Issues
+- Not rely on this tool for critical business decisions without independent verification
+
+The author and AI assistants are not liable for any damages or losses arising from the use of this software.
+
 ## License
 Copyright (c) 2025 Christoffer Besler Hansen.  
 Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).

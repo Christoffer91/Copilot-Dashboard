@@ -35,6 +35,17 @@
           const MAX_VISIBLE_GROUP_ROWS = 5;
           const MAX_VISIBLE_TOP_USERS = 5;
           const DEFAULT_RETURNING_INTERVAL = "weekly";
+          const FILTER_FIELD_LABELS = {
+            organization: "Organization",
+            country: "Country or region",
+            domain: "Domain"
+          };
+          const ORGANIZATION_FIELD_CHOICES = ["organization", "domain"];
+          const COUNTRY_FIELD_CHOICES = ["country", "domain", "organization"];
+          const DEFAULT_FILTER_FIELDS = {
+            organization: "organization",
+            country: "country"
+          };
           const SNAPSHOT_VERSION = 1;
           const SNAPSHOT_KDF_ITERATIONS = 150000;
           const SNAPSHOT_PREFIX = "COPILOTSNAPSHOT";
@@ -61,6 +72,7 @@
           let latestSnapshotExport = "";
           let snapshotDownloadUrl = null;
           let snapshotCopyTimeout = null;
+          const AGENT_HUB_ROW_LIMIT = 100;
           let agentHubVisible = false;
       
           const state = {
@@ -69,6 +81,11 @@
             latestDate: null,
             earliestDate: null,
             uniqueOrganizations: new Set(),
+            uniqueCountries: new Set(),
+            uniqueDomains: new Set(),
+            filterFields: {
+              ...DEFAULT_FILTER_FIELDS
+            },
             filters: {
               organization: new Set(),
               country: new Set(),
@@ -155,7 +172,13 @@
                 users: "",
                 agents: "",
                 combined: ""
-              }
+              },
+              expanded: {
+                users: false,
+                agents: false,
+                combined: false
+              },
+              rowLimit: AGENT_HUB_ROW_LIMIT
             },
             latestPerAppActions: [],
             dimensionSelection: {
@@ -165,7 +188,8 @@
                 country: new Set(),
                 organization: new Set()
               }
-            }
+            },
+            topUsersPanelOpen: false
           };
       
           state.availableRegions = ["all"];
@@ -1185,12 +1209,18 @@
           }
       
           function updateThemeToggleUI() {
-            if (!dom.themeToggle) {
-              return;
-            }
             const isDark = state.theme === "dark";
-            dom.themeToggle.setAttribute("aria-pressed", String(isDark));
-            dom.themeToggle.textContent = isDark ? "Disable dark mode" : "Enable dark mode";
+            if (dom.themeToggle) {
+              dom.themeToggle.setAttribute("aria-pressed", String(isDark));
+              dom.themeToggle.textContent = isDark ? "Disable dark mode" : "Enable dark mode";
+            }
+            if (dom.floatingThemeToggle && dom.floatingThemeIcon) {
+              dom.floatingThemeToggle.setAttribute("aria-pressed", String(isDark));
+              dom.floatingThemeToggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+              dom.floatingThemeIcon.innerHTML = isDark
+                ? '<svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path fill="currentColor" d="M21 15.48A9 9 0 0 1 8.52 3 7 7 0 1 0 21 15.48ZM12 21a9 9 0 0 0 9-9 9 9 0 0 1-9 9Z"/></svg>'
+                : '<svg viewBox="0 0 24 24" role="img" aria-hidden="true"><path fill="currentColor" d="M12 18a1.5 1.5 0 0 0-1.5 1.5v.75a1.5 1.5 0 1 0 3 0v-.75A1.5 1.5 0 0 0 12 18Zm6.01-3.41-1.08-1.08a1.5 1.5 0 0 0-2.12 2.12l1.08 1.08a1.5 1.5 0 0 0 2.12-2.12ZM6.5 12a1.5 1.5 0 0 0-1.5-1.5H4.25a1.5 1.5 0 0 0 0 3H5a1.5 1.5 0 0 0 1.5-1.5Zm10.93-5.43-1.08-1.08a1.5 1.5 0 0 0-2.12 2.12l1.08 1.08a1.5 1.5 0 0 0 2.12-2.12ZM12 6a1.5 1.5 0 0 0 1.5-1.5V3.75a1.5 1.5 0 0 0-3 0V4.5A1.5 1.5 0 0 0 12 6Zm-4.78.57-1.08-1.08a1.5 1.5 0 1 0-2.12 2.12l1.08 1.08a1.5 1.5 0 0 0 2.12-2.12ZM7.17 13.91l-1.08 1.08a1.5 1.5 0 0 0 2.12 2.12l1.08-1.08a1.5 1.5 0 0 0-2.12-2.12Z"/></svg>';
+            }
           }
       
           function persistThemePreference(theme) {
@@ -1411,8 +1441,13 @@
             metaRange: document.querySelector("[data-meta-range]"),
             metaOrgs: document.querySelector("[data-meta-orgs]"),
             themeToggle: document.querySelector("[data-theme-toggle]"),
+            floatingThemeToggle: document.querySelector("[data-floating-theme-toggle]"),
+            floatingThemeIcon: document.querySelector("[data-floating-theme-icon]"),
+            organizationFieldSelect: document.querySelector("[data-filter-organization-field]"),
             organizationFilter: document.querySelector("[data-filter-organization]"),
+            countryFieldSelect: document.querySelector("[data-filter-country-field]"),
             countryFilter: document.querySelector("[data-filter-country]"),
+            countryFilterWrapper: document.querySelector("[data-country-filter-wrapper]"),
             timeframeFilter: document.querySelector("[data-filter-timeframe]"),
             customRangeContainer: document.querySelector("[data-custom-range]"),
             customRangeStart: document.querySelector("[data-filter-custom-start]"),
@@ -1497,6 +1532,8 @@
             viewMoreButton: document.querySelector("[data-view-more]"),
             topUsers: document.querySelector("[data-top-users]"),
             topUsersToggle: document.querySelector("[data-top-users-toggle]"),
+            topUsersPanel: document.querySelector("[data-top-users-panel]"),
+            topUsersPanelToggle: document.querySelector("[data-top-users-panel-toggle]"),
             adoptionCard: document.querySelector("[data-adoption-card]"),
             adoptionCaption: document.querySelector("[data-adoption-caption]"),
             adoptionTable: document.querySelector("[data-adoption-table]"),
@@ -1589,7 +1626,8 @@
             filterBar: document.querySelector(`[data-agent-hub-filter-bar="${type}"]`),
             filterInput: document.querySelector(`[data-agent-hub-filter-input="${type}"]`),
             filterClear: document.querySelector(`[data-agent-hub-filter-clear="${type}"]`),
-            sortButtons: Array.from(document.querySelectorAll(`[data-agent-hub-sort-context="${type}"]`))
+            sortButtons: Array.from(document.querySelectorAll(`[data-agent-hub-sort-context="${type}"]`)),
+            toggleRows: document.querySelector(`[data-agent-hub-toggle="${type}"]`)
           };
           section.defaults = {
             status: section.status ? section.status.textContent : "",
@@ -1816,8 +1854,8 @@
           const DATA_PERSISTENCE_KEY = 'copilotDashboardPersistence';
           const DATA_CONSENT_KEY = 'copilotPersistConsent';
           const FILTER_PREFERENCES_KEY = 'copilotFilterPrefs';
-          const MAX_DATASET_FILE_SIZE = 200 * 1024 * 1024;
-          const DATASET_CACHE_LIMIT_BYTES = 120 * 1024 * 1024; // Keep cache limit lower than upload limit to avoid repeated storage failures.
+          const MAX_DATASET_FILE_SIZE = Infinity;
+          const DATASET_CACHE_LIMIT_BYTES = 80 * 1024 * 1024; // Keep cache limit lower than upload limit to avoid repeated storage failures.
           const CSV_ACCEPTED_MIME_TYPES = new Set(["text/csv", "application/vnd.ms-excel"]);
           const SAMPLE_DATASET_URL = "samples/copilot-sample.csv";
           const SAMPLE_DATASET_INLINE = `PersonId,Organization,CountryOrRegion,Domain,MetricDate,Total Active Copilot Actions Taken,Copilot assisted hours,Meetings recapped by Copilot,Generate email draft actions taken using Copilot,Compose chat actions taken using Copilot in Teams,Meeting hours recapped by Copilot,Copilot Enabled User
@@ -2869,6 +2907,14 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               renderDashboard();
             });
           }
+
+          if (dom.floatingThemeToggle) {
+            dom.floatingThemeToggle.addEventListener("click", () => {
+              const nextTheme = state.theme === "dark" ? "light" : "dark";
+              applyTheme(nextTheme);
+              renderDashboard();
+            });
+          }
       
           dom.fileInput.addEventListener("change", event => {
             const files = event.target.files || [];
@@ -2954,6 +3000,22 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }
           });
           initializeAgentHub();
+          if (dom.organizationFieldSelect) {
+            dom.organizationFieldSelect.addEventListener("change", () => {
+              state.filterFields.organization = resolveFilterFieldChoice("organization", dom.organizationFieldSelect.value);
+              refreshFilterOptionsFromFieldSelection();
+              renderDashboard();
+              persistFilterPreferences();
+            });
+          }
+          if (dom.countryFieldSelect) {
+            dom.countryFieldSelect.addEventListener("change", () => {
+              state.filterFields.country = resolveFilterFieldChoice("country", dom.countryFieldSelect.value);
+              refreshFilterOptionsFromFieldSelection();
+              renderDashboard();
+              persistFilterPreferences();
+            });
+          }
           dom.organizationFilter.addEventListener("change", () => {
             const selections = extractMultiSelectValues(dom.organizationFilter);
             state.filters.organization = new Set(selections);
@@ -3126,6 +3188,17 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               }
               state.topUsersExpanded = !state.topUsersExpanded;
               buildTopUsersList(state.latestTopUsers);
+            });
+          }
+
+          if (dom.topUsersPanelToggle) {
+            dom.topUsersPanelToggle.addEventListener("click", () => {
+              const hasUsers = Array.isArray(state.latestTopUsers) && state.latestTopUsers.length > 0;
+              if (!hasUsers) {
+                return;
+              }
+              state.topUsersPanelOpen = !state.topUsersPanelOpen;
+              updateTopUsersPanelAvailability(hasUsers);
             });
           }
       
@@ -3818,6 +3891,8 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               aggregate: state.filters.aggregate,
               metric: state.filters.metric,
               group: state.filters.group,
+              organizationField: state.filterFields.organization,
+              countryField: state.filterFields.country,
               categorySelection: Array.from(state.filters.categorySelection || [])
             };
           }
@@ -4813,7 +4888,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                 customEnd: snapshot.filters.customEnd || null,
                 aggregate: snapshot.filters.aggregate,
                 metric: snapshot.filters.metric,
-                group: snapshot.filters.group
+                group: snapshot.filters.group,
+                organizationField: snapshot.filters.organizationField,
+                countryField: snapshot.filters.countryField
               };
               filtersApplied = applyStoredFilterPreferences(preferences);
               if (Array.isArray(snapshot.filters.categorySelection)) {
@@ -5083,6 +5160,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
       
           function rememberLastDataset(csvText, meta = {}) {
             if (typeof csvText !== "string" || !csvText.length) {
+              return;
+            }
+            if (state.datasetCachingDisabled) {
               return;
             }
             const sizeFromMeta = Number(meta.size);
@@ -5666,6 +5746,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               uniquePersons,
               organizations,
               countries,
+              domains,
               earliestDate,
               latestDate,
               skippedRows,
@@ -5677,14 +5758,14 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             state.earliestDate = earliestDate;
             state.latestDate = latestDate;
             state.uniqueOrganizations = organizations;
+            state.uniqueCountries = countries || new Set();
+            state.uniqueDomains = domains || new Set();
             state.filters.customStart = earliestDate ? new Date(earliestDate.getTime()) : null;
             state.filters.customEnd = latestDate ? new Date(latestDate.getTime()) : null;
             state.filters.customRangeInvalid = false;
             syncCustomRangeInputs();
             updateCustomRangeVisibility();
-      
-            updateSelectOptions(dom.organizationFilter, organizations, 'All organizations');
-            updateSelectOptions(dom.countryFilter, countries, 'All regions');
+            refreshFilterOptionsFromFieldSelection();
       
             const notes = [];
             if (skippedRows) {
@@ -5778,16 +5859,22 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             const uniquePersons = new Set();
             const organizations = new Set();
             const countries = new Set();
+            const domains = new Set();
             let earliestDate = null;
             let latestDate = null;
             let skippedRows = 0;
             let rowErrors = 0;
 
             const detectedDelimiter = detectDelimiterFromSample(csvText);
+            const csvSizeBytes = Number.isFinite(meta.sourceSize) ? meta.sourceSize : csvText.length * 2;
+            const loadedFromStorage = Boolean(meta.loadedFromStorage || meta.savedMeta);
+
             Papa.parse(csvText, {
               header: true,
               skipEmptyLines: true,
               delimiter: detectedDelimiter || "",
+              worker: true,
+              chunkSize: 256 * 1024,
               step: results => {
                 const raw = results.data;
                 ensureDatasetFieldLookup(results?.meta?.fields, raw);
@@ -5812,6 +5899,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                 }
                 if (parsed.country) {
                   countries.add(parsed.country);
+                }
+                if (parsed.domain) {
+                  domains.add(parsed.domain);
                 }
                 if (!earliestDate || parsed.date < earliestDate) {
                   earliestDate = parsed.date;
@@ -5838,14 +5928,15 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
 
                 const runtimeMeta = {
                   name: meta.sourceName || (meta.savedMeta && meta.savedMeta.name) || "Saved dataset",
-                  size: typeof meta.sourceSize === "number" ? meta.sourceSize : csvText.length,
+                  size: Number.isFinite(csvSizeBytes) ? csvSizeBytes : csvText.length,
                   rows: parsedRows.length,
                   lastModified: meta.savedMeta?.lastModified || meta.lastModified || null,
                   savedAt: meta.savedMeta?.savedAt || null
                 };
+                state.datasetSizeBytes = runtimeMeta.size;
+                state.datasetCachingDisabled = datasetExceedsCacheLimit(runtimeMeta.size);
                 rememberLastDataset(csvText, runtimeMeta);
 
-                const loadedFromStorage = Boolean(meta.loadedFromStorage || meta.savedMeta);
                 const savedMetaPayload = loadedFromStorage && (meta.savedMeta
                   ? { ...meta.savedMeta, rows: parsedRows.length }
                   : { name: runtimeMeta.name, rows: parsedRows.length, savedAt: runtimeMeta.savedAt });
@@ -5855,6 +5946,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                   uniquePersons,
                   organizations,
                   countries,
+                  domains,
                   earliestDate,
                   latestDate,
                   skippedRows,
@@ -5866,7 +5958,18 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                   savedMeta: savedMetaPayload || undefined
                 });
 
-                if (state.persistDatasets && !loadedFromStorage && !meta.skipPersistence) {
+                if (state.datasetCachingDisabled) {
+                  bufferedCsvText = null;
+                  clearRememberedDataset();
+                  updateStoredDatasetControls(null);
+                  if (dom.uploadStatus) {
+                    dom.uploadStatus.textContent = `Dataset loaded (${formatFileSize(runtimeMeta.size)}). ${getDatasetCacheLimitMessage()}`;
+                  }
+                  updateSnapshotControlsAvailability();
+                  return;
+                }
+
+                if (!state.datasetCachingDisabled && state.persistDatasets && !loadedFromStorage && !meta.skipPersistence) {
                   persistDataset(csvText, {
                     ...runtimeMeta,
                     sourceName: runtimeMeta.name
@@ -6042,6 +6145,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               uniquePersons: new Set(),
               organizations: new Set(),
               countries: new Set(),
+              domains: new Set(),
               earliestDate: null,
               latestDate: null,
               skippedRows: 0,
@@ -6053,6 +6157,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               accumulators.uniquePersons.clear();
               accumulators.organizations.clear();
               accumulators.countries.clear();
+              accumulators.domains.clear();
               accumulators.earliestDate = null;
               accumulators.latestDate = null;
               accumulators.skippedRows = 0;
@@ -6081,6 +6186,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               if (parsed.country) {
                 accumulators.countries.add(parsed.country);
               }
+              if (parsed.domain) {
+                accumulators.domains.add(parsed.domain);
+              }
               if (!accumulators.earliestDate || parsed.date < accumulators.earliestDate) {
                 accumulators.earliestDate = parsed.date;
               }
@@ -6092,37 +6200,38 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             const finalizeSuccess = () => {
               setActiveParseController(null);
               finishUploadProgress(null);
-              if (!accumulators.parsedRows.length) {
-                showUploadError("No valid rows were found in the file.");
-                return;
+            if (!accumulators.parsedRows.length) {
+              showUploadError("No valid rows were found in the file.");
+              return;
+            }
+            const runtimeMeta = {
+              name: file.name,
+              size: controller.fileSize,
+              lastModified: file.lastModified,
+              rows: accumulators.parsedRows.length
+            };
+            finalizeParsedDataset({
+              parsedRows: accumulators.parsedRows,
+              uniquePersons: accumulators.uniquePersons,
+              organizations: accumulators.organizations,
+              countries: accumulators.countries,
+              domains: accumulators.domains,
+              earliestDate: accumulators.earliestDate,
+              latestDate: accumulators.latestDate,
+              skippedRows: accumulators.skippedRows,
+              rowErrors: accumulators.rowErrors
+            }, {
+              sourceName: file.name,
+              sourceSize: controller.fileSize,
+              rows: accumulators.parsedRows.length
+            });
+            state.datasetSizeBytes = runtimeMeta.size;
+            state.datasetCachingDisabled = datasetExceedsCacheLimit(runtimeMeta.size);
+            if (state.datasetCachingDisabled) {
+              bufferedCsvText = null;
+              if (dom.uploadStatus) {
+                dom.uploadStatus.textContent = `Dataset loaded (${formatFileSize(runtimeMeta.size)}). ${getDatasetCacheLimitMessage()}`;
               }
-              const runtimeMeta = {
-                name: file.name,
-                size: controller.fileSize,
-                lastModified: file.lastModified,
-                rows: accumulators.parsedRows.length
-              };
-              finalizeParsedDataset({
-                parsedRows: accumulators.parsedRows,
-                uniquePersons: accumulators.uniquePersons,
-                organizations: accumulators.organizations,
-                countries: accumulators.countries,
-                earliestDate: accumulators.earliestDate,
-                latestDate: accumulators.latestDate,
-                skippedRows: accumulators.skippedRows,
-                rowErrors: accumulators.rowErrors
-              }, {
-                sourceName: file.name,
-                sourceSize: controller.fileSize,
-                rows: accumulators.parsedRows.length
-              });
-              state.datasetSizeBytes = runtimeMeta.size;
-              state.datasetCachingDisabled = datasetExceedsCacheLimit(runtimeMeta.size);
-              if (state.datasetCachingDisabled) {
-                bufferedCsvText = null;
-                if (dom.uploadStatus) {
-                  dom.uploadStatus.textContent = `Dataset loaded (${formatFileSize(runtimeMeta.size)}). ${getDatasetCacheLimitMessage()}`;
-                }
                 updateStoredDatasetControls(null);
                 updateSnapshotControlsAvailability();
                 return;
@@ -6131,6 +6240,11 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             };
 
             const ensureBufferedCsvText = runtimeMeta => {
+              if (state.datasetCachingDisabled) {
+                bufferedCsvText = null;
+                clearRememberedDataset();
+                return;
+              }
               const rememberAndPersist = csvText => {
                 if (typeof csvText !== "string" || !csvText.length) {
                   clearRememberedDataset();
@@ -6358,7 +6472,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               customEnd: state.filters.customEnd ? toDateInputValue(state.filters.customEnd) : null,
               aggregate: state.filters.aggregate,
               metric: state.filters.metric,
-              group: state.filters.group
+              group: state.filters.group,
+              organizationField: state.filterFields.organization,
+              countryField: state.filterFields.country
             };
             try {
               if (window.localStorage) {
@@ -6375,6 +6491,20 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }
             let applied = false;
 
+            const desiredOrganizationField = typeof preferences.organizationField === "string"
+              ? preferences.organizationField
+              : state.filterFields.organization;
+            const desiredCountryField = typeof preferences.countryField === "string"
+              ? preferences.countryField
+              : state.filterFields.country;
+            state.filterFields.organization = resolveFilterFieldChoice("organization", desiredOrganizationField);
+            state.filterFields.country = resolveFilterFieldChoice("country", desiredCountryField);
+            if (typeof preferences.organizationField === "string" || typeof preferences.countryField === "string") {
+              applied = true;
+            }
+            refreshFilterOptionsFromFieldSelection();
+            const countryFilterVisible = !(dom.countryFilterWrapper && dom.countryFilterWrapper.hidden);
+
             if (Array.isArray(preferences.organization)) {
               const validOrganizations = dom.organizationFilter
                 ? new Set(Array.from(dom.organizationFilter.options).map(option => option.value).filter(value => value !== "all"))
@@ -6384,7 +6514,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               syncMultiSelect(dom.organizationFilter, state.filters.organization);
               applied = applied || state.filters.organization.size > 0;
             }
-            if (Array.isArray(preferences.country)) {
+            if (Array.isArray(preferences.country) && countryFilterVisible) {
               const validCountries = dom.countryFilter
                 ? new Set(Array.from(dom.countryFilter.options).map(option => option.value).filter(value => value !== "all"))
                 : null;
@@ -6392,6 +6522,8 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               state.filters.country = new Set(countryValues);
               syncMultiSelect(dom.countryFilter, state.filters.country);
               applied = applied || state.filters.country.size > 0;
+            } else if (!countryFilterVisible) {
+              state.filters.country = new Set();
             }
             if (typeof preferences.timeframe === "string") {
               dom.timeframeFilter.value = preferences.timeframe;
@@ -6845,6 +6977,12 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                   setAgentHubFilter(type, event.target.value);
                 });
               }
+              if (section.toggleRows) {
+                section.toggleRows.addEventListener("click", event => {
+                  event.preventDefault();
+                  toggleAgentHubRows(type);
+                });
+              }
               if (section.filterClear) {
                 section.filterClear.addEventListener("click", event => {
                   event.preventDefault();
@@ -6989,8 +7127,11 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                     skipped
                   );
                   if (typeHint && typeHint !== targetType) {
+                    const hintDataset = state.agentHub?.datasets?.[typeHint];
                     updateAgentHubStatus(typeHint, `${file.name} matched ${getAgentHubTypeLabel(targetType)}. Data moved to that tab.`);
-                    updateAgentHubEmptyState(typeHint, { hidden: false, message: getAgentHubDefaultEmptyMessage(typeHint) });
+                    if (!hintDataset || !Array.isArray(hintDataset.rows) || !hintDataset.rows.length) {
+                      updateAgentHubEmptyState(typeHint, { hidden: false, message: getAgentHubDefaultEmptyMessage(typeHint) });
+                    }
                   }
                 },
                 error: () => {
@@ -7161,6 +7302,12 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             };
             const dataset = state.agentHub.datasets[type];
             dataset.rows = Array.isArray(rows) ? rows : [];
+            if (state.agentHub?.filters) {
+              state.agentHub.filters[type] = "";
+            }
+            if (state.agentHub?.expanded) {
+              state.agentHub.expanded[type] = false;
+            }
             dataset.meta = {
               sourceName: meta.sourceName || "Agent CSV",
               size: Number.isFinite(meta.size) ? meta.size : null,
@@ -7225,6 +7372,19 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             const rows = sortAgentHubRows(type, filteredRows);
             updateAgentHubFilterControls(type);
             updateAgentHubSortIndicators(type);
+            const limit = state.agentHub?.rowLimit || AGENT_HUB_ROW_LIMIT;
+            const expanded = Boolean(state.agentHub?.expanded?.[type]);
+            const visibleRows = expanded ? rows : rows.slice(0, limit);
+            const totalRows = rows.length;
+            if (section.toggleRows) {
+              section.toggleRows.hidden = totalRows <= limit;
+              if (!section.toggleRows.hidden) {
+                section.toggleRows.textContent = expanded
+                  ? "Show fewer rows"
+                  : `Show all ${numberFormatter.format(totalRows)} rows`;
+                section.toggleRows.setAttribute("aria-pressed", String(expanded));
+              }
+            }
             if (!rows.length) {
               if (section.tableWrapper) {
                 section.tableWrapper.hidden = true;
@@ -7244,13 +7404,14 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               return;
             }
             const fragment = document.createDocumentFragment();
-            rows.forEach(row => {
+            visibleRows.forEach(row => {
               const tr = document.createElement("tr");
               config.columns.forEach(column => {
                 const td = document.createElement("td");
                 if (column.type === "number") {
                   td.classList.add("is-numeric");
                 }
+                td.classList.add(`agent-col-${column.key}`);
                 td.textContent = formatAgentHubCellValue(row, column);
                 tr.appendChild(td);
               });
@@ -7363,6 +7524,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               if (state.agentHub.sort) {
                 state.agentHub.sort[type] = { column: null, direction: "asc" };
               }
+              if (state.agentHub.expanded) {
+                state.agentHub.expanded[type] = false;
+              }
             }
             const section = agentHubSections[type];
             if (!section) {
@@ -7386,6 +7550,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }
             if (section.input) {
               section.input.value = "";
+            }
+            if (section.toggleRows) {
+              section.toggleRows.hidden = true;
             }
             updateAgentHubFilterControls(type);
             toggleAgentHubFilterBar(type, false);
@@ -7574,6 +7741,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               return;
             }
             state.agentHub.filters[type] = value || "";
+            if (state.agentHub?.expanded) {
+              state.agentHub.expanded[type] = false;
+            }
             renderAgentHubTable(type);
           }
 
@@ -7587,6 +7757,18 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               direction = current.direction === "asc" ? "desc" : "asc";
             }
             state.agentHub.sort[type] = { column, direction };
+            if (state.agentHub?.expanded) {
+              state.agentHub.expanded[type] = false;
+            }
+            renderAgentHubTable(type);
+          }
+
+          function toggleAgentHubRows(type) {
+            if (!state.agentHub || !state.agentHub.expanded) {
+              return;
+            }
+            const current = Boolean(state.agentHub.expanded[type]);
+            state.agentHub.expanded[type] = !current;
             renderAgentHubTable(type);
           }
 
@@ -7687,6 +7869,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               state.latestPerAppActions = [];
               state.groupsExpanded = false;
               state.topUsersExpanded = false;
+              state.topUsersPanelOpen = false;
               updateExportDetailOption();
               setTrendColorControlsVisibility(false);
               if (dom.seriesModeToggle) {
@@ -8018,11 +8201,11 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }
             const cutoff = timeframe === "custom" ? null : computeCutoffDate(timeframe);
             return rows.filter(row => {
-              const rowOrganization = row.organization || "Unspecified";
+              const rowOrganization = resolveSegmentValue(row, state.filterFields.organization);
               if (hasOrganizationFilter && !organizationFilter.has(rowOrganization)) {
                 return false;
               }
-              const rowCountry = row.country || "Unspecified";
+              const rowCountry = resolveSegmentValue(row, state.filterFields.country);
               if (hasCountryFilter && !countryFilter.has(rowCountry)) {
                 return false;
               }
@@ -8255,12 +8438,12 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               } else if (rowSelectedHours < 0) {
                 rowSelectedHours = 0;
               }
-
+      
               totals.totalActions += rowSelectedActions;
               totals.assistedHours += rowSelectedHours;
       
               const personKey = sanitizeLabel(row.personId) || "Unspecified";
-              const organization = row.organization || "Unspecified";
+              const organization = resolveSegmentValue(row, state.filterFields.organization);
               const existingUserInfo = userTotals.get(personKey) || {
                 name: personKey,
                 organization,
@@ -9180,6 +9363,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               empty.textContent = "No user activity for the selected filters.";
               container.append(empty);
               state.topUsersExpanded = false;
+              updateTopUsersPanelAvailability(false);
               if (toggleButton) {
                 toggleButton.hidden = true;
                 toggleButton.setAttribute("aria-expanded", "false");
@@ -9238,6 +9422,21 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                 toggleButton.setAttribute("aria-expanded", "false");
               }
             }
+            updateTopUsersPanelAvailability(true);
+          }
+
+          function updateTopUsersPanelAvailability(canShow) {
+            if (!dom.topUsersPanel || !dom.topUsersPanelToggle) {
+              return;
+            }
+            if (!canShow) {
+              state.topUsersPanelOpen = false;
+            }
+            const visible = canShow && state.topUsersPanelOpen;
+            dom.topUsersPanel.hidden = !visible;
+            dom.topUsersPanelToggle.disabled = !canShow;
+            dom.topUsersPanelToggle.setAttribute("aria-expanded", String(visible));
+            dom.topUsersPanelToggle.textContent = visible ? "Hide top users" : "Show top users";
           }
       
           function updateAdoptionByApp(adoption) {
@@ -11062,14 +11261,16 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               overviewRows.push(["Timeframe filter", timeframeLabel, "Portion of the dataset included in this export."]);
               const organizationFilter = state.filters.organization instanceof Set ? state.filters.organization : new Set();
               const countryFilter = state.filters.country instanceof Set ? state.filters.country : new Set();
+              const organizationFieldLabel = getFilterFieldLabel(state.filterFields.organization);
+              const countryFieldLabel = getFilterFieldLabel(state.filterFields.country);
               const organizationFilterLabel = organizationFilter.size
                 ? Array.from(organizationFilter).sort().join(", ")
-                : "All organizations";
+                : getDefaultOptionLabelForField(state.filterFields.organization);
               const countryFilterLabel = countryFilter.size
                 ? Array.from(countryFilter).sort().join(", ")
-                : "All countries";
-              overviewRows.push(["Organization filter", organizationFilterLabel, "Organizations or offices included in this view."]);
-              overviewRows.push(["Country filter", countryFilterLabel, "Countries included in this view."]);
+                : getDefaultOptionLabelForField(state.filterFields.country);
+              overviewRows.push([`${organizationFieldLabel} filter`, organizationFilterLabel, `${organizationFieldLabel}s included in this view.`]);
+              overviewRows.push([`${countryFieldLabel} filter`, countryFilterLabel, `${countryFieldLabel}s included in this view.`]);
               overviewRows.push(["", "", ""]);
               overviewRows.push(["Metric", "Value", "Explanation"]);
 
@@ -11088,23 +11289,27 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               overviewRows.push(["Average assisted hours per active user", averageHoursPerUser, "Total assisted hours divided by active users."]);
 
               const organizationGroups = Array.isArray(organizationAggregates.groups) ? organizationAggregates.groups : [];
+              const organizationGroupLabel = getFilterFieldLabel(state.filterFields.organization);
+              const organizationGroupLabelPlural = `${organizationGroupLabel}${organizationGroupLabel.endsWith("s") ? "" : "s"}`;
               if (organizationGroups.length) {
                 const topOrganizations = organizationGroups.slice(0, 5);
                 const parts = topOrganizations.map(group => {
                   const value = Math.round(group && Number.isFinite(group.totalActions) ? group.totalActions : 0);
                   return `${group.name || "Unspecified"} (${value} actions)`;
                 });
-                overviewRows.push(["Top organizations by actions", parts.join(BULLET_SEPARATOR), "Top groups/offices in this view."]);
+                overviewRows.push([`Top ${organizationGroupLabelPlural} by actions`, parts.join(BULLET_SEPARATOR), `${organizationGroupLabelPlural} in this view.`]);
               }
 
               const countryGroups = Array.isArray(countryAggregates.groups) ? countryAggregates.groups : [];
+              const countryGroupLabel = getFilterFieldLabel(state.filterFields.country);
+              const countryGroupLabelPlural = `${countryGroupLabel}${countryGroupLabel.endsWith("s") ? "" : "s"}`;
               if (countryGroups.length) {
                 const topCountries = countryGroups.slice(0, 5);
                 const parts = topCountries.map(group => {
                   const value = Math.round(group && Number.isFinite(group.totalActions) ? group.totalActions : 0);
                   return `${group.name || "Unspecified"} (${value} actions)`;
                 });
-                overviewRows.push(["Top countries by actions", parts.join(BULLET_SEPARATOR), "Countries with the highest total actions."]);
+                overviewRows.push([`Top ${countryGroupLabelPlural} by actions`, parts.join(BULLET_SEPARATOR), `${countryGroupLabelPlural} with the highest total actions.`]);
               }
 
               const overviewSheet = XLSX.utils.aoa_to_sheet(overviewRows);
@@ -11339,12 +11544,14 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
 
               pdf.setFontSize(12);
               const organizationGroups = Array.isArray(organizationAggregates.groups) ? organizationAggregates.groups : [];
+              const organizationGroupLabel = getFilterFieldLabel(state.filterFields.organization);
+              const organizationGroupLabelPlural = `${organizationGroupLabel}${organizationGroupLabel.endsWith("s") ? "" : "s"}`;
               if (organizationGroups.length) {
                 if (y + 80 > pageHeight - margin) {
                   pdf.addPage();
                   y = margin;
                 }
-                pdf.text("Top organizations by actions", margin, y);
+                pdf.text(`Top ${organizationGroupLabelPlural} by actions`, margin, y);
                 y += 16;
                 const topOrganizations = organizationGroups.slice(0, 5);
                 topOrganizations.forEach(group => {
@@ -11360,12 +11567,14 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               }
 
               const countryGroups = Array.isArray(countryAggregates.groups) ? countryAggregates.groups : [];
+              const countryGroupLabel = getFilterFieldLabel(state.filterFields.country);
+              const countryGroupLabelPlural = `${countryGroupLabel}${countryGroupLabel.endsWith("s") ? "" : "s"}`;
               if (countryGroups.length) {
                 if (y + 80 > pageHeight - margin) {
                   pdf.addPage();
                   y = margin;
                 }
-                pdf.text("Top countries by actions", margin, y);
+                pdf.text(`Top ${countryGroupLabelPlural} by actions`, margin, y);
                 y += 16;
                 const topCountries = countryGroups.slice(0, 5);
                 topCountries.forEach(group => {
@@ -11835,8 +12044,11 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             if (!select) {
               return;
             }
-            const targetSet = select === dom.organizationFilter ? state.filters.organization : state.filters.country;
-            const normalizedValues = Array.from(values)
+            const targetSetCandidate = arguments.length >= 4 ? arguments[3] : null;
+            const targetSet = targetSetCandidate instanceof Set
+              ? targetSetCandidate
+              : (select === dom.organizationFilter ? state.filters.organization : state.filters.country);
+            const normalizedValues = Array.from(values || [])
               .filter(value => value && value !== "Unspecified")
               .sort((a, b) => a.localeCompare(b));
             const validValues = new Set(normalizedValues);
@@ -11865,6 +12077,90 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               select.append(option);
             });
             syncMultiSelect(select, activeSet);
+          }
+
+          function countDistinctValues(values) {
+            return Array.from(values || []).filter(value => value && value !== "Unspecified").length;
+          }
+
+          function resolveFilterFieldChoice(type, desired) {
+            const normalized = normalizeFilterField(type, desired);
+            const choices = type === "organization" ? ORGANIZATION_FIELD_CHOICES : COUNTRY_FIELD_CHOICES;
+            const prioritized = [normalized, ...choices.filter(choice => choice !== normalized)];
+            const pickWithMultiple = prioritized.find(choice => countDistinctValues(getSegmentValues(choice)) > 1);
+            if (pickWithMultiple) {
+              return pickWithMultiple;
+            }
+            const pickWithAny = prioritized.find(choice => countDistinctValues(getSegmentValues(choice)) > 0);
+            if (pickWithAny) {
+              return pickWithAny;
+            }
+            return type === "organization" ? DEFAULT_FILTER_FIELDS.organization : DEFAULT_FILTER_FIELDS.country;
+          }
+
+          function ensureFilterFieldDefaults() {
+            state.filterFields.organization = resolveFilterFieldChoice("organization", state.filterFields.organization);
+            state.filterFields.country = resolveFilterFieldChoice("country", state.filterFields.country);
+          }
+
+          function updateFilterFieldSelect(select, choices, type) {
+            if (!select) {
+              return;
+            }
+            const active = normalizeFilterField(type, state.filterFields[type]);
+            select.innerHTML = "";
+            let firstEnabled = null;
+            const hasDataset = Array.isArray(state.rows) && state.rows.length > 0;
+            choices.forEach(choice => {
+              const option = document.createElement("option");
+              option.value = choice;
+              option.textContent = getFilterFieldLabel(choice);
+              const distinctCount = countDistinctValues(getSegmentValues(choice));
+              if (hasDataset) {
+                if (distinctCount === 0) {
+                  option.disabled = true;
+                  option.title = "Not detected in the loaded dataset";
+                } else if (distinctCount === 1) {
+                  option.title = "Only one unique value detected";
+                }
+              }
+              if (!option.disabled && !firstEnabled) {
+                firstEnabled = choice;
+              }
+              select.append(option);
+            });
+            const hasActive = Boolean(select.querySelector(`option[value="${active}"]:not(:disabled)`));
+            const nextValue = hasActive ? active : (firstEnabled || choices[0]);
+            select.value = nextValue;
+            state.filterFields[type] = nextValue;
+          }
+
+          function refreshFilterFieldSelects() {
+            updateFilterFieldSelect(dom.organizationFieldSelect, ORGANIZATION_FIELD_CHOICES, "organization");
+            updateFilterFieldSelect(dom.countryFieldSelect, COUNTRY_FIELD_CHOICES, "country");
+          }
+
+          function refreshFilterOptionsFromFieldSelection() {
+            ensureFilterFieldDefaults();
+            refreshFilterFieldSelects();
+            const organizationField = normalizeFilterField("organization", state.filterFields.organization);
+            const organizationValues = getSegmentValues(organizationField);
+            updateSelectOptions(dom.organizationFilter, organizationValues, getDefaultOptionLabelForField(organizationField), state.filters.organization);
+
+            const countryField = normalizeFilterField("country", state.filterFields.country);
+            const countryValues = getSegmentValues(countryField);
+            const countryDistinctCount = countDistinctValues(countryValues);
+            const hasDataset = Array.isArray(state.rows) && state.rows.length > 0;
+            const hideCountry = hasDataset && countryDistinctCount <= 1;
+            if (dom.countryFilterWrapper) {
+              dom.countryFilterWrapper.hidden = hideCountry;
+            }
+            if (hideCountry) {
+              state.filters.country = new Set();
+              syncMultiSelect(dom.countryFilter, state.filters.country);
+            } else {
+              updateSelectOptions(dom.countryFilter, countryValues, getDefaultOptionLabelForField(countryField), state.filters.country);
+            }
           }
       
           function formatNumber(value) {
@@ -11949,11 +12245,6 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             if (!trimmed) {
               return null;
             }
-            const directTimestamp = Date.parse(trimmed);
-            if (Number.isFinite(directTimestamp)) {
-              const parsed = new Date(directTimestamp);
-              return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()));
-            }
             const shortMatch = trimmed.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/);
             if (shortMatch) {
               const day = Number(shortMatch[1]);
@@ -11964,6 +12255,11 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               if (Number.isFinite(day) && Number.isFinite(year) && monthIndex != null) {
                 return new Date(Date.UTC(year, monthIndex, day));
               }
+            }
+            const directTimestamp = Date.parse(trimmed);
+            if (Number.isFinite(directTimestamp)) {
+              const parsed = new Date(directTimestamp);
+              return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()));
             }
             return null;
           }
@@ -12151,14 +12447,65 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             return `${label.slice(0, maxLength - 1)}…`;
           }
       
+          function normalizeFilterField(type, value) {
+            const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+            const choices = type === "organization" ? ORGANIZATION_FIELD_CHOICES : COUNTRY_FIELD_CHOICES;
+            if (choices.includes(normalized)) {
+              return normalized;
+            }
+            return type === "organization" ? DEFAULT_FILTER_FIELDS.organization : DEFAULT_FILTER_FIELDS.country;
+          }
+
+          function getFilterFieldLabel(key) {
+            return FILTER_FIELD_LABELS[key] || "Custom";
+          }
+
+          function getDefaultOptionLabelForField(key) {
+            if (key === "domain") {
+              return "All domains";
+            }
+            if (key === "country") {
+              return "All regions";
+            }
+            return "All organizations";
+          }
+
+          function getSegmentValues(key) {
+            if (key === "country") {
+              return state.uniqueCountries instanceof Set ? state.uniqueCountries : new Set();
+            }
+            if (key === "domain") {
+              return state.uniqueDomains instanceof Set ? state.uniqueDomains : new Set();
+            }
+            return state.uniqueOrganizations instanceof Set ? state.uniqueOrganizations : new Set();
+          }
+
+          function getDistinctSegmentValues(key) {
+            const values = getSegmentValues(key);
+            return Array.from(values).filter(value => value && value !== "Unspecified");
+          }
+
+          function resolveSegmentValue(row, key) {
+            if (!row) {
+              return "Unspecified";
+            }
+            if (key === "country") {
+              return row.country || "Unspecified";
+            }
+            if (key === "domain") {
+              return row.domain || "Unspecified";
+            }
+            return row.organization || "Unspecified";
+          }
+
           function getGroupKey(row, grouping) {
             if (grouping === "country") {
-              return row.country || "Unspecified";
+              return resolveSegmentValue(row, state.filterFields.country);
             }
             if (grouping === "domain") {
               return row.domain || "Unspecified";
             }
-            return row.organization || "Unspecified";
+            return resolveSegmentValue(row, state.filterFields.organization);
           }
   }
 })();

@@ -60,6 +60,15 @@
   ></script>
 </head>
 <body>
+  <button
+    type="button"
+    class="floating-theme-toggle"
+    data-floating-theme-toggle
+    aria-pressed="false"
+    aria-label="Enable dark mode"
+  >
+    <span aria-hidden="true" data-floating-theme-icon></span>
+  </button>
   <a href="#impact" class="skip-link">Skip to main content</a>
   <div class="toast-container" data-toast-container></div>
   <main>
@@ -165,14 +174,26 @@
         <div class="active-filters-list" data-active-filters-list></div>
       </div>
       <div class="control-select control-select--multi">
-        <label for="organizationFilter">Focus organization</label>
+        <div class="control-select__label-row">
+          <label for="organizationFilter">Focus organization</label>
+          <select data-filter-organization-field class="control-inline-select" aria-label="Column used for organization filter">
+            <option value="organization" selected>Organization</option>
+            <option value="domain">Domain</option>
+          </select>
+        </div>
         <select id="organizationFilter" data-filter-organization multiple size="7" class="multi-select">
           <option value="all">All organizations</option>
         </select>
         <p class="control-hint">Hold Ctrl (Windows) / Cmd (Mac) to choose multiple organizations.</p>
       </div>
-      <div class="control-select control-select--multi">
-        <label for="countryFilter">Region</label>
+      <div class="control-select control-select--multi" data-country-filter-wrapper>
+        <div class="control-select__label-row">
+          <label for="countryFilter">Region</label>
+          <select data-filter-country-field class="control-inline-select" aria-label="Column used for region filter">
+            <option value="country" selected>Country or region</option>
+            <option value="domain">Domain</option>
+          </select>
+        </div>
         <select id="countryFilter" data-filter-country multiple size="7" class="multi-select">
           <option value="all">All regions</option>
         </select>
@@ -483,6 +504,7 @@
             <tbody data-agent-hub-tbody="users"></tbody>
           </table>
         </div>
+        <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="users" hidden>Show all rows</button>
         <div class="agent-empty" data-agent-hub-empty="users">Upload a Users CSV to get started.</div>
       </div>
 
@@ -522,7 +544,7 @@
           <table class="agent-data-table">
             <thead>
               <tr>
-                <th scope="col" aria-sort="none">
+                <th scope="col" class="agent-col-agentId" aria-sort="none">
                   <button type="button" class="agent-sort-button" data-agent-hub-sort-context="agents" data-agent-hub-sort-key="agentId">
                     <span class="agent-sort-label">Agent ID</span>
                     <span class="agent-sort-indicator" aria-hidden="true"></span>
@@ -569,6 +591,7 @@
             <tbody data-agent-hub-tbody="agents"></tbody>
           </table>
         </div>
+        <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="agents" hidden>Show all rows</button>
         <div class="agent-empty" data-agent-hub-empty="agents">Upload an Agents CSV to view this data.</div>
       </div>
 
@@ -608,7 +631,7 @@
           <table class="agent-data-table">
             <thead>
               <tr>
-                <th scope="col" aria-sort="none">
+                <th scope="col" class="agent-col-agentId" aria-sort="none">
                   <button type="button" class="agent-sort-button" data-agent-hub-sort-context="combined" data-agent-hub-sort-key="agentId">
                     <span class="agent-sort-label">Agent ID</span>
                     <span class="agent-sort-indicator" aria-hidden="true"></span>
@@ -649,18 +672,11 @@
             <tbody data-agent-hub-tbody="combined"></tbody>
           </table>
         </div>
+        <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="combined" hidden>Show all rows</button>
         <div class="agent-empty" data-agent-hub-empty="combined">Upload the Users &amp; Agents CSV to view matching rows.</div>
       </div>
     </section>
 
-    <section class="group-card" aria-label="Top users">
-      <div class="group-header">
-        <h2>Top users by total actions</h2>
-        <p class="muted">Reflects current filters; capped at 20 users.</p>
-      </div>
-      <div class="top-users" data-top-users></div>
-      <button type="button" class="view-more-button" data-top-users-toggle hidden aria-expanded="false">Show remaining users</button>
-    </section>
     <section class="trend-card active-days-card" aria-label="Copilot activity last 30 days" data-active-days-card>
       <header>
         <div>
@@ -950,8 +966,29 @@
       </article>
     </section>
     <section class="agent-toggle" data-agent-toggle-wrapper>
-      <button type="button" class="storage-button" data-agent-toggle aria-expanded="false">Show agent usage</button>
+      <div class="agent-toggle__buttons">
+        <button type="button" class="storage-button" data-agent-toggle aria-expanded="false">Show agent usage</button>
+        <button
+          type="button"
+          class="storage-button is-secondary"
+          data-top-users-panel-toggle
+          aria-expanded="false"
+          aria-controls="topUsersPanel"
+        >
+          Show top users
+        </button>
+      </div>
     </section>
+    <div class="top-users-panel" data-top-users-panel id="topUsersPanel" hidden>
+      <section class="group-card" aria-label="Top users">
+        <div class="group-header">
+          <h2>Top users by total actions</h2>
+          <p class="muted">Reflects current filters; capped at 20 users.</p>
+        </div>
+        <div class="top-users" data-top-users></div>
+        <button type="button" class="view-more-button" data-top-users-toggle hidden aria-expanded="false">Show remaining users</button>
+      </section>
+    </div>
     <div data-agent-hub-anchor></div>
   </main>
   <footer class="page-footer">

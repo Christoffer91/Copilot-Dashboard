@@ -1223,14 +1223,27 @@
           }
       
           function updateThemeToggleUI() {
-            const isDark = state.theme === "dark";
+            const themeId = normalizeThemeId(state.theme);
+            const themeDefinition = THEME_BY_ID.get(themeId) || THEME_BY_ID.get(DEFAULT_LIGHT_THEME_ID);
+            const isDark = themeDefinition?.scheme === "dark";
+
             if (dom.themeToggle) {
               dom.themeToggle.setAttribute("aria-pressed", String(isDark));
-              dom.themeToggle.textContent = isDark ? "Disable dark mode" : "Enable dark mode";
+            }
+
+            if (dom.themeLabel && themeDefinition) {
+              dom.themeLabel.textContent = themeDefinition.label;
+            }
+
+            if (dom.themeOptions && dom.themeOptions.length) {
+              dom.themeOptions.forEach(option => {
+                const optionTheme = option.getAttribute("data-theme");
+                option.classList.toggle("is-active", optionTheme === themeId);
+              });
             }
             if (dom.floatingThemeToggle && dom.floatingThemeIcon) {
               dom.floatingThemeToggle.setAttribute("aria-pressed", String(isDark));
-              dom.floatingThemeToggle.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+              dom.floatingThemeToggle.setAttribute("aria-label", isDark ? "Switch to a light theme" : "Switch to a dark theme");
               // If we're currently in dark mode, show a sun (switch to light).
               // If we're currently in light mode, show a moon (switch to dark).
               const sunIcon = '<svg viewBox="0 0 24 24" role="img" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path></svg>';
@@ -1245,6 +1258,10 @@
             }
             try {
               localStorage.setItem(THEME_STORAGE_KEY, theme);
+
+              const scheme = isDarkTheme(theme) ? "dark" : "light";
+              const schemeKey = scheme === "dark" ? LAST_DARK_THEME_STORAGE_KEY : LAST_LIGHT_THEME_STORAGE_KEY;
+              localStorage.setItem(schemeKey, theme);
             } catch (error) {
               logWarn("Unable to store theme preference", error);
             }
@@ -1256,8 +1273,21 @@
             }
             try {
               const stored = localStorage.getItem(THEME_STORAGE_KEY);
-              if (stored === "dark" || stored === "light") {
-                return stored;
+              if (!stored) {
+                return null;
+              }
+
+              // Backwards compatibility with the earlier dark/light-only toggle.
+              if (stored === "dark") {
+                return DEFAULT_DARK_THEME_ID;
+              }
+              if (stored === "light") {
+                return DEFAULT_LIGHT_THEME_ID;
+              }
+
+              const normalized = normalizeThemeId(stored);
+              if (THEME_BY_ID.has(normalized)) {
+                return normalized;
               }
             } catch (error) {
               logWarn("Unable to read stored theme preference", error);
@@ -1266,15 +1296,236 @@
           }
       
           function applyTheme(theme, { persist = true } = {}) {
-            const normalized = theme === "dark" ? "dark" : "light";
-            state.theme = normalized;
-            document.body.classList.toggle("is-dark", normalized === "dark");
+            const normalized = normalizeThemeId(theme);
+            const themeDefinition = THEME_BY_ID.get(normalized) || THEME_BY_ID.get(DEFAULT_LIGHT_THEME_ID);
+            const scheme = themeDefinition?.scheme === "dark" ? "dark" : "light";
+
+            state.theme = themeDefinition?.id || DEFAULT_LIGHT_THEME_ID;
+
+            document.body.classList.toggle("is-dark", scheme === "dark");
+
+            document.body.classList.remove(
+              "is-light-base",
+              "is-light-cool",
+              "is-dark-carbon",
+              "is-dark-cyberpunk",
+              "is-dark-neon",
+              "is-dark-sunset",
+              "is-custom-theme"
+            );
+            
+            // Remove any custom CSS variables
+            document.body.style.removeProperty('--accent-primary');
+            document.body.style.removeProperty('--accent-primary-rgb');
+            document.body.style.removeProperty('--text-body');
+            document.body.style.removeProperty('--text-muted');
+            document.body.style.removeProperty('background');
+            
+            if (themeDefinition?.bodyClass) {
+              document.body.classList.add(themeDefinition.bodyClass);
+            }
+            
+            // Apply custom theme colors if custom theme is selected
+            if (normalized === 'custom') {
+              applyCustomThemeColors();
+            }
+
             updateThemeToggleUI();
             applyChartThemeStyles();
             refreshTrendColors();
             if (persist) {
-              persistThemePreference(normalized);
+              persistThemePreference(state.theme);
             }
+          }
+          
+          function applyCustomThemeColors() {
+            const customColors = loadCustomThemeColors();
+            const { accent, bg, text } = customColors;
+            
+            // Parse hex to RGB for accent
+            const accentRgb = hexToRgb(accent);
+            
+            document.body.style.setProperty('--accent-primary', accent);
+            document.body.style.setProperty('--accent-primary-rgb', `${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}`);
+            document.body.style.setProperty('--text-body', text);
+            document.body.style.setProperty('--text-muted', adjustBrightness(text, -30));
+            document.body.style.setProperty('background', `linear-gradient(180deg, ${bg} 0%, ${adjustBrightness(bg, 10)} 100%)`);
+            
+            // Update custom preview swatch
+            const previewEl = document.querySelector('.theme-option-preview--custom');
+            if (previewEl) {
+              previewEl.style.background = `linear-gradient(135deg, ${bg} 0%, ${accent} 100%)`;
+            }
+          }
+          
+          function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+              r: parseInt(result[1], 16),
+              g: parseInt(result[2], 16),
+              b: parseInt(result[3], 16)
+            } : { r: 0, g: 0, b: 0 };
+          }
+          
+          function adjustBrightness(hex, percent) {
+            const rgb = hexToRgb(hex);
+            const adjust = (c) => Math.min(255, Math.max(0, Math.round(c + (255 * percent / 100))));
+            const r = adjust(rgb.r).toString(16).padStart(2, '0');
+            const g = adjust(rgb.g).toString(16).padStart(2, '0');
+            const b = adjust(rgb.b).toString(16).padStart(2, '0');
+            return `#${r}${g}${b}`;
+          }
+          
+          function loadCustomThemeColors() {
+            const defaults = { accent: '#ff6b35', bg: '#1a1a2e', text: '#eaeaea' };
+            if (!window.localStorage) return defaults;
+            try {
+              const stored = localStorage.getItem(CUSTOM_THEME_STORAGE_KEY);
+              if (stored) {
+                return { ...defaults, ...JSON.parse(stored) };
+              }
+            } catch (e) {
+              logWarn('Failed to load custom theme colors', e);
+            }
+            return defaults;
+          }
+          
+          function saveCustomThemeColors(colors) {
+            if (!window.localStorage) return;
+            try {
+              localStorage.setItem(CUSTOM_THEME_STORAGE_KEY, JSON.stringify(colors));
+            } catch (e) {
+              logWarn('Failed to save custom theme colors', e);
+            }
+          }
+
+          function normalizeThemeId(themeId) {
+            if (typeof themeId !== "string" || !themeId) {
+              return DEFAULT_LIGHT_THEME_ID;
+            }
+            if (themeId === "dark") {
+              return DEFAULT_DARK_THEME_ID;
+            }
+            if (themeId === "light") {
+              return DEFAULT_LIGHT_THEME_ID;
+            }
+            return THEME_BY_ID.has(themeId) ? themeId : DEFAULT_LIGHT_THEME_ID;
+          }
+
+          function isDarkTheme(themeId) {
+            const normalized = normalizeThemeId(themeId);
+            const definition = THEME_BY_ID.get(normalized);
+            return definition?.scheme === "dark";
+          }
+
+          function loadLastThemeForScheme(scheme) {
+            if (!window.localStorage) {
+              return scheme === "dark" ? DEFAULT_DARK_THEME_ID : DEFAULT_LIGHT_THEME_ID;
+            }
+            const key = scheme === "dark" ? LAST_DARK_THEME_STORAGE_KEY : LAST_LIGHT_THEME_STORAGE_KEY;
+            try {
+              const stored = localStorage.getItem(key);
+              const normalized = normalizeThemeId(stored);
+              const definition = THEME_BY_ID.get(normalized);
+              if (definition && definition.scheme === scheme) {
+                return normalized;
+              }
+            } catch (error) {
+              logWarn("Unable to read last theme for scheme", error);
+            }
+            return scheme === "dark" ? DEFAULT_DARK_THEME_ID : DEFAULT_LIGHT_THEME_ID;
+          }
+
+          let themeMenuOriginalParent = null;
+
+          function setThemeMenuOpen(isOpen) {
+            if (!dom.themeToggle || !dom.themeMenu) {
+              return;
+            }
+            dom.themeToggle.setAttribute("aria-expanded", String(isOpen));
+            if (isOpen) {
+              // Move menu to body to escape stacking context issues
+              themeMenuOriginalParent = dom.themeMenu.parentElement;
+              document.body.appendChild(dom.themeMenu);
+              dom.themeMenu.removeAttribute("hidden");
+              positionThemeMenu();
+              updateThemeToggleUI();
+            } else {
+              dom.themeMenu.setAttribute("hidden", "");
+              resetThemeMenuPosition();
+              // Move menu back to original location
+              if (themeMenuOriginalParent && dom.themeMenu.parentElement === document.body) {
+                themeMenuOriginalParent.appendChild(dom.themeMenu);
+              }
+            }
+          }
+
+          function resetThemeMenuPosition() {
+            if (!dom.themeMenu) {
+              return;
+            }
+            dom.themeMenu.style.position = "";
+            dom.themeMenu.style.top = "";
+            dom.themeMenu.style.left = "";
+            dom.themeMenu.style.right = "";
+            dom.themeMenu.style.bottom = "";
+            dom.themeMenu.style.maxHeight = "";
+          }
+
+          function positionThemeMenu() {
+            if (!dom.themeToggle || !dom.themeMenu) {
+              return;
+            }
+
+            const menu = dom.themeMenu;
+            const button = dom.themeToggle;
+            const margin = 12;
+
+            // Ensure the menu is measured as displayed.
+            menu.style.position = "fixed";
+            menu.style.left = "0px";
+            menu.style.top = "0px";
+            menu.style.right = "";
+            menu.style.bottom = "";
+
+            requestAnimationFrame(() => {
+              const buttonRect = button.getBoundingClientRect();
+              const menuRect = menu.getBoundingClientRect();
+              const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+              const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+
+              let left = buttonRect.left;
+              left = Math.max(margin, Math.min(left, viewportWidth - menuRect.width - margin));
+
+              const spaceBelow = viewportHeight - buttonRect.bottom - margin;
+              const spaceAbove = buttonRect.top - margin;
+
+              const openAbove = spaceBelow < 220 && spaceAbove > spaceBelow;
+              let top;
+              if (openAbove) {
+                top = Math.max(margin, buttonRect.top - menuRect.height - 10);
+                menu.style.maxHeight = `${Math.max(220, spaceAbove)}px`;
+              } else {
+                top = Math.min(viewportHeight - menuRect.height - margin, buttonRect.bottom + 10);
+                top = Math.max(margin, top);
+                menu.style.maxHeight = `${Math.max(220, spaceBelow)}px`;
+              }
+
+              menu.style.left = `${Math.round(left)}px`;
+              menu.style.top = `${Math.round(top)}px`;
+            });
+          }
+
+          function closeThemeMenu() {
+            setThemeMenuOpen(false);
+          }
+
+          function toggleThemeMenu() {
+            if (!dom.themeToggle || !dom.themeMenu) {
+              return;
+            }
+            const expanded = dom.themeToggle.getAttribute("aria-expanded") === "true";
+            setThemeMenuOpen(!expanded);
           }
           if (!(state.filters.categorySelection instanceof Set)) {
             state.filters.categorySelection = new Set(defaultCategorySelection);
@@ -1457,6 +1708,14 @@
             metaRange: document.querySelector("[data-meta-range]"),
             metaOrgs: document.querySelector("[data-meta-orgs]"),
             themeToggle: document.querySelector("[data-theme-toggle]"),
+            themeLabel: document.querySelector("[data-theme-label]"),
+            themeMenu: document.querySelector("[data-theme-menu]"),
+            themeMenuClose: document.querySelector("[data-theme-menu-close]"),
+            themeOptions: Array.from(document.querySelectorAll(".theme-option[data-theme]")),
+            customThemeEditor: document.querySelector("[data-custom-theme-editor]"),
+            customAccentInput: document.querySelector("[data-custom-accent]"),
+            customBgInput: document.querySelector("[data-custom-bg]"),
+            customTextInput: document.querySelector("[data-custom-text]"),
             floatingThemeToggle: document.querySelector("[data-floating-theme-toggle]"),
             floatingThemeIcon: document.querySelector("[data-floating-theme-icon]"),
             organizationFieldSelect: document.querySelector("[data-filter-organization-field]"),
@@ -1885,6 +2144,23 @@ USR-007,Northwind Ops,Finland,ops.northwind,2025-01-19,196,47.3,20,53,61,66,1
 USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
           const CSV_DELIMITER_CANDIDATES = [";", ",", "\t", "|"];
           const THEME_STORAGE_KEY = 'copilotDashboardTheme';
+          const LAST_LIGHT_THEME_STORAGE_KEY = 'copilotDashboardThemeLastLight';
+          const LAST_DARK_THEME_STORAGE_KEY = 'copilotDashboardThemeLastDark';
+          const DEFAULT_LIGHT_THEME_ID = 'light';
+          const DEFAULT_DARK_THEME_ID = 'dark-midnight';
+
+          const THEME_DEFINITIONS = [
+            { id: 'light', label: 'Light', scheme: 'light', bodyClass: 'is-light-base' },
+            { id: 'light-cool', label: 'Cool Light', scheme: 'light', bodyClass: 'is-light-cool' },
+            { id: 'dark-midnight', label: 'Midnight Dark', scheme: 'dark', bodyClass: null },
+            { id: 'dark-carbon', label: 'Carbon Black', scheme: 'dark', bodyClass: 'is-dark-carbon' },
+            { id: 'dark-cyberpunk', label: 'Cyberpunk', scheme: 'dark', bodyClass: 'is-dark-cyberpunk' },
+            { id: 'dark-neon', label: 'Neon', scheme: 'dark', bodyClass: 'is-dark-neon' },
+            { id: 'dark-sunset', label: 'Sunset', scheme: 'dark', bodyClass: 'is-dark-sunset' },
+            { id: 'custom', label: 'Custom', scheme: 'dark', bodyClass: 'is-custom-theme' }
+          ];
+          const THEME_BY_ID = new Map(THEME_DEFINITIONS.map(theme => [theme.id, theme]));
+          const CUSTOM_THEME_STORAGE_KEY = 'copilotDashboardCustomTheme';
           const DEFAULT_ADOPTION_COLOR = '#008A00';
           const DATA_DB_NAME = 'copilotDashboardDB';
           const DATA_DB_STORE = 'datasets';
@@ -2917,16 +3193,109 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
           }
       
           if (dom.themeToggle) {
-            dom.themeToggle.addEventListener("click", () => {
-              const nextTheme = state.theme === "dark" ? "light" : "dark";
-              applyTheme(nextTheme);
-              renderDashboard();
+            dom.themeToggle.addEventListener("click", event => {
+              event.preventDefault();
+              toggleThemeMenu();
             });
           }
 
+          if (dom.themeMenuClose) {
+            dom.themeMenuClose.addEventListener("click", event => {
+              event.preventDefault();
+              closeThemeMenu();
+            });
+          }
+
+          if (dom.themeOptions && dom.themeOptions.length) {
+            dom.themeOptions.forEach(option => {
+              option.addEventListener("click", event => {
+                event.preventDefault();
+                event.stopPropagation();
+                const selected = option.getAttribute("data-theme");
+                if (!selected) {
+                  return;
+                }
+                applyTheme(selected);
+                
+                // Show/hide custom theme editor
+                if (dom.customThemeEditor) {
+                  dom.customThemeEditor.classList.toggle('is-visible', selected === 'custom');
+                }
+                
+                // Don't close menu for custom theme - let user pick colors
+                if (selected !== 'custom') {
+                  closeThemeMenu();
+                }
+                renderDashboard();
+              });
+            });
+          }
+          
+          // Custom theme color pickers
+          function setupCustomColorInput(input, colorKey) {
+            if (!input) return;
+            const colors = loadCustomThemeColors();
+            input.value = colors[colorKey];
+            input.addEventListener('input', () => {
+              const currentColors = loadCustomThemeColors();
+              currentColors[colorKey] = input.value;
+              saveCustomThemeColors(currentColors);
+              if (state.theme === 'custom') {
+                applyCustomThemeColors();
+                renderDashboard();
+              }
+            });
+          }
+          
+          setupCustomColorInput(dom.customAccentInput, 'accent');
+          setupCustomColorInput(dom.customBgInput, 'bg');
+          setupCustomColorInput(dom.customTextInput, 'text');
+          
+          // Show custom editor if custom theme is active on load
+          if (dom.customThemeEditor && state.theme === 'custom') {
+            dom.customThemeEditor.classList.add('is-visible');
+          }
+
+          document.addEventListener("click", event => {
+            if (!dom.themeMenu || dom.themeMenu.hasAttribute("hidden")) {
+              return;
+            }
+            const target = event.target;
+            if (!(target instanceof Node)) {
+              return;
+            }
+            if (dom.themeMenu.contains(target) || (dom.themeToggle && dom.themeToggle.contains(target))) {
+              return;
+            }
+            closeThemeMenu();
+          });
+
+          document.addEventListener("keydown", event => {
+            if (event.key !== "Escape") {
+              return;
+            }
+            closeThemeMenu();
+          });
+
+          window.addEventListener("resize", () => {
+            if (!dom.themeMenu || dom.themeMenu.hasAttribute("hidden")) {
+              return;
+            }
+            positionThemeMenu();
+          });
+
+          window.addEventListener("scroll", () => {
+            if (!dom.themeMenu || dom.themeMenu.hasAttribute("hidden")) {
+              return;
+            }
+            positionThemeMenu();
+          }, { passive: true });
+
           if (dom.floatingThemeToggle) {
             dom.floatingThemeToggle.addEventListener("click", () => {
-              const nextTheme = state.theme === "dark" ? "light" : "dark";
+              const nextTheme = isDarkTheme(state.theme)
+                ? loadLastThemeForScheme("light")
+                : loadLastThemeForScheme("dark");
               applyTheme(nextTheme);
               renderDashboard();
             });

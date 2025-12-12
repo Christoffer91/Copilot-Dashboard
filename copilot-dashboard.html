@@ -26,7 +26,7 @@
     crossorigin="anonymous"
     integrity="sha384-STiTZ2kjdnc/em4jSELZZ6VypRToc92cA0m6Nppx3J8C4mt0fjMNUm1xnm1yoP96"
   />
-  <link rel="stylesheet" href="assets/copilot-dashboard.css" />
+  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20251212-3" />
   <script
     src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
     crossorigin="anonymous"
@@ -149,6 +149,36 @@
                   <span class="theme-option-preview theme-option-preview--dark-carbon"></span>
                   <span class="theme-option-name">Carbon Black</span>
                 </button>
+                <button type="button" class="theme-option" data-theme="dark-cyberpunk" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--dark-cyberpunk"></span>
+                  <span class="theme-option-name">Cyberpunk</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="dark-neon" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--dark-neon"></span>
+                  <span class="theme-option-name">Neon</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="dark-sunset" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--dark-sunset"></span>
+                  <span class="theme-option-name">Sunset</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="custom" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--custom"></span>
+                  <span class="theme-option-name">Custom</span>
+                </button>
+              </div>
+              <div class="custom-theme-editor" data-custom-theme-editor>
+                <div class="custom-color-row">
+                  <span class="custom-color-label">Accent color</span>
+                  <input type="color" class="custom-color-input" data-custom-accent value="#ff6b35" />
+                </div>
+                <div class="custom-color-row">
+                  <span class="custom-color-label">Background</span>
+                  <input type="color" class="custom-color-input" data-custom-bg value="#1a1a2e" />
+                </div>
+                <div class="custom-color-row">
+                  <span class="custom-color-label">Text color</span>
+                  <input type="color" class="custom-color-input" data-custom-text value="#eaeaea" />
+                </div>
               </div>
             </div>
           </div>
@@ -1061,6 +1091,6 @@
   ></script>
   <script defer src="assets/sharepoint-static-assets.js"></script>
   <script defer src="assets/vendor/fflate.min.js"></script>
-  <script defer src="assets/copilot-dashboard.js"></script>
+  <script defer src="assets/copilot-dashboard.js?v=20251212-3"></script>
 </body>
 </html>

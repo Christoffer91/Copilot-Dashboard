@@ -8,6 +8,7 @@ A client-only dashboard for exploring Viva Insights Copilot CSV exports: filter 
 ## Features
 - Upload Viva Insights Copilot CSVs (sample included at `samples/copilot-sample.csv`).
 - Rich filters, multi-metric charts, agent hub tables, theme toggles, and per-capability insights.
+- **Theme system**: 7 built-in themes (Light, Cool Light, Midnight Dark, Carbon Black, Cyberpunk, Neon, Sunset) + custom color picker.
 - Exports: PNG/PDF, Excel summaries, encrypted snapshots, and SharePoint bundle generator.
 - Privacy-first: processing happens in the browser; local caching is opt-in each session.
 
@@ -79,3 +80,14 @@ The author and AI assistants are not liable for any damages or losses arising fr
 ## License
 Copyright (c) 2025 Christoffer Besler Hansen.  
 Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
+
+## Changelog
+
+### 2025-12-12
+- **Theme system overhaul**: Added 7 built-in themes + custom color picker
+  - Keep: Light, Cool Light, Midnight Dark, Carbon Black
+  - Added "crazy" themes: Cyberpunk (pink/cyan), Neon (matrix green), Sunset (orange/purple gradient)
+  - Custom theme with user-defined accent, background, and text colors
+  - All themes saved to localStorage and persist across sessions
+- Fixed theme "bleeding" issue where background gradients persisted when switching themes
+- Security review documentation added to README

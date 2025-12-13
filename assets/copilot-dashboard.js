@@ -28,6 +28,21 @@
           let bufferedSampleCsv = null;
           let bufferedCsvText = null;
           let filterPreferencesApplied = false;
+          
+          // Debounce utility for filter updates
+          function debounce(fn, delay) {
+            let timeoutId = null;
+            return function(...args) {
+              if (timeoutId) clearTimeout(timeoutId);
+              timeoutId = setTimeout(() => fn.apply(this, args), delay);
+            };
+          }
+          
+          // Debounced render for filter changes
+          const debouncedRenderDashboard = debounce(() => {
+            renderDashboard();
+            persistFilterPreferences();
+          }, 150);
       
           const numberFormatter = new Intl.NumberFormat("en-US");
           const hoursFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1, minimumFractionDigits: 0 });
@@ -1718,6 +1733,11 @@
             customTextInput: document.querySelector("[data-custom-text]"),
             floatingThemeToggle: document.querySelector("[data-floating-theme-toggle]"),
             floatingThemeIcon: document.querySelector("[data-floating-theme-icon]"),
+            controlPanel: document.querySelector(".control-panel"),
+            stickyFilterBar: document.querySelector("[data-sticky-filter-bar]"),
+            stickyFilterSummary: document.querySelector("[data-sticky-filter-summary]"),
+            stickyFilterBtn: document.querySelector("[data-sticky-filter-btn]"),
+            stickyFilterDropdown: document.querySelector("[data-sticky-filter-dropdown]"),
             organizationFieldSelect: document.querySelector("[data-filter-organization-field]"),
             organizationFilter: document.querySelector("[data-filter-organization]"),
             countryFieldSelect: document.querySelector("[data-filter-country-field]"),
@@ -3405,17 +3425,129 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             const selections = extractMultiSelectValues(dom.organizationFilter);
             state.filters.organization = new Set(selections);
             syncMultiSelect(dom.organizationFilter, state.filters.organization);
-            renderDashboard();
-            persistFilterPreferences();
+            debouncedRenderDashboard();
           });
 
           dom.countryFilter.addEventListener("change", () => {
             const selections = extractMultiSelectValues(dom.countryFilter);
             state.filters.country = new Set(selections);
             syncMultiSelect(dom.countryFilter, state.filters.country);
-            renderDashboard();
-            persistFilterPreferences();
+            debouncedRenderDashboard();
           });
+          
+          // Sticky filter bar - appears after scrolling past control panel
+          if (dom.controlPanel && dom.stickyFilterBar && dom.stickyFilterDropdown) {
+            dom.stickyFilterBar.hidden = false; // Enable but keep invisible via CSS
+            dom.stickyFilterDropdown.hidden = false;
+            
+            // Clone filter controls into dropdown (excluding active-filters-summary)
+            const cloneFilters = () => {
+              dom.stickyFilterDropdown.innerHTML = "";
+              const controls = dom.controlPanel.querySelectorAll(".control-select");
+              controls.forEach(control => {
+                const clone = control.cloneNode(true);
+                dom.stickyFilterDropdown.appendChild(clone);
+              });
+              
+              // Sync cloned selects with originals
+              const syncClonedFilters = () => {
+                const clonedOrg = dom.stickyFilterDropdown.querySelector("[data-filter-organization]");
+                const clonedCountry = dom.stickyFilterDropdown.querySelector("[data-filter-country]");
+                const clonedTimeframe = dom.stickyFilterDropdown.querySelector("[data-filter-timeframe]");
+                
+                if (clonedOrg && dom.organizationFilter) {
+                  Array.from(clonedOrg.options).forEach((opt, i) => {
+                    opt.selected = dom.organizationFilter.options[i]?.selected || false;
+                  });
+                  clonedOrg.addEventListener("change", () => {
+                    Array.from(dom.organizationFilter.options).forEach((opt, i) => {
+                      opt.selected = clonedOrg.options[i]?.selected || false;
+                    });
+                    dom.organizationFilter.dispatchEvent(new Event("change"));
+                  });
+                }
+                
+                if (clonedCountry && dom.countryFilter) {
+                  Array.from(clonedCountry.options).forEach((opt, i) => {
+                    opt.selected = dom.countryFilter.options[i]?.selected || false;
+                  });
+                  clonedCountry.addEventListener("change", () => {
+                    Array.from(dom.countryFilter.options).forEach((opt, i) => {
+                      opt.selected = clonedCountry.options[i]?.selected || false;
+                    });
+                    dom.countryFilter.dispatchEvent(new Event("change"));
+                  });
+                }
+                
+                if (clonedTimeframe && dom.timeframeFilter) {
+                  clonedTimeframe.value = dom.timeframeFilter.value;
+                  clonedTimeframe.addEventListener("change", () => {
+                    dom.timeframeFilter.value = clonedTimeframe.value;
+                    dom.timeframeFilter.dispatchEvent(new Event("change"));
+                  });
+                }
+              };
+              syncClonedFilters();
+            };
+            
+            // Update summary text
+            const updateStickyFilterSummary = () => {
+              if (!dom.stickyFilterSummary) return;
+              const orgCount = state.filters.organization.size;
+              const countryCount = state.filters.country.size;
+              const parts = [];
+              if (orgCount > 0 && !state.filters.organization.has("all")) {
+                parts.push(`${orgCount} org${orgCount > 1 ? "s" : ""}`);
+              }
+              if (countryCount > 0 && !state.filters.country.has("all")) {
+                parts.push(`${countryCount} region${countryCount > 1 ? "s" : ""}`);
+              }
+              dom.stickyFilterSummary.textContent = parts.length ? parts.join(", ") + " selected" : "All data";
+            };
+            
+            const stickyObserver = new IntersectionObserver(
+              ([entry]) => {
+                const shouldShow = !entry.isIntersecting && entry.boundingClientRect.bottom < 0;
+                dom.stickyFilterBar.classList.toggle("is-visible", shouldShow);
+                
+                if (shouldShow) {
+                  updateStickyFilterSummary();
+                } else {
+                  // Close dropdown when scrolling back up
+                  dom.stickyFilterDropdown.classList.remove("is-open");
+                  dom.stickyFilterBtn.classList.remove("is-open");
+                  dom.stickyFilterBtn.textContent = "Show filters ▼";
+                }
+              },
+              { threshold: 0, rootMargin: "0px" }
+            );
+            stickyObserver.observe(dom.controlPanel);
+            
+            // Toggle dropdown
+            let dropdownInitialized = false;
+            if (dom.stickyFilterBtn) {
+              dom.stickyFilterBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const isOpen = dom.stickyFilterDropdown.classList.toggle("is-open");
+                dom.stickyFilterBtn.classList.toggle("is-open", isOpen);
+                dom.stickyFilterBtn.textContent = isOpen ? "Hide filters ▲" : "Show filters ▼";
+                
+                if (isOpen && !dropdownInitialized) {
+                  cloneFilters();
+                  dropdownInitialized = true;
+                }
+              });
+            }
+            
+            // Close dropdown when clicking outside
+            document.addEventListener("click", (e) => {
+              if (!dom.stickyFilterBar.contains(e.target)) {
+                dom.stickyFilterDropdown.classList.remove("is-open");
+                dom.stickyFilterBtn.classList.remove("is-open");
+                dom.stickyFilterBtn.textContent = "Show filters ▼";
+              }
+            });
+          }
       
           dom.timeframeFilter.addEventListener("change", () => {
             state.filters.timeframe = dom.timeframeFilter.value;

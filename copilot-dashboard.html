@@ -26,7 +26,7 @@
     crossorigin="anonymous"
     integrity="sha384-STiTZ2kjdnc/em4jSELZZ6VypRToc92cA0m6Nppx3J8C4mt0fjMNUm1xnm1yoP96"
   />
-  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20251212-3" />
+  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20251212-8" />
   <script
     src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
     crossorigin="anonymous"
@@ -71,6 +71,12 @@
   </button>
   <a href="#impact" class="skip-link">Skip to main content</a>
   <div class="toast-container" data-toast-container></div>
+  <div class="sticky-filter-bar" data-sticky-filter-bar hidden>
+    <span class="sticky-filter-bar__label">Filters</span>
+    <span class="sticky-filter-bar__summary" data-sticky-filter-summary></span>
+    <button type="button" class="sticky-filter-bar__btn" data-sticky-filter-btn>Show filters ▼</button>
+    <div class="sticky-filter-dropdown" data-sticky-filter-dropdown hidden></div>
+  </div>
   <main>
     <header class="page-header" id="impact">
       <article class="intro-card">
@@ -1091,6 +1097,6 @@
   ></script>
   <script defer src="assets/sharepoint-static-assets.js"></script>
   <script defer src="assets/vendor/fflate.min.js"></script>
-  <script defer src="assets/copilot-dashboard.js?v=20251212-3"></script>
+  <script defer src="assets/copilot-dashboard.js?v=20251212-8"></script>
 </body>
 </html>

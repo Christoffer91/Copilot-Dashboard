@@ -27,7 +27,7 @@
     crossorigin="anonymous"
     integrity="sha384-STiTZ2kjdnc/em4jSELZZ6VypRToc92cA0m6Nppx3J8C4mt0fjMNUm1xnm1yoP96"
   />
-  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20251226-2" />
+  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20251226-5" />
   <script
     src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
     crossorigin="anonymous"
@@ -70,7 +70,7 @@
   <div class="sticky-filter-bar" data-sticky-filter-bar hidden>
     <span class="sticky-filter-bar__label">Filters</span>
     <span class="sticky-filter-bar__summary" data-sticky-filter-summary></span>
-    <button type="button" class="sticky-filter-bar__btn" data-sticky-filter-btn>Show filters ▼</button>
+    <button type="button" class="sticky-filter-bar__btn" data-sticky-filter-btn>Show filters &#9660;</button>
     <div class="sticky-filter-dropdown" data-sticky-filter-dropdown hidden></div>
   </div>
   <main>
@@ -107,9 +107,7 @@
         </div>
         <div class="upload-status" role="status" aria-live="polite" data-upload-status>Waiting for your data.</div>
         <div class="post-upload-cta" data-post-upload-cta hidden aria-label="Next steps">
-          <button type="button" class="upload-button" data-post-upload-excel>Download report (Excel)</button>
-          <button type="button" class="upload-button upload-button--ghost" data-post-upload-copy-summary hidden>Copy summary</button>
-          <button type="button" class="upload-button upload-button--ghost" data-post-upload-more>More export options</button>
+          <button type="button" class="upload-button" data-post-upload-export>Export &#9660;</button>
         </div>
       </article>
       <aside class="dataset-card" role="complementary" aria-label="Dataset information">
@@ -381,24 +379,15 @@
       <button type="button" class="trend-view-button" data-trend-view="average" aria-pressed="false">Avg per user</button>
     </div>
     <div class="series-toggle-rail" data-series-toggle-group aria-label="Series visibility toggles"></div>
-        <div class="export-controls" data-export-controls aria-label="Export results">
-          <div class="export-quick" role="group" aria-label="Quick exports">
-            <button type="button" class="export-quick-button" data-export-quick-excel>Excel full report</button>
-            <button type="button" class="export-quick-button export-quick-button--ghost" data-export-quick-csv>CSV</button>
-            <button type="button" class="export-quick-button export-quick-button--ghost" data-export-quick-pdf>PDF</button>
-            <button type="button" class="export-quick-button export-quick-button--ghost" data-export-copy-summary hidden>Copy summary</button>
-            <button type="button" class="export-quick-button export-quick-button--ghost" data-export-copy-image hidden>Copy image</button>
-            <button type="button" class="export-trigger" data-export-trigger aria-haspopup="true" aria-expanded="false">More options</button>
-          </div>
+        <div class="export-controls" data-export-controls aria-label="Export">
+          <button type="button" class="export-trigger" data-export-trigger aria-haspopup="true" aria-expanded="false">Export &#9660;</button>
           <div class="export-menu" data-export-menu hidden role="menu">
+            <button type="button" data-export-excel-full role="menuitem">Download full report (Excel)</button>
+            <button type="button" data-export-excel role="menuitem">Download totals (Excel)</button>
             <button type="button" data-export-pdf role="menuitem">Download PDF report</button>
             <button type="button" data-export-csv role="menuitem">Download CSV (trend data)</button>
             <button type="button" data-export-png role="menuitem">Download PNG</button>
-            <button type="button" data-export-copy-summary role="menuitem">Copy summary</button>
-            <button type="button" data-export-copy-image role="menuitem">Copy image (trend)</button>
             <button type="button" data-export-video role="menuitem">Download animation</button>
-            <button type="button" data-export-excel role="menuitem">Download totals (Excel)</button>
-            <button type="button" data-export-excel-full role="menuitem">Download full report (Excel)</button>
             <label class="export-option" data-export-include-details-wrapper>
               <input type="checkbox" data-export-include-details checked />
               Include category detail lines
@@ -866,7 +855,7 @@
       </header>
       <div class="enabled-licenses-controls">
         <div class="export-controls" data-enabled-licenses-export-controls>
-          <button type="button" class="export-trigger" data-enabled-licenses-export-trigger aria-haspopup="true" aria-expanded="false">Export</button>
+          <button type="button" class="export-trigger" data-enabled-licenses-export-trigger aria-haspopup="true" aria-expanded="false">Export &#9660;</button>
           <div class="export-menu" data-enabled-licenses-export-menu hidden role="menu">
             <button type="button" data-enabled-licenses-export-transparent role="menuitem">PNG (transparent)</button>
             <button type="button" data-enabled-licenses-export-white role="menuitem">PNG (white bg)</button>
@@ -1108,6 +1097,6 @@
   ></script>
   <script defer src="assets/sharepoint-static-assets.js"></script>
   <script defer src="assets/vendor/fflate.min.js"></script>
-  <script defer src="assets/copilot-dashboard.js?v=20251226-2"></script>
+  <script defer src="assets/copilot-dashboard.js?v=20251226-5"></script>
 </body>
 </html>

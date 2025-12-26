@@ -1721,9 +1721,7 @@
             uploadProgressBar: document.querySelector("[data-upload-progress-bar]"),
             uploadCancel: document.querySelector("[data-upload-cancel]"),
             postUploadCta: document.querySelector("[data-post-upload-cta]"),
-            postUploadExcel: document.querySelector("[data-post-upload-excel]"),
-            postUploadCopySummary: document.querySelector("[data-post-upload-copy-summary]"),
-            postUploadMore: document.querySelector("[data-post-upload-more]"),
+            postUploadExport: document.querySelector("[data-post-upload-export]"),
             datasetMessage: document.querySelector("[data-dataset-message]"),
             datasetMetaWrapper: document.querySelector("[data-dataset-meta]"),
             metaRecords: document.querySelector("[data-meta-records]"),
@@ -1779,14 +1777,9 @@
             exportControls: document.querySelector("[data-export-controls]"),
             exportTrigger: document.querySelector("[data-export-trigger]"),
             exportMenu: document.querySelector("[data-export-menu]"),
-            exportQuickExcelFull: document.querySelector("[data-export-quick-excel]"),
-            exportQuickCsv: document.querySelector("[data-export-quick-csv]"),
-            exportQuickPdf: document.querySelector("[data-export-quick-pdf]"),
             exportPDF: document.querySelector("[data-export-pdf]"),
             exportCSV: document.querySelector("[data-export-csv]"),
             exportPNG: document.querySelector("[data-export-png]"),
-            exportCopySummaryButtons: Array.from(document.querySelectorAll("[data-export-copy-summary]")),
-            exportCopyImageButtons: Array.from(document.querySelectorAll("[data-export-copy-image]")),
             exportVideo: document.querySelector("[data-export-video]"),
             exportExcel: document.querySelector("[data-export-excel]"),
             exportExcelFull: document.querySelector("[data-export-excel-full]"),
@@ -3453,6 +3446,21 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
           if (dom.controlPanel && dom.stickyFilterBar && dom.stickyFilterDropdown) {
             dom.stickyFilterBar.hidden = false; // Enable but keep invisible via CSS
             dom.stickyFilterDropdown.hidden = false;
+
+            const updateFloatingThemeToggleOffset = () => {
+              if (!dom.floatingThemeToggle) {
+                return;
+              }
+              const baseOffset = 16;
+              let topOffset = baseOffset;
+              if (dom.stickyFilterBar.classList.contains("is-visible")) {
+                const barHeight = dom.stickyFilterBar.getBoundingClientRect().height || dom.stickyFilterBar.offsetHeight || 0;
+                if (barHeight) {
+                  topOffset = Math.round(barHeight + baseOffset);
+                }
+              }
+              document.documentElement.style.setProperty("--floating-theme-toggle-top", `${topOffset}px`);
+            };
             
             // Clone filter controls into dropdown (excluding active-filters-summary)
             const cloneFilters = () => {
@@ -3523,6 +3531,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               ([entry]) => {
                 const shouldShow = !entry.isIntersecting && entry.boundingClientRect.bottom < 0;
                 dom.stickyFilterBar.classList.toggle("is-visible", shouldShow);
+                updateFloatingThemeToggleOffset();
                 
                 if (shouldShow) {
                   updateStickyFilterSummary();
@@ -3530,12 +3539,14 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                   // Close dropdown when scrolling back up
                   dom.stickyFilterDropdown.classList.remove("is-open");
                   dom.stickyFilterBtn.classList.remove("is-open");
-                  dom.stickyFilterBtn.textContent = "Show filters ▼";
+                  dom.stickyFilterBtn.textContent = `Show filters \u25BC`;
                 }
               },
               { threshold: 0, rootMargin: "0px" }
             );
             stickyObserver.observe(dom.controlPanel);
+            updateFloatingThemeToggleOffset();
+            window.addEventListener("resize", updateFloatingThemeToggleOffset);
             
             // Toggle dropdown
             let dropdownInitialized = false;
@@ -3544,7 +3555,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                 e.stopPropagation();
                 const isOpen = dom.stickyFilterDropdown.classList.toggle("is-open");
                 dom.stickyFilterBtn.classList.toggle("is-open", isOpen);
-                dom.stickyFilterBtn.textContent = isOpen ? "Hide filters ▲" : "Show filters ▼";
+                dom.stickyFilterBtn.textContent = isOpen ? `Hide filters \u25B2` : `Show filters \u25BC`;
                 
                 if (isOpen && !dropdownInitialized) {
                   cloneFilters();
@@ -3558,7 +3569,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               if (!dom.stickyFilterBar.contains(e.target)) {
                 dom.stickyFilterDropdown.classList.remove("is-open");
                 dom.stickyFilterBtn.classList.remove("is-open");
-                dom.stickyFilterBtn.textContent = "Show filters ▼";
+                dom.stickyFilterBtn.textContent = `Show filters \u25BC`;
               }
             });
           }
@@ -3845,77 +3856,8 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
           }
           updateExportDetailOption();
 
-          if (dom.exportQuickExcelFull) {
-            dom.exportQuickExcelFull.addEventListener("click", () => {
-              closeExportMenu();
-              void exportFullReportToExcel();
-            });
-          }
-
-          if (dom.exportQuickCsv) {
-            dom.exportQuickCsv.addEventListener("click", () => {
-              closeExportMenu();
-              void exportTrendDataToCsv();
-            });
-          }
-
-          if (dom.exportQuickPdf) {
-            dom.exportQuickPdf.addEventListener("click", () => {
-              closeExportMenu();
-              void exportDashboardToPDF();
-            });
-          }
-
-          if (dom.exportCopySummaryButtons && dom.exportCopySummaryButtons.length) {
-            const canCopySummary = supportsClipboardText();
-            dom.exportCopySummaryButtons.forEach(button => {
-              button.hidden = !canCopySummary;
-              if (canCopySummary) {
-                button.addEventListener("click", () => {
-                  closeExportMenu();
-                  void handleCopySummary();
-                });
-              }
-            });
-          }
-
-          if (dom.exportCopyImageButtons && dom.exportCopyImageButtons.length) {
-            const canCopyImage = supportsClipboardImage();
-            dom.exportCopyImageButtons.forEach(button => {
-              const isMenuItem = Boolean(button.closest && button.closest(".export-menu"));
-              if (!canCopyImage && isMenuItem) {
-                button.hidden = true;
-                return;
-              }
-              button.hidden = false;
-              button.textContent = canCopyImage
-                ? (isMenuItem ? "Copy image (trend)" : "Copy image")
-                : (isMenuItem ? "Download PNG (trend)" : "Download PNG");
-              button.addEventListener("click", () => {
-                closeExportMenu();
-                void handleCopyImageOrDownload();
-              });
-            });
-          }
-
-          if (dom.postUploadExcel) {
-            dom.postUploadExcel.addEventListener("click", () => {
-              void exportFullReportToExcel();
-            });
-          }
-
-          if (dom.postUploadCopySummary) {
-            const canCopySummary = supportsClipboardText();
-            dom.postUploadCopySummary.hidden = !canCopySummary;
-            if (canCopySummary) {
-              dom.postUploadCopySummary.addEventListener("click", () => {
-                void handleCopySummary();
-              });
-            }
-          }
-
-          if (dom.postUploadMore) {
-            dom.postUploadMore.addEventListener("click", () => {
+          if (dom.postUploadExport) {
+            dom.postUploadExport.addEventListener("click", () => {
               openExportMenuFromCta();
             });
           }
@@ -4729,31 +4671,16 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             window.setTimeout(hide, tone === "error" ? 7500 : 5200);
           }
 
-          function supportsClipboardText() {
-            return Boolean(window.isSecureContext && navigator.clipboard && typeof navigator.clipboard.writeText === "function");
-          }
-
-          function supportsClipboardImage() {
-            return Boolean(window.isSecureContext && navigator.clipboard && typeof navigator.clipboard.write === "function" && typeof window.ClipboardItem === "function");
-          }
-
-          async function copyTextToClipboard(text) {
-            if (!supportsClipboardText()) {
-              throw new Error("Clipboard text API is unavailable.");
-            }
-            await navigator.clipboard.writeText(text);
-          }
-
-          async function copyBlobToClipboard(blob) {
-            if (!supportsClipboardImage()) {
-              throw new Error("Clipboard image API is unavailable.");
-            }
-            const item = new ClipboardItem({ [blob.type || "image/png"]: blob });
-            await navigator.clipboard.write([item]);
-          }
-
           function supportsSaveFilePicker() {
             return Boolean(window.isSecureContext && typeof window.showSaveFilePicker === "function");
+          }
+
+          function hasUserActivation() {
+            try {
+              return Boolean(navigator.userActivation && navigator.userActivation.isActive);
+            } catch (error) {
+              return false;
+            }
           }
 
           async function saveBlobWithPicker(blob, suggestedName, { description = "File", accept = {} } = {}) {
@@ -4768,15 +4695,21 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
           }
 
           async function saveOrDownloadBlob(blob, filename, pickerOptions) {
-            if (supportsSaveFilePicker()) {
+            if (supportsSaveFilePicker() && hasUserActivation()) {
               try {
                 await saveBlobWithPicker(blob, filename, pickerOptions);
                 return { saved: true, canceled: false };
               } catch (error) {
-                if (error && (error.name === "AbortError" || error.name === "NotAllowedError")) {
+                if (error && error.name === "AbortError") {
                   return { saved: false, canceled: true };
                 }
-                throw error;
+                // If the picker isn't allowed (missing user gesture / policy), fall back to a normal download.
+                if (error && error.name === "NotAllowedError") {
+                  downloadBinaryFile(blob, filename, blob && blob.type ? blob.type : "application/octet-stream");
+                  return { saved: false, canceled: false };
+                }
+                downloadBinaryFile(blob, filename, blob && blob.type ? blob.type : "application/octet-stream");
+                return { saved: false, canceled: false };
               }
             }
             downloadBinaryFile(blob, filename, blob && blob.type ? blob.type : "application/octet-stream");
@@ -6340,9 +6273,6 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             const hasDataset = Array.isArray(state.rows) && state.rows.length > 0;
             if (dom.postUploadCta) {
               dom.postUploadCta.hidden = !hasDataset;
-            }
-            if (dom.postUploadCopySummary) {
-              dom.postUploadCopySummary.hidden = !hasDataset || !supportsClipboardText();
             }
           }
       
@@ -12135,127 +12065,6 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }
           }
 
-          function buildDashboardSummaryMarkdown() {
-            if (!Array.isArray(state.rows) || !state.rows.length) {
-              return "";
-            }
-            const filtered = applyFilters(state.rows);
-            if (!filtered.length) {
-              return "";
-            }
-            const aggregates = computeAggregates(filtered);
-            const windowLabel = typeof aggregates.windowLabel === "string" ? aggregates.windowLabel : "";
-            const metricLabel = state.filters.metric === "hours"
-              ? "Assisted hours"
-              : (state.filters.metric === "adoption" ? "Adoption rate" : "Actions");
-            const aggregateLabel = state.filters.aggregate === "weekly"
-              ? "Weekly"
-              : (state.filters.aggregate === "monthly" ? "Monthly" : String(state.filters.aggregate || ""));
-            const timeframeLabel = state.filters.timeframe === "custom" ? "Custom range" : String(state.filters.timeframe || "");
-
-            const totalActions = Number.isFinite(aggregates.totals?.totalActions) ? Math.round(aggregates.totals.totalActions) : 0;
-            const totalHours = Number.isFinite(aggregates.totals?.assistedHours) ? aggregates.totals.assistedHours : 0;
-            const activeUsers = aggregates.activeUsers instanceof Set ? aggregates.activeUsers.size : 0;
-            const enabledUsers = aggregates.enabledUsers instanceof Set ? aggregates.enabledUsers.size : 0;
-            const adoptionRate = enabledUsers ? (activeUsers / enabledUsers) * 100 : 0;
-
-            const parts = [];
-            parts.push("## Copilot dashboard summary");
-            if (windowLabel) {
-              parts.push(`- Time window: ${windowLabel}`);
-            }
-            parts.push(`- Metric: ${metricLabel} · Aggregation: ${aggregateLabel} · Timeframe: ${timeframeLabel}`);
-            parts.push(`- Active users: ${numberFormatter.format(activeUsers)} (enabled: ${numberFormatter.format(enabledUsers)} · adoption: ${formatTrendFixed(adoptionRate, 1)}%)`);
-            parts.push(`- Total actions: ${numberFormatter.format(totalActions)}`);
-            parts.push(`- Assisted hours: ${hoursFormatter.format(totalHours)} hrs`);
-            parts.push(`- Generated: ${new Date().toLocaleString()}`);
-
-            const groups = Array.isArray(aggregates.groups) ? aggregates.groups : [];
-            if (groups.length) {
-              const metricKey = state.filters.metric === "hours" ? "assistedHours" : "totalActions";
-              const top = groups.slice(0, 8);
-              parts.push("");
-              parts.push(`### Top groups by ${metricKey === "assistedHours" ? "hours" : "actions"}`);
-              top.forEach((group, index) => {
-                const name = group?.name || "Unspecified";
-                const value = Number.isFinite(group?.[metricKey]) ? group[metricKey] : 0;
-                const users = Number.isFinite(group?.users) ? group.users : 0;
-                const valueLabel = metricKey === "assistedHours"
-                  ? `${hoursFormatter.format(value)} hrs`
-                  : `${numberFormatter.format(Math.round(value))} actions`;
-                parts.push(`${index + 1}. ${name} — ${valueLabel} (${numberFormatter.format(users)} users)`);
-              });
-            }
-
-            return parts.join("\n");
-          }
-
-          async function handleCopySummary() {
-            try {
-              const summary = buildDashboardSummaryMarkdown();
-              if (!summary) {
-                showToast("Nothing to copy", "Load data and adjust filters, then try again.", "error");
-                return;
-              }
-              await copyTextToClipboard(summary);
-              showToast("Summary copied", "Paste it into Teams/Email/Docs.", "info");
-            } catch (error) {
-              logWarn("Copy summary failed", error);
-              showToast("Copy failed", "Your browser does not allow clipboard access here.", "error");
-            }
-          }
-
-          async function captureTrendCardPngBlob() {
-            const card = document.querySelector(".trend-card");
-            if (!card) {
-              throw new Error("Trend card not found.");
-            }
-            if (typeof html2canvas !== "function") {
-              throw new Error("Image capture library not available.");
-            }
-            closeExportMenu();
-            const backgroundColor = getCssVariableValue("--card-surface", "#ffffff") || "#ffffff";
-            const canvas = await html2canvas(card, {
-              backgroundColor,
-              scale: 2,
-              useCORS: true,
-              logging: false
-            });
-            return new Promise((resolve, reject) => {
-              canvas.toBlob(blob => {
-                if (blob) {
-                  resolve(blob);
-                } else {
-                  reject(new Error("Unable to capture image."));
-                }
-              }, "image/png", 1);
-            });
-          }
-
-          async function handleCopyImageOrDownload() {
-            try {
-              const blob = await captureTrendCardPngBlob();
-              if (supportsClipboardImage()) {
-                await copyBlobToClipboard(blob);
-                showToast("Image copied", "Paste it into Teams/Email/Docs.", "info");
-                return;
-              }
-              const filename = `copilot-trend-${formatTimestamp()}.png`;
-              const result = await saveOrDownloadBlob(blob, filename, {
-                description: "PNG image",
-                accept: { "image/png": [".png"] }
-              });
-              if (result.canceled) {
-                showToast("Save canceled", "", "info");
-                return;
-              }
-              showToast("Image downloaded", filename, "info");
-            } catch (error) {
-              logWarn("Copy image failed", error);
-              showToast("Unable to export image", "Try downloading PNG instead.", "error");
-            }
-          }
-
           async function exportFullReportToExcel() {
             if (typeof XLSX === "undefined" || !XLSX.utils || (!XLSX.writeFile && !XLSX.write)) {
               showExportHint("Excel export library not available.", true);
@@ -12693,6 +12502,100 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                 chartY += 14;
                 const licensesImage = enabledChart.toBase64Image("image/png");
                 pdf.addImage(licensesImage, "PNG", margin, chartY, chartWidth, chartHeight);
+                chartY += chartHeight + 20;
+              }
+
+              const usageTrendChart = state.charts.usageTrend;
+              if (usageTrendChart && usageTrendChart.canvas && typeof usageTrendChart.toBase64Image === "function") {
+                const canvas = usageTrendChart.canvas;
+                const aspectRatio = canvas.height && canvas.width ? canvas.height / canvas.width : 0.5;
+                const chartHeight = chartWidth * (aspectRatio || 0.5);
+                if (chartY + chartHeight + margin > pageHeight) {
+                  pdf.addPage();
+                  chartY = margin;
+                }
+                pdf.text("Usage intensity trend", margin, chartY);
+                chartY += 14;
+                const chartImage = usageTrendChart.toBase64Image("image/png");
+                pdf.addImage(chartImage, "PNG", margin, chartY, chartWidth, chartHeight);
+                chartY += chartHeight + 20;
+              }
+
+              const returningChart = state.charts.returningUsers;
+              if (returningChart && returningChart.canvas && typeof returningChart.toBase64Image === "function") {
+                const canvas = returningChart.canvas;
+                const aspectRatio = canvas.height && canvas.width ? canvas.height / canvas.width : 0.5;
+                const chartHeight = chartWidth * (aspectRatio || 0.5);
+                if (chartY + chartHeight + margin > pageHeight) {
+                  pdf.addPage();
+                  chartY = margin;
+                }
+                pdf.text("Returning users over time", margin, chartY);
+                chartY += 14;
+                const chartImage = returningChart.toBase64Image("image/png");
+                pdf.addImage(chartImage, "PNG", margin, chartY, chartWidth, chartHeight);
+                chartY += chartHeight + 20;
+              }
+
+              if (typeof html2canvas === "function") {
+                const captureBackground = getCssVariableValue("--card-surface", "#ffffff") || "#ffffff";
+                const addSectionScreenshotPage = async (title, element) => {
+                  if (!element) {
+                    return;
+                  }
+                  pdf.addPage();
+                  let pageY = margin;
+                  pdf.setFontSize(14);
+                  pdf.text(title, margin, pageY);
+                  pageY += 20;
+                  const canvas = await html2canvas(element, {
+                    backgroundColor: captureBackground,
+                    scale: 2,
+                    useCORS: true,
+                    logging: false
+                  });
+                  const imageData = canvas.toDataURL("image/png", 1);
+                  const ratio = canvas.height && canvas.width ? canvas.height / canvas.width : 0.75;
+                  const contentWidth = pageWidth - margin * 2;
+                  const contentHeight = pageHeight - margin - pageY;
+                  let drawWidth = contentWidth;
+                  let drawHeight = drawWidth * ratio;
+                  if (drawHeight > contentHeight) {
+                    const scale = contentHeight / drawHeight;
+                    drawWidth *= scale;
+                    drawHeight *= scale;
+                  }
+                  const centeredX = margin + (contentWidth - drawWidth) / 2;
+                  pdf.addImage(imageData, "PNG", centeredX, pageY, drawWidth, drawHeight);
+                };
+
+                const groupTableCard = document.querySelector(".group-card[aria-label='Group breakdown']");
+                await addSectionScreenshotPage("Group breakdown", groupTableCard);
+
+                const adoptionCard = document.querySelector("[data-adoption-card]");
+                await addSectionScreenshotPage("Adoption by app", adoptionCard);
+
+                const usageInsightsCard = dom.usageCard || document.querySelector("[data-usage-card]");
+                const usageHasData = usageInsightsCard
+                  && !usageInsightsCard.hidden
+                  && (!dom.usageEmpty || dom.usageEmpty.hidden);
+                if (usageHasData) {
+                  await addSectionScreenshotPage("Usage intensity insights", usageInsightsCard);
+                }
+
+                const usageTrendCard = dom.usageTrendCard || document.querySelector("[data-usage-trend-card]");
+                const usageTrendHasData = usageTrendCard
+                  && !usageTrendCard.hidden
+                  && (!dom.usageTrendEmpty || dom.usageTrendEmpty.hidden);
+                if (usageTrendHasData) {
+                  await addSectionScreenshotPage("Usage intensity trend", usageTrendCard);
+                }
+
+                const agentHub = document.querySelector("[data-agent-hub]");
+                const agentRows = agentHub ? agentHub.querySelectorAll("tbody[data-agent-hub-tbody] tr") : [];
+                if (agentHub && !agentHub.hidden && agentRows.length) {
+                  await addSectionScreenshotPage("Copilot agents", agentHub);
+                }
               }
 
               const filename = `copilot-dashboard-report-${formatTimestamp()}.pdf`;

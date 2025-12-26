@@ -23,7 +23,10 @@
     const HIGH_RES_PIXEL_RATIO = Math.max(window.devicePixelRatio || 1, 2.5);
           Chart.defaults.devicePixelRatio = HIGH_RES_PIXEL_RATIO;
           const GIF_WORKER_SOURCE_URL = "assets/vendor/gif.worker.js";
+          const GIFJS_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.js";
+          const GIFJS_SCRIPT_INTEGRITY = "sha384-NRBudS8j0C4n1zt6ZpidRjH724QT7VXARyeGDI9SYn4b0X7JUxBIP0JlUxXXyZPc";
           let gifWorkerUrlPromise = null;
+          let gifLibraryPromise = null;
           let activeParseController = null;
           let bufferedSampleCsv = null;
           let bufferedCsvText = null;
@@ -1711,11 +1714,16 @@
           const dom = {
             dropZone: document.querySelector("[data-drop-zone]"),
             fileInput: document.querySelector("[data-file-input]"),
+            toastContainer: document.querySelector("[data-toast-container]"),
             uploadMeta: document.querySelector("[data-upload-meta]"),
             uploadStatus: document.querySelector("[data-upload-status]"),
             uploadProgress: document.querySelector("[data-upload-progress]"),
             uploadProgressBar: document.querySelector("[data-upload-progress-bar]"),
             uploadCancel: document.querySelector("[data-upload-cancel]"),
+            postUploadCta: document.querySelector("[data-post-upload-cta]"),
+            postUploadExcel: document.querySelector("[data-post-upload-excel]"),
+            postUploadCopySummary: document.querySelector("[data-post-upload-copy-summary]"),
+            postUploadMore: document.querySelector("[data-post-upload-more]"),
             datasetMessage: document.querySelector("[data-dataset-message]"),
             datasetMetaWrapper: document.querySelector("[data-dataset-meta]"),
             metaRecords: document.querySelector("[data-meta-records]"),
@@ -1771,8 +1779,14 @@
             exportControls: document.querySelector("[data-export-controls]"),
             exportTrigger: document.querySelector("[data-export-trigger]"),
             exportMenu: document.querySelector("[data-export-menu]"),
+            exportQuickExcelFull: document.querySelector("[data-export-quick-excel]"),
+            exportQuickCsv: document.querySelector("[data-export-quick-csv]"),
+            exportQuickPdf: document.querySelector("[data-export-quick-pdf]"),
             exportPDF: document.querySelector("[data-export-pdf]"),
+            exportCSV: document.querySelector("[data-export-csv]"),
             exportPNG: document.querySelector("[data-export-png]"),
+            exportCopySummaryButtons: Array.from(document.querySelectorAll("[data-export-copy-summary]")),
+            exportCopyImageButtons: Array.from(document.querySelectorAll("[data-export-copy-image]")),
             exportVideo: document.querySelector("[data-export-video]"),
             exportExcel: document.querySelector("[data-export-excel]"),
             exportExcelFull: document.querySelector("[data-export-excel-full]"),
@@ -4665,6 +4679,110 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             document.body.removeChild(link);
           }
 
+          function showToast(title, message, tone = "info") {
+            if (!dom.toastContainer) {
+              return;
+            }
+            const toast = document.createElement("div");
+            toast.className = "toast";
+            toast.setAttribute("role", "status");
+            toast.setAttribute("aria-live", "polite");
+
+            const icon = document.createElement("span");
+            icon.className = "toast-icon";
+            icon.textContent = tone === "error" ? "!" : "✓";
+            icon.style.background = tone === "error" ? "rgba(200, 45, 45, 0.14)" : "rgba(0, 110, 0, 0.14)";
+            icon.style.color = tone === "error" ? "var(--red-600)" : "var(--green-700)";
+
+            const content = document.createElement("div");
+            content.className = "toast-content";
+
+            const titleEl = document.createElement("p");
+            titleEl.className = "toast-title";
+            titleEl.textContent = title || (tone === "error" ? "Something went wrong" : "Done");
+
+            const messageEl = document.createElement("p");
+            messageEl.className = "toast-message";
+            messageEl.textContent = message || "";
+
+            const close = document.createElement("button");
+            close.type = "button";
+            close.className = "toast-close";
+            close.setAttribute("aria-label", "Dismiss");
+            close.textContent = "×";
+
+            const hide = () => {
+              toast.classList.add("is-hiding");
+              window.setTimeout(() => toast.remove(), 320);
+            };
+            close.addEventListener("click", hide);
+
+            content.appendChild(titleEl);
+            if (messageEl.textContent) {
+              content.appendChild(messageEl);
+            }
+            toast.appendChild(icon);
+            toast.appendChild(content);
+            toast.appendChild(close);
+
+            dom.toastContainer.appendChild(toast);
+            window.setTimeout(hide, tone === "error" ? 7500 : 5200);
+          }
+
+          function supportsClipboardText() {
+            return Boolean(window.isSecureContext && navigator.clipboard && typeof navigator.clipboard.writeText === "function");
+          }
+
+          function supportsClipboardImage() {
+            return Boolean(window.isSecureContext && navigator.clipboard && typeof navigator.clipboard.write === "function" && typeof window.ClipboardItem === "function");
+          }
+
+          async function copyTextToClipboard(text) {
+            if (!supportsClipboardText()) {
+              throw new Error("Clipboard text API is unavailable.");
+            }
+            await navigator.clipboard.writeText(text);
+          }
+
+          async function copyBlobToClipboard(blob) {
+            if (!supportsClipboardImage()) {
+              throw new Error("Clipboard image API is unavailable.");
+            }
+            const item = new ClipboardItem({ [blob.type || "image/png"]: blob });
+            await navigator.clipboard.write([item]);
+          }
+
+          function supportsSaveFilePicker() {
+            return Boolean(window.isSecureContext && typeof window.showSaveFilePicker === "function");
+          }
+
+          async function saveBlobWithPicker(blob, suggestedName, { description = "File", accept = {} } = {}) {
+            const handle = await window.showSaveFilePicker({
+              suggestedName,
+              types: [{ description, accept }],
+              excludeAcceptAllOption: false
+            });
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+          }
+
+          async function saveOrDownloadBlob(blob, filename, pickerOptions) {
+            if (supportsSaveFilePicker()) {
+              try {
+                await saveBlobWithPicker(blob, filename, pickerOptions);
+                return { saved: true, canceled: false };
+              } catch (error) {
+                if (error && (error.name === "AbortError" || error.name === "NotAllowedError")) {
+                  return { saved: false, canceled: true };
+                }
+                throw error;
+              }
+            }
+            downloadBinaryFile(blob, filename, blob && blob.type ? blob.type : "application/octet-stream");
+            return { saved: false, canceled: false };
+          }
+
           function downloadTextFile(content, filename, mimeType = "text/plain") {
             const blob = new Blob([content], { type: mimeType });
             const url = URL.createObjectURL(blob);
@@ -4800,11 +4918,29 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             if (value === null || typeof value === "undefined") {
               return "";
             }
-            const stringValue = String(value);
+            const safeValue = sanitizeSpreadsheetCell(value);
+            const stringValue = String(safeValue);
             if (/["\r\n,]/.test(stringValue)) {
               return `"${stringValue.replace(/"/g, '""')}"`;
             }
             return stringValue;
+          }
+
+          function sanitizeSpreadsheetCell(value) {
+            if (value === null || typeof value === "undefined") {
+              return value;
+            }
+            if (typeof value !== "string") {
+              return value;
+            }
+            if (!value) {
+              return value;
+            }
+            // Prevent Excel / Sheets from interpreting exported text as a formula.
+            if (/^[\u0000-\u001F\s]*[=+\-@]/.test(value)) {
+              return `'${value}`;
+            }
+            return value;
           }
 
           function downloadCsv(filename, headers, rows) {
@@ -6174,6 +6310,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             if (dom.uploadStatus) {
               dom.uploadStatus.textContent = message;
             }
+            if (dom.postUploadCta) {
+              dom.postUploadCta.hidden = true;
+            }
             if (dom.datasetMessage) {
               dom.datasetMessage.textContent = "Upload a valid CSV export to continue.";
             }
@@ -6194,6 +6333,16 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
           function clearUploadError() {
             if (dom.uploadZone) {
               dom.uploadZone.classList.remove("is-error");
+            }
+          }
+
+          function updatePostUploadCtaVisibility() {
+            const hasDataset = Array.isArray(state.rows) && state.rows.length > 0;
+            if (dom.postUploadCta) {
+              dom.postUploadCta.hidden = !hasDataset;
+            }
+            if (dom.postUploadCopySummary) {
+              dom.postUploadCopySummary.hidden = !hasDataset || !supportsClipboardText();
             }
           }
       
@@ -6450,6 +6599,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               };
               updateStoredDatasetControls(storedMeta);
             }
+            updatePostUploadCtaVisibility();
           }
       
           function parseCsvTextContent(csvText, meta = {}) {
@@ -11749,6 +11899,35 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             return gifWorkerUrlPromise;
       
           }
+
+          function ensureGifLibraryLoaded() {
+            if (typeof GIF !== "undefined") {
+              return Promise.resolve(true);
+            }
+            if (gifLibraryPromise) {
+              return gifLibraryPromise;
+            }
+            gifLibraryPromise = new Promise((resolve, reject) => {
+              const existing = Array.from(document.scripts || []).find(script => script && script.src === GIFJS_SCRIPT_URL);
+              if (existing) {
+                existing.addEventListener("load", () => resolve(typeof GIF !== "undefined"), { once: true });
+                existing.addEventListener("error", () => reject(new Error("Failed to load GIF export library.")), { once: true });
+                return;
+              }
+              const script = document.createElement("script");
+              script.src = GIFJS_SCRIPT_URL;
+              script.async = true;
+              script.crossOrigin = "anonymous";
+              script.integrity = GIFJS_SCRIPT_INTEGRITY;
+              script.addEventListener("load", () => resolve(typeof GIF !== "undefined"), { once: true });
+              script.addEventListener("error", () => reject(new Error("Failed to load GIF export library.")), { once: true });
+              document.head.appendChild(script);
+            }).catch(error => {
+              gifLibraryPromise = null;
+              throw error;
+            });
+            return gifLibraryPromise;
+          }
       
           window.addEventListener("beforeunload", () => {
             if (gifWorkerUrlPromise) {
@@ -11806,9 +11985,29 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }
             worksheet["!cols"] = columnWidths;
           }
+
+          function sanitizeWorksheetCellsForSpreadsheet(worksheet) {
+            if (!worksheet || typeof worksheet !== "object") {
+              return;
+            }
+            Object.keys(worksheet).forEach(key => {
+              if (!key || key.startsWith("!")) {
+                return;
+              }
+              const cell = worksheet[key];
+              if (!cell) {
+                return;
+              }
+              const sanitized = sanitizeSpreadsheetCell(cell.v);
+              if (sanitized !== cell.v) {
+                cell.v = sanitized;
+                cell.t = "s";
+              }
+            });
+          }
       
-          function exportTrendTotalsToExcel() {
-            if (typeof XLSX === "undefined" || !XLSX.utils || !XLSX.writeFile) {
+          async function exportTrendTotalsToExcel() {
+            if (typeof XLSX === "undefined" || !XLSX.utils || (!XLSX.writeFile && !XLSX.write)) {
               showExportHint("Excel export library not available.", true);
               return;
             }
@@ -11820,20 +12019,245 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             const rows = buildTrendTotalsRows(periods);
             try {
               const worksheet = XLSX.utils.aoa_to_sheet(rows);
+              sanitizeWorksheetCellsForSpreadsheet(worksheet);
               autoSizeWorksheetColumns(worksheet, rows);
               const workbook = XLSX.utils.book_new();
               XLSX.utils.book_append_sheet(workbook, worksheet, "Trend totals");
               const filename = `copilot-trend-totals-${formatTimestamp()}.xlsx`;
-              XLSX.writeFile(workbook, filename, { compression: true });
-              showExportHint(`Saved totals as ${filename}.`, false);
+              if (typeof XLSX.write === "function") {
+                const binary = XLSX.write(workbook, { bookType: "xlsx", type: "array", compression: true });
+                const blob = new Blob([binary], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                const result = await saveOrDownloadBlob(blob, filename, {
+                  description: "Excel workbook",
+                  accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] }
+                });
+                if (result.canceled) {
+                  showExportHint("Save canceled.", false);
+                  return;
+                }
+                showExportHint(`Saved totals as ${filename}.`, false);
+              } else {
+                XLSX.writeFile(workbook, filename, { compression: true });
+                showExportHint(`Saved totals as ${filename}.`, false);
+              }
             } catch (error) {
               logError("Excel export failed", error);
               showExportHint("Unable to export totals in this browser.", true);
             }
           }
 
-          function exportFullReportToExcel() {
-            if (typeof XLSX === "undefined" || !XLSX.utils || !XLSX.writeFile) {
+          async function exportTrendDataToCsv() {
+            closeExportMenu();
+            if (!Array.isArray(state.rows) || !state.rows.length) {
+              showExportHint("Load data to export CSV.", true);
+              return;
+            }
+            const filtered = applyFilters(state.rows);
+            if (state.filters.timeframe === "custom" && state.filters.customRangeInvalid) {
+              showExportHint("Fix the custom date range before exporting.", true);
+              return;
+            }
+            if (!filtered.length) {
+              showExportHint("No data matches the current filters.", true);
+              return;
+            }
+            try {
+              const aggregates = computeAggregates(filtered);
+              const periods = Array.isArray(aggregates.periods) ? aggregates.periods : [];
+              if (!periods.length) {
+                showExportHint("No trend data available for CSV export.", true);
+                return;
+              }
+
+              const metric = state.filters.metric;
+              const selectedHeading = metric === "hours"
+                ? "Assisted hours"
+                : (metric === "adoption" ? "Adoption rate (%)" : "Total actions");
+
+              const headers = [
+                "Period",
+                "Period ending",
+                selectedHeading,
+                "Total actions",
+                "Assisted hours",
+                "Active users",
+                "Enabled users",
+                "Adoption rate (%)",
+                "Avg actions/user",
+                "Avg hours/user"
+              ];
+
+              const rows = periods.map(period => {
+                const date = period && period.date instanceof Date ? formatShortDate(period.date) : "";
+                const totalActions = Number.isFinite(period?.totalActions) ? Math.round(period.totalActions) : 0;
+                const assistedHours = Number.isFinite(period?.assistedHours) ? period.assistedHours : 0;
+                const userCount = Number.isFinite(period?.userCount) ? period.userCount : 0;
+                const enabledCount = Number.isFinite(period?.enabledUsersCount) ? period.enabledUsersCount : 0;
+                const adoptionRate = Number.isFinite(period?.adoptionRate) ? period.adoptionRate : 0;
+                const avgActions = Number.isFinite(period?.averageActionsPerUser) ? period.averageActionsPerUser : 0;
+                const avgHours = Number.isFinite(period?.averageHoursPerUser) ? period.averageHoursPerUser : 0;
+                const selectedValue = metric === "hours"
+                  ? Number(formatTrendFixed(assistedHours, 1))
+                  : (metric === "adoption" ? Number(formatTrendFixed(adoptionRate, 1)) : totalActions);
+
+                return [
+                  period && typeof period.label === "string" ? period.label : "",
+                  date,
+                  selectedValue,
+                  totalActions,
+                  Number(formatTrendFixed(assistedHours, 1)),
+                  userCount,
+                  enabledCount,
+                  Number(formatTrendFixed(adoptionRate, 1)),
+                  Number(formatTrendFixed(avgActions, 2)),
+                  Number(formatTrendFixed(avgHours, 2))
+                ];
+              });
+
+              const lines = [];
+              lines.push(headers.map(escapeCsvValue).join(","));
+              rows.forEach(row => lines.push(row.map(escapeCsvValue).join(",")));
+
+              const filename = `copilot-trend-data-${formatTimestamp()}.csv`;
+              const blob = new Blob([lines.join("\r\n")], { type: "text/csv" });
+              const result = await saveOrDownloadBlob(blob, filename, {
+                description: "CSV",
+                accept: { "text/csv": [".csv"] }
+              });
+              if (result.canceled) {
+                showExportHint("Save canceled.", false);
+                return;
+              }
+              showExportHint(`Saved CSV as ${filename}.`, false);
+            } catch (error) {
+              logError("CSV export failed", error);
+              showExportHint("Unable to export CSV.", true);
+            }
+          }
+
+          function buildDashboardSummaryMarkdown() {
+            if (!Array.isArray(state.rows) || !state.rows.length) {
+              return "";
+            }
+            const filtered = applyFilters(state.rows);
+            if (!filtered.length) {
+              return "";
+            }
+            const aggregates = computeAggregates(filtered);
+            const windowLabel = typeof aggregates.windowLabel === "string" ? aggregates.windowLabel : "";
+            const metricLabel = state.filters.metric === "hours"
+              ? "Assisted hours"
+              : (state.filters.metric === "adoption" ? "Adoption rate" : "Actions");
+            const aggregateLabel = state.filters.aggregate === "weekly"
+              ? "Weekly"
+              : (state.filters.aggregate === "monthly" ? "Monthly" : String(state.filters.aggregate || ""));
+            const timeframeLabel = state.filters.timeframe === "custom" ? "Custom range" : String(state.filters.timeframe || "");
+
+            const totalActions = Number.isFinite(aggregates.totals?.totalActions) ? Math.round(aggregates.totals.totalActions) : 0;
+            const totalHours = Number.isFinite(aggregates.totals?.assistedHours) ? aggregates.totals.assistedHours : 0;
+            const activeUsers = aggregates.activeUsers instanceof Set ? aggregates.activeUsers.size : 0;
+            const enabledUsers = aggregates.enabledUsers instanceof Set ? aggregates.enabledUsers.size : 0;
+            const adoptionRate = enabledUsers ? (activeUsers / enabledUsers) * 100 : 0;
+
+            const parts = [];
+            parts.push("## Copilot dashboard summary");
+            if (windowLabel) {
+              parts.push(`- Time window: ${windowLabel}`);
+            }
+            parts.push(`- Metric: ${metricLabel} · Aggregation: ${aggregateLabel} · Timeframe: ${timeframeLabel}`);
+            parts.push(`- Active users: ${numberFormatter.format(activeUsers)} (enabled: ${numberFormatter.format(enabledUsers)} · adoption: ${formatTrendFixed(adoptionRate, 1)}%)`);
+            parts.push(`- Total actions: ${numberFormatter.format(totalActions)}`);
+            parts.push(`- Assisted hours: ${hoursFormatter.format(totalHours)} hrs`);
+            parts.push(`- Generated: ${new Date().toLocaleString()}`);
+
+            const groups = Array.isArray(aggregates.groups) ? aggregates.groups : [];
+            if (groups.length) {
+              const metricKey = state.filters.metric === "hours" ? "assistedHours" : "totalActions";
+              const top = groups.slice(0, 8);
+              parts.push("");
+              parts.push(`### Top groups by ${metricKey === "assistedHours" ? "hours" : "actions"}`);
+              top.forEach((group, index) => {
+                const name = group?.name || "Unspecified";
+                const value = Number.isFinite(group?.[metricKey]) ? group[metricKey] : 0;
+                const users = Number.isFinite(group?.users) ? group.users : 0;
+                const valueLabel = metricKey === "assistedHours"
+                  ? `${hoursFormatter.format(value)} hrs`
+                  : `${numberFormatter.format(Math.round(value))} actions`;
+                parts.push(`${index + 1}. ${name} — ${valueLabel} (${numberFormatter.format(users)} users)`);
+              });
+            }
+
+            return parts.join("\n");
+          }
+
+          async function handleCopySummary() {
+            try {
+              const summary = buildDashboardSummaryMarkdown();
+              if (!summary) {
+                showToast("Nothing to copy", "Load data and adjust filters, then try again.", "error");
+                return;
+              }
+              await copyTextToClipboard(summary);
+              showToast("Summary copied", "Paste it into Teams/Email/Docs.", "info");
+            } catch (error) {
+              logWarn("Copy summary failed", error);
+              showToast("Copy failed", "Your browser does not allow clipboard access here.", "error");
+            }
+          }
+
+          async function captureTrendCardPngBlob() {
+            const card = document.querySelector(".trend-card");
+            if (!card) {
+              throw new Error("Trend card not found.");
+            }
+            if (typeof html2canvas !== "function") {
+              throw new Error("Image capture library not available.");
+            }
+            closeExportMenu();
+            const backgroundColor = getCssVariableValue("--card-surface", "#ffffff") || "#ffffff";
+            const canvas = await html2canvas(card, {
+              backgroundColor,
+              scale: 2,
+              useCORS: true,
+              logging: false
+            });
+            return new Promise((resolve, reject) => {
+              canvas.toBlob(blob => {
+                if (blob) {
+                  resolve(blob);
+                } else {
+                  reject(new Error("Unable to capture image."));
+                }
+              }, "image/png", 1);
+            });
+          }
+
+          async function handleCopyImageOrDownload() {
+            try {
+              const blob = await captureTrendCardPngBlob();
+              if (supportsClipboardImage()) {
+                await copyBlobToClipboard(blob);
+                showToast("Image copied", "Paste it into Teams/Email/Docs.", "info");
+                return;
+              }
+              const filename = `copilot-trend-${formatTimestamp()}.png`;
+              const result = await saveOrDownloadBlob(blob, filename, {
+                description: "PNG image",
+                accept: { "image/png": [".png"] }
+              });
+              if (result.canceled) {
+                showToast("Save canceled", "", "info");
+                return;
+              }
+              showToast("Image downloaded", filename, "info");
+            } catch (error) {
+              logWarn("Copy image failed", error);
+              showToast("Unable to export image", "Try downloading PNG instead.", "error");
+            }
+          }
+
+          async function exportFullReportToExcel() {
+            if (typeof XLSX === "undefined" || !XLSX.utils || (!XLSX.writeFile && !XLSX.write)) {
               showExportHint("Excel export library not available.", true);
               return;
             }
@@ -11934,6 +12358,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               }
 
               const overviewSheet = XLSX.utils.aoa_to_sheet(overviewRows);
+              sanitizeWorksheetCellsForSpreadsheet(overviewSheet);
               autoSizeWorksheetColumns(overviewSheet, overviewRows);
               XLSX.utils.book_append_sheet(workbook, overviewSheet, "Overview");
 
@@ -11941,6 +12366,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               if (trendPeriods.length) {
                 const trendRows = buildTrendTotalsRows(trendPeriods);
                 const trendSheet = XLSX.utils.aoa_to_sheet(trendRows);
+                sanitizeWorksheetCellsForSpreadsheet(trendSheet);
                 autoSizeWorksheetColumns(trendSheet, trendRows);
                 XLSX.utils.book_append_sheet(workbook, trendSheet, "Trend totals");
               }
@@ -11969,6 +12395,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                   ]);
                 });
                 const orgSheet = XLSX.utils.aoa_to_sheet(orgRows);
+                sanitizeWorksheetCellsForSpreadsheet(orgSheet);
                 autoSizeWorksheetColumns(orgSheet, orgRows);
                 XLSX.utils.book_append_sheet(workbook, orgSheet, "By organization");
               }
@@ -11997,6 +12424,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                   ]);
                 });
                 const countrySheet = XLSX.utils.aoa_to_sheet(countryRows);
+                sanitizeWorksheetCellsForSpreadsheet(countrySheet);
                 autoSizeWorksheetColumns(countrySheet, countryRows);
                 XLSX.utils.book_append_sheet(workbook, countrySheet, "By country");
               }
@@ -12055,8 +12483,29 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               }
 
               const filename = `copilot-full-report-${formatTimestamp()}.xlsx`;
-              XLSX.writeFile(workbook, filename, { compression: true });
-              showExportHint(`Saved full report as ${filename}.`, false);
+              if (typeof XLSX.write === "function") {
+                const sheets = Array.isArray(workbook.SheetNames) ? workbook.SheetNames : [];
+                sheets.forEach(name => {
+                  const sheet = workbook.Sheets ? workbook.Sheets[name] : null;
+                  if (sheet) {
+                    sanitizeWorksheetCellsForSpreadsheet(sheet);
+                  }
+                });
+                const binary = XLSX.write(workbook, { bookType: "xlsx", type: "array", compression: true });
+                const blob = new Blob([binary], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                const result = await saveOrDownloadBlob(blob, filename, {
+                  description: "Excel workbook",
+                  accept: { "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"] }
+                });
+                if (result.canceled) {
+                  showExportHint("Save canceled.", false);
+                  return;
+                }
+                showExportHint(`Saved full report as ${filename}.`, false);
+              } else {
+                XLSX.writeFile(workbook, filename, { compression: true });
+                showExportHint(`Saved full report as ${filename}.`, false);
+              }
             } catch (error) {
               logError("Full Excel export failed", error);
               showExportHint("Unable to export full report in this browser.", true);
@@ -12247,8 +12696,21 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               }
 
               const filename = `copilot-dashboard-report-${formatTimestamp()}.pdf`;
-              pdf.save(filename);
-              showExportHint(`Saved PDF as ${filename}.`, false);
+              if (typeof pdf.output === "function") {
+                const blob = pdf.output("blob");
+                const result = await saveOrDownloadBlob(blob, filename, {
+                  description: "PDF document",
+                  accept: { "application/pdf": [".pdf"] }
+                });
+                if (result.canceled) {
+                  showExportHint("Save canceled.", false);
+                  return;
+                }
+                showExportHint(`Saved PDF as ${filename}.`, false);
+              } else {
+                pdf.save(filename);
+                showExportHint(`Saved PDF as ${filename}.`, false);
+              }
             } catch (error) {
               logError("PDF export failed", error);
               showExportHint("Unable to export PDF report.", true);
@@ -12288,13 +12750,29 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
       
               await waitForNextFrame();
       
-              const dataUrl = hiddenChart.canvas.toDataURL("image/png", 1);
-      
               const filename = `copilot-trend-${formatTimestamp()}.png`;
-      
-              downloadDataURL(dataUrl, filename);
-      
-              showExportHint(`Saved image as ${filename}.`, false);
+              const blob = await new Promise(resolve => {
+                if (hiddenChart && hiddenChart.canvas && typeof hiddenChart.canvas.toBlob === "function") {
+                  hiddenChart.canvas.toBlob(resolve, "image/png", 1);
+                } else {
+                  resolve(null);
+                }
+              });
+              if (blob) {
+                const result = await saveOrDownloadBlob(blob, filename, {
+                  description: "PNG image",
+                  accept: { "image/png": [".png"] }
+                });
+                if (result.canceled) {
+                  showExportHint("Save canceled.", false);
+                  return;
+                }
+                showExportHint(`Saved image as ${filename}.`, false);
+              } else {
+                const dataUrl = hiddenChart.canvas.toDataURL("image/png", 1);
+                downloadDataURL(dataUrl, filename);
+                showExportHint(`Saved image as ${filename}.`, false);
+              }
       
             } catch (error) {
       
@@ -12515,11 +12993,18 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }
       
             if (typeof GIF === "undefined") {
-      
-              showExportHint("GIF export library is unavailable.", true);
-      
-              return;
-      
+              showExportHint("Loading GIF export library...", false);
+              try {
+                await ensureGifLibraryLoaded();
+              } catch (error) {
+                logWarn("GIF library failed to load", error);
+                showExportHint("GIF export library is unavailable.", true);
+                return;
+              }
+              if (typeof GIF === "undefined") {
+                showExportHint("GIF export library is unavailable.", true);
+                return;
+              }
             }
       
             if (isExportingGif) {
@@ -12541,9 +13026,14 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               const blob = await exportTrendChartGif({ detailMode, scale: 2, frameDelay: 90, framesPerPoint: 6, holdDelayMultiplier: 14 });
       
               const filename = `copilot-trend-${formatTimestamp()}.gif`;
-      
-              downloadBlob(blob, filename);
-      
+              const result = await saveOrDownloadBlob(blob, filename, {
+                description: "GIF animation",
+                accept: { "image/gif": [".gif"] }
+              });
+              if (result.canceled) {
+                showExportHint("Save canceled.", false);
+                return;
+              }
               showExportHint(`Saved animation as ${filename}.`, false);
       
             } catch (error) {

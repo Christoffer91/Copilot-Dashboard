@@ -4,6 +4,8 @@
 - Scope: Extend v2 toward v1 parity: add sticky filter bar, active filter chips, dataset side card, theme picker, and per-chart PNG exports.
 - Scope: Add v1-like Export menu dropdown (in addition to quick buttons) and ensure exports are disabled until dataset loads.
 - Scope: Add v1-like multi-series trend controls (trend mode + series toggles for app trends).
+- Scope: Add v1-like CSV exports for trend + workload, and improve dropdown accessibility (aria-expanded + focus).
+- Scope: Make Summary + Trend sections match v1 layout/classes (summary-grid/cards + trend caption/window chip).
 - Non-trivial: Yes (UI changes + data model extensions).
 - Reviews run: UX (requested) + orchestration summary.
 - Risk decision: APPROVED WITH CONDITIONS (still missing full v1 parity + full keyboard pass; keep changes v2-only; verify against real export).

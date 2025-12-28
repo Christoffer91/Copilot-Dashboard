@@ -54,8 +54,16 @@
     <div class="sticky-filter-bar" data-sticky-filter-bar hidden>
       <span class="sticky-filter-bar__label">Filters</span>
       <span class="sticky-filter-bar__summary" data-sticky-filter-summary></span>
-      <button type="button" class="sticky-filter-bar__btn" data-sticky-filter-btn>Show filters &#9660;</button>
-      <div class="sticky-filter-dropdown" data-sticky-filter-dropdown hidden></div>
+      <button
+        type="button"
+        class="sticky-filter-bar__btn"
+        data-sticky-filter-btn
+        aria-expanded="false"
+        aria-controls="stickyFiltersDropdown"
+      >
+        Show filters &#9660;
+      </button>
+      <div id="stickyFiltersDropdown" class="sticky-filter-dropdown" data-sticky-filter-dropdown hidden></div>
     </div>
 
     <main id="main">
@@ -151,7 +159,9 @@
                 </button>
                 <div class="export-menu" data-export-menu hidden role="menu">
                   <button type="button" data-export-summary-menu role="menuitem">Download summary (CSV)</button>
+                  <button type="button" data-export-trend-csv-menu role="menuitem">Download trend data (CSV)</button>
                   <button type="button" data-export-trend-menu role="menuitem">Download trend (PNG)</button>
+                  <button type="button" data-export-workload-csv-menu role="menuitem">Download workload data (CSV)</button>
                   <button type="button" data-export-workload-menu role="menuitem">Download workload (PNG)</button>
                   <button type="button" data-export-dimtrend-menu role="menuitem">Download top dimensions (PNG)</button>
                   <button type="button" data-export-breakdown-menu role="menuitem">Download top breakdown (PNG)</button>
@@ -162,17 +172,16 @@
           <div class="filter-grid" data-filters-grid></div>
         </section>
 
-        <section class="card" aria-labelledby="summaryTitle" data-summary-card hidden>
-          <div class="card-header">
-            <h2 class="card-title" id="summaryTitle">Summary</h2>
-          </div>
-          <div class="card-grid" data-summary-grid></div>
-        </section>
+        <section class="summary-grid" aria-label="Key metrics" data-summary-card hidden data-summary-grid></section>
 
         <section class="card" aria-labelledby="trendTitle" data-trend-card hidden>
           <div class="card-header-with-actions">
-            <h2 class="card-title" id="trendTitle">Trend</h2>
+            <div>
+              <h2 class="card-title" id="trendTitle">Trend</h2>
+              <p class="chart-subtitle" data-trend-caption>Upload data to visualize momentum.</p>
+            </div>
             <div class="card-header-actions">
+              <div class="chip is-muted" data-trend-window>-</div>
               <button type="button" class="upload-button upload-button--ghost" data-export-trend-png>Download PNG</button>
             </div>
           </div>

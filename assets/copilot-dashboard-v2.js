@@ -57,6 +57,8 @@
     seriesToggleGroup: document.querySelector("[data-series-toggle-group]"),
     trendCanvas: document.querySelector("[data-trend-chart]"),
     trendEmpty: document.querySelector("[data-trend-empty]"),
+    trendCaption: document.querySelector("[data-trend-caption]"),
+    trendWindow: document.querySelector("[data-trend-window]"),
     exportTrendPng: document.querySelector("[data-export-trend-png]"),
     workloadCard: document.querySelector("[data-workload-card]"),
     workloadMode: document.querySelector("[data-workload-mode]"),
@@ -77,7 +79,9 @@
     exportTrigger: document.querySelector("[data-export-trigger]"),
     exportMenu: document.querySelector("[data-export-menu]"),
     exportSummaryMenu: document.querySelector("[data-export-summary-menu]"),
+    exportTrendCsvMenu: document.querySelector("[data-export-trend-csv-menu]"),
     exportTrendMenu: document.querySelector("[data-export-trend-menu]"),
+    exportWorkloadCsvMenu: document.querySelector("[data-export-workload-csv-menu]"),
     exportWorkloadMenu: document.querySelector("[data-export-workload-menu]"),
     exportDimTrendMenu: document.querySelector("[data-export-dimtrend-menu]"),
     exportBreakdownMenu: document.querySelector("[data-export-breakdown-menu]"),
@@ -317,6 +321,16 @@
     window.addEventListener("resize", onScroll);
 
     dom.stickyFilterBtn.addEventListener("click", () => toggleStickyFilterDropdown());
+    document.addEventListener("click", (event) => {
+      if (!dom.stickyFilterBar || dom.stickyFilterBar.hidden) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const within = dom.stickyFilterBar.contains(target);
+      if (!within) closeStickyFilterDropdown();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeStickyFilterDropdown();
+    });
 
     updateStickyFilterVisibility();
     updateStickyFilterSummary();
@@ -344,8 +358,16 @@
       exportSummaryCsv();
       closeExportMenu();
     });
+    dom.exportTrendCsvMenu?.addEventListener("click", () => {
+      exportTrendCsv();
+      closeExportMenu();
+    });
     dom.exportTrendMenu?.addEventListener("click", () => {
       downloadCanvasPng(dom.trendCanvas, "trend.png");
+      closeExportMenu();
+    });
+    dom.exportWorkloadCsvMenu?.addEventListener("click", () => {
+      exportWorkloadCsv();
       closeExportMenu();
     });
     dom.exportWorkloadMenu?.addEventListener("click", () => {
@@ -361,6 +383,7 @@
       closeExportMenu();
     });
 
+    dom.exportMenu.addEventListener("click", (event) => event.stopPropagation());
     document.addEventListener("click", () => closeExportMenu());
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeExportMenu();
@@ -376,6 +399,8 @@
     }
     dom.exportMenu.hidden = false;
     dom.exportTrigger.setAttribute("aria-expanded", "true");
+    const firstItem = dom.exportMenu.querySelector("[role='menuitem']");
+    if (firstItem instanceof HTMLElement) firstItem.focus();
   }
 
   function closeExportMenu() {
@@ -413,14 +438,19 @@
     }
 
     dom.stickyFilterBtn.classList.add("is-open");
+    dom.stickyFilterBtn.setAttribute("aria-expanded", "true");
     dom.stickyFilterDropdown.hidden = false;
     dom.stickyFilterBtn.innerHTML = "Hide filters &#9650;";
     renderStickyFilterDropdown();
+
+    const firstFocusable = dom.stickyFilterDropdown.querySelector("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])");
+    if (firstFocusable instanceof HTMLElement) firstFocusable.focus();
   }
 
   function closeStickyFilterDropdown() {
     if (!dom.stickyFilterDropdown || !dom.stickyFilterBtn) return;
     dom.stickyFilterBtn.classList.remove("is-open");
+    dom.stickyFilterBtn.setAttribute("aria-expanded", "false");
     dom.stickyFilterDropdown.hidden = true;
     dom.stickyFilterBtn.innerHTML = "Show filters &#9660;";
     dom.stickyFilterDropdown.innerHTML = "";
@@ -875,6 +905,8 @@
         cb.addEventListener("change", () => {
           if (cb.checked) state.filters.dimensionValues.add(value);
           else state.filters.dimensionValues.delete(value);
+          renderActiveFiltersSummary();
+          updateStickyFilterSummary();
         });
         const text = document.createElement("span");
         text.textContent = value;
@@ -1043,26 +1075,59 @@
 
     dom.summaryGrid.innerHTML = "";
 
-    const cards = [];
-    cards.push(buildKpiCard("Rows", Number(meta?.rowCount || 0), "count"));
-    cards.push(buildKpiCard("Unique users", Number(meta?.uniquePersons || 0), "count"));
+    const totalActionsKey = pickMetricKey(["total copilot actions taken", "total copilot actions"]);
+    const totalEnabledDaysKey = pickMetricKey(["total copilot enabled days"]);
+    const totalActiveDaysKey = pickMetricKey(["total copilot active days"]);
 
-    const totalActionsKey = pickMetricKey(["total copilot actions taken", "total copilot actions taken", "total copilot actions"]);
-    if (totalActionsKey) cards.push(buildKpiCard("Total Copilot actions", totals[totalActionsKey] || 0, "count"));
+    dom.summaryGrid.appendChild(
+      buildSummaryCard({
+        variant: "actions",
+        label: "Copilot actions taken",
+        value: totalActionsKey ? totals[totalActionsKey] || 0 : null,
+        note: totalActionsKey ? "Aggregated from the export." : "Column not found in this export.",
+        icon: ICONS.bolt
+      })
+    );
 
-    const totalActiveDaysKey = pickMetricKey(["total copilot active days", "total copilot active days "]);
-    if (totalActiveDaysKey) cards.push(buildKpiCard("Total Copilot active days", totals[totalActiveDaysKey] || 0, "count"));
+    dom.summaryGrid.appendChild(
+      buildSummaryCard({
+        variant: "users",
+        label: "Active users",
+        value: Number(meta?.uniquePersons || 0),
+        note: "Unique PersonId count (after applied filters).",
+        icon: ICONS.users
+      })
+    );
 
-    const totalEnabledDaysKey = pickMetricKey(["total copilot enabled days", "total copilot enabled days "]);
-    if (totalEnabledDaysKey) cards.push(buildKpiCard("Total Copilot enabled days", totals[totalEnabledDaysKey] || 0, "count"));
+    dom.summaryGrid.appendChild(
+      buildSummaryCard({
+        variant: "hours",
+        label: "Copilot active days",
+        value: totalActiveDaysKey ? totals[totalActiveDaysKey] || 0 : null,
+        note: totalActiveDaysKey ? "Total Copilot active days." : "Column not found in this export.",
+        icon: ICONS.clock
+      })
+    );
 
-    const chatWorkPromptsKey = pickMetricKey(["copilot chat (work) prompts submitted", "copilot chat (work) prompts submitted "]);
-    if (chatWorkPromptsKey) cards.push(buildKpiCard("Copilot Chat (work) prompts", totals[chatWorkPromptsKey] || 0, "count"));
+    dom.summaryGrid.appendChild(
+      buildSummaryCard({
+        variant: "hours",
+        label: "Copilot enabled days",
+        value: totalEnabledDaysKey ? totals[totalEnabledDaysKey] || 0 : null,
+        note: totalEnabledDaysKey ? "Total Copilot enabled days." : "Column not found in this export.",
+        icon: ICONS.calendar
+      })
+    );
 
-    const chatWebPromptsKey = pickMetricKey(["copilot chat (web) prompts submitted", "copilot chat (web) prompts submitted "]);
-    if (chatWebPromptsKey) cards.push(buildKpiCard("Copilot Chat (web) prompts", totals[chatWebPromptsKey] || 0, "count"));
-
-    for (const card of cards) dom.summaryGrid.appendChild(card);
+    const latest = buildLatestPeriod(meta?.maxDate || "", state.filters.metricKey);
+    dom.summaryGrid.appendChild(
+      buildLatestPeriodCard({
+        periodLabel: latest.periodLabel,
+        metricLabel: latest.metricLabel,
+        value: latest.value,
+        note: latest.note
+      })
+    );
   }
 
   function pickMetricKey(candidates) {
@@ -1076,20 +1141,110 @@
     return null;
   }
 
-  function buildKpiCard(title, value, format) {
-    const card = document.createElement("div");
-    card.className = "v2-kpi";
+  const ICONS = {
+    bolt: '<svg viewBox="0 0 24 24" role="img" focusable="false"><path d="M13 2.5L6 13.5h4.2l-1 8 8-12h-4.2L13 2.5Z"/></svg>',
+    users:
+      '<svg viewBox="0 0 24 24" role="img" focusable="false"><circle cx="12" cy="10.5" r="2.6"/><path d="M6.5 18.5c0-2.6 2.5-4.7 5.5-4.7s5.5 2.1 5.5 4.7"/><circle cx="17.5" cy="9.2" r="1.8"/><path d="M16.2 14.7a3.3 3.3 0 0 1 2.8 3.3"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" role="img" focusable="false"><circle cx="12" cy="12" r="6.5"/><path d="M12 8.25v4.25l2.5 1.6"/></svg>',
+    calendar:
+      '<svg viewBox="0 0 24 24" role="img" focusable="false"><rect x="4.5" y="6.5" width="15" height="12.5" rx="2"/><path d="M8 4.5v4"/><path d="M16 4.5v4"/><line x1="4.5" y1="10.5" x2="19.5" y2="10.5"/></svg>'
+  };
 
-    const titleEl = document.createElement("div");
-    titleEl.className = "v2-kpi__title muted";
-    titleEl.textContent = title;
+  function buildSummaryCard({ variant, label, value, note, icon }) {
+    const card = document.createElement("article");
+    card.className = `summary-card summary-card--${variant}`;
 
-    const valueEl = document.createElement("div");
-    valueEl.className = "v2-kpi__value";
-    valueEl.textContent = formatValue(value, format);
+    const meta = document.createElement("div");
+    meta.className = "summary-card__meta";
 
-    card.append(titleEl, valueEl);
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "summary-icon";
+    iconSpan.setAttribute("aria-hidden", "true");
+    iconSpan.innerHTML = icon;
+
+    const labelSpan = document.createElement("span");
+    labelSpan.className = "summary-label";
+    labelSpan.textContent = label;
+
+    meta.append(iconSpan, labelSpan);
+
+    const valueSpan = document.createElement("span");
+    valueSpan.className = "summary-value";
+    valueSpan.textContent = value === null ? "-" : formatValue(value, "count");
+
+    const noteSpan = document.createElement("span");
+    noteSpan.className = "summary-note";
+    noteSpan.textContent = note || "";
+
+    card.append(meta, valueSpan, noteSpan);
     return card;
+  }
+
+  function buildLatestPeriodCard({ periodLabel, metricLabel, value, note }) {
+    const card = document.createElement("article");
+    card.className = "summary-card summary-card--period";
+
+    const meta = document.createElement("div");
+    meta.className = "summary-card__meta";
+
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "summary-icon";
+    iconSpan.setAttribute("aria-hidden", "true");
+    iconSpan.innerHTML = ICONS.calendar;
+
+    const labelSpan = document.createElement("span");
+    labelSpan.className = "summary-label";
+    labelSpan.textContent = "Latest period";
+
+    meta.append(iconSpan, labelSpan);
+
+    const valueWrap = document.createElement("span");
+    valueWrap.className = "summary-value summary-value--latest";
+
+    const period = document.createElement("span");
+    period.className = "summary-latest-period-label";
+    period.textContent = periodLabel || "-";
+
+    const metric = document.createElement("span");
+    metric.className = "summary-latest-metric";
+    metric.textContent = metricLabel ? ` (${metricLabel})` : "";
+
+    valueWrap.append(period, metric);
+
+    const noteSpan = document.createElement("span");
+    noteSpan.className = "summary-note";
+    noteSpan.textContent = note || "Ready after parsing.";
+
+    card.append(meta, valueWrap, noteSpan);
+    return card;
+  }
+
+  function buildLatestPeriod(latestDate, metricKey) {
+    const catalog = state.dataset?.metricCatalog || [];
+    const metricLabel = catalog.find((m) => m.key === metricKey)?.label || "";
+
+    if (!latestDate || !metricKey) {
+      return { periodLabel: "-", metricLabel: "", value: 0, note: "Select a metric to compute the latest period." };
+    }
+
+    const aggregation = state.filters.aggregation;
+    const bucket =
+      aggregation === "monthly"
+        ? latestDate.slice(0, 7)
+        : aggregation === "weekly"
+        ? toWeekBucket(latestDate)
+        : latestDate;
+
+    const { labels, values } = buildTrendSeries(metricKey, aggregation);
+    const idx = labels.lastIndexOf(bucket);
+    const value = idx >= 0 ? Number(values[idx] || 0) : 0;
+
+    return {
+      periodLabel: bucket,
+      metricLabel,
+      value,
+      note: `Latest ${aggregation} bucket value: ${formatValue(value, "count")}.`
+    };
   }
 
   function renderTrendChart() {
@@ -1098,6 +1253,7 @@
 
     const aggregation = state.filters.aggregation;
     const { labels, datasets } = buildTrendDatasets(aggregation);
+    renderTrendHeader();
 
     if (!labels.length || datasets.length === 0) {
       if (dom.trendEmpty) dom.trendEmpty.hidden = false;
@@ -1127,6 +1283,28 @@
     if (datasets.length > 1) {
       renderSeriesToggles();
     }
+  }
+
+  function renderTrendHeader() {
+    if (!state.dataset) return;
+    const meta = state.dataset?.meta || {};
+    const range = getRenderedDateRange();
+    const metricLabel = state.dataset.metricCatalog?.find((m) => m.key === state.filters.metricKey)?.label || "";
+
+    const windowLabel = range.start && range.end ? `${range.start} → ${range.end}` : meta.minDate && meta.maxDate ? `${meta.minDate} → ${meta.maxDate}` : "-";
+    if (dom.trendWindow) dom.trendWindow.textContent = windowLabel;
+
+    const caption =
+      state.trendMode === "metric"
+        ? metricLabel
+          ? `Trend for: ${metricLabel}`
+          : "Select a metric to see trend."
+        : state.trendMode === "workloadActions"
+        ? "Apps trend: Copilot actions taken in apps"
+        : state.trendMode === "workloadActiveDays"
+        ? "Apps trend: Days of active Copilot usage in apps"
+        : "Trend";
+    if (dom.trendCaption) dom.trendCaption.textContent = caption;
   }
 
   function renderWorkloadBreakdown() {
@@ -1623,7 +1801,9 @@
       dom.exportDimTrendPng,
       dom.exportBreakdownPng,
       dom.exportSummaryMenu,
+      dom.exportTrendCsvMenu,
       dom.exportTrendMenu,
+      dom.exportWorkloadCsvMenu,
       dom.exportWorkloadMenu,
       dom.exportDimTrendMenu,
       dom.exportBreakdownMenu
@@ -1986,6 +2166,46 @@
 
     downloadCsv("copilot-dashboard-v2-summary.csv", ["Type", "Bucket", "Series", "Metric", "MetricKey", "Value"], rows);
     toast("Summary CSV downloaded.", "info");
+  }
+
+  function exportTrendCsv() {
+    if (!state.dataset) return;
+
+    const aggregation = state.filters.aggregation;
+    const { labels, datasets } = buildTrendDatasets(aggregation);
+    if (!labels.length || !datasets.length) {
+      toast("No trend data to export.", "error");
+      return;
+    }
+
+    const headers = ["Bucket", "Series", "Value"];
+    const rows = [];
+
+    for (let i = 0; i < labels.length; i++) {
+      for (const ds of datasets) {
+        const v = Array.isArray(ds.data) ? ds.data[i] : 0;
+        rows.push([labels[i], ds.label, v ?? 0]);
+      }
+    }
+
+    downloadCsv("copilot-dashboard-v2-trend.csv", headers, rows);
+    toast("Trend CSV downloaded.", "info");
+  }
+
+  function exportWorkloadCsv() {
+    if (!state.dataset) return;
+    const { rows } = buildWorkloadRows(state.workloadMode);
+    if (!rows.length) {
+      toast("No workload data to export.", "error");
+      return;
+    }
+
+    downloadCsv(
+      "copilot-dashboard-v2-workload.csv",
+      ["Workload", "Mode", "Value"],
+      rows.map((r) => [r.workload, state.workloadMode, r.value])
+    );
+    toast("Workload CSV downloaded.", "info");
   }
 
   function downloadCsv(filename, headers, rows) {

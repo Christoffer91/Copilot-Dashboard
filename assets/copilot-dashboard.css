@@ -1726,6 +1726,11 @@ body.is-custom-theme {
     backdrop-filter: blur(14px);
     }
 
+    .control-row-break {
+      flex-basis: 100%;
+      height: 0;
+    }
+
     /* Sticky filter mini-bar (appears after scrolling past filters) */
     .sticky-filter-bar {
       position: fixed;
@@ -2670,7 +2675,7 @@ body.is-custom-theme {
       display: grid;
       gap: 24px;
       margin-top: 12px;
-      grid-template-columns: repeat(auto-fit, minmax(480px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
     }
 
     .usage-month-card {
@@ -4340,7 +4345,7 @@ body.is-custom-theme {
     /* Desktop (min-width: 1025px and max-width: 1280px) */
     @media (min-width: 1025px) and (max-width: 1280px) {
       main {
-        max-width: 1140px;
+        max-width: max(1240px, calc(100vw - 96px));
       }
 
       .summary-grid {
@@ -4351,7 +4356,7 @@ body.is-custom-theme {
     /* Large desktop (min-width: 1281px) */
     @media (min-width: 1281px) {
       main {
-        max-width: 1240px;
+        max-width: max(1240px, calc(100vw - 96px));
       }
 
       .trend-card,
@@ -5236,7 +5241,7 @@ body.is-dark-carbon .theme-option-name {
 }
 
 .page-footer {
-  max-width: 1240px;
+  max-width: max(1240px, calc(100vw - 96px));
   margin: 40px auto 32px;
   padding: 0 28px;
   text-align: center;

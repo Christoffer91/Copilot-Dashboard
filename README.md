@@ -10,8 +10,17 @@ A client-only dashboard for exploring Viva Insights Copilot CSV exports: filter 
 - Rich filters, multi-metric charts, agent hub tables, theme toggles, and per-capability insights.
 - **Theme system**: 7 built-in themes (Light, Cool Light, Midnight Dark, Carbon Black, Cyberpunk, Neon, Sunset) + custom color picker.
 - Exports: PNG/PDF/CSV, Excel summaries, encrypted snapshots, and SharePoint bundle generator.
-  - Quick export buttons (Excel full report / CSV / PDF) + "More options" menu.
-  - Post-upload CTA for "Download report (Excel)" (respects current filters).
+  - Trend-card export menu:
+    - Download full report (Excel)
+    - Download country report (Excel) (workbook contains an “All orgs (pivot)” sheet + one sheet per country with **all** organizations)
+    - Download totals (Excel)
+    - Download PDF report
+    - Download CSV (trend data)
+    - Download pivot (CSV) (period × country × organization)
+    - Download PNG
+    - Download animation
+    - Download organizations (Excel)
+  - Post-upload CTA for "Export" (respects current filters).
   - Quick share: "Copy summary" (text/Markdown) and "Copy image" of the trend card where supported.
 - Privacy-first: processing happens in the browser; local caching is opt-in each session.
 
@@ -63,6 +72,16 @@ How to export the CSV from Viva Insights:
 - Scripts/styles: `assets/copilot-dashboard.js`, `assets/copilot-dashboard.css`
 - Sample data: `samples/copilot-sample.csv`
 
+## Responsive layout (ultrawide)
+- On screens wider than ~1280px, the page expands to use available width (no 2200px cap) to better support ultrawide monitors.
+- “Usage intensity” uses a responsive grid that fits more month cards per row when there is space.
+
+## Maintenance notes (OneDrive sync)
+If OneDrive keeps reverting changes to key files, this repo sometimes uses the macOS immutable flag to prevent rapid rollbacks.
+
+- Unlock before editing: `chflags nouchg copilot-dashboard.html assets/copilot-dashboard.css assets/copilot-dashboard.js`
+- Re-lock after editing (recommended if OneDrive is fighting you): `chflags uchg copilot-dashboard.html assets/copilot-dashboard.css assets/copilot-dashboard.js`
+
 Contributions: open PRs/issues. Please keep CSP-tight changes and avoid introducing analytics without a clear opt-in.
 
 ## AI-Assisted Development
@@ -97,3 +116,7 @@ Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 
 ### 2025-12-26
 - Export UX refresh: quick export buttons, post-upload CTA, clipboard sharing, and save-to-picker support (where available).
+
+### 2025-12-30
+- Restored export menu items: country report (Excel), pivot (CSV), organizations (Excel).
+- Improved ultrawide support by allowing the page to expand on large screens and fitting more “Usage intensity” cards per row.

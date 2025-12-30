@@ -27,7 +27,7 @@
     crossorigin="anonymous"
     integrity="sha384-STiTZ2kjdnc/em4jSELZZ6VypRToc92cA0m6Nppx3J8C4mt0fjMNUm1xnm1yoP96"
   />
-  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20251226-5" />
+  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20251230-2" />
   <script
     src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
     crossorigin="anonymous"
@@ -234,6 +234,7 @@
         </select>
         <p class="control-hint">Hold Ctrl (Windows) / Cmd (Mac) to choose multiple regions.</p>
       </div>
+      <div class="control-row-break" aria-hidden="true"></div>
       <div class="control-select control-select--toggle">
         <span class="control-label">Time period</span>
         <div class="filter-toggle" data-filter-timeframe-group role="group" aria-label="Time period">
@@ -383,11 +384,14 @@
           <button type="button" class="export-trigger" data-export-trigger aria-haspopup="true" aria-expanded="false">Export &#9660;</button>
           <div class="export-menu" data-export-menu hidden role="menu">
             <button type="button" data-export-excel-full role="menuitem">Download full report (Excel)</button>
+            <button type="button" data-export-excel-country role="menuitem">Download country report (Excel)</button>
             <button type="button" data-export-excel role="menuitem">Download totals (Excel)</button>
             <button type="button" data-export-pdf role="menuitem">Download PDF report</button>
             <button type="button" data-export-csv role="menuitem">Download CSV (trend data)</button>
             <button type="button" data-export-png role="menuitem">Download PNG</button>
             <button type="button" data-export-video role="menuitem">Download animation</button>
+            <button type="button" data-export-pivot-csv role="menuitem">Download pivot (CSV)</button>
+            <button type="button" data-export-organizations-excel role="menuitem">Download organizations (Excel)</button>
             <label class="export-option" data-export-include-details-wrapper>
               <input type="checkbox" data-export-include-details checked />
               Include category detail lines
@@ -1097,6 +1101,6 @@
   ></script>
   <script defer src="assets/sharepoint-static-assets.js"></script>
   <script defer src="assets/vendor/fflate.min.js"></script>
-  <script defer src="assets/copilot-dashboard.js?v=20251226-5"></script>
+  <script defer src="assets/copilot-dashboard.js?v=20251230-2"></script>
 </body>
 </html>

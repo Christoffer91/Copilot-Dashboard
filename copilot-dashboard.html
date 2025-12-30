@@ -1,308 +1,1102 @@
+
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self';
-               script-src 'self' https://cdn.jsdelivr.net;
-               style-src 'self' https://rsms.me;
-               img-src 'self' data:;
-               font-src https://rsms.me;
-               connect-src 'self' https://cdn.jsdelivr.net;
-               worker-src 'self';
-               object-src 'none';
-               base-uri 'self';
-               upgrade-insecure-requests"
-    />
-    <meta name="referrer" content="no-referrer" />
-    <title>Copilot Dashboard v2</title>
-    <link rel="icon" href="data:," />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://rsms.me/inter/inter.css"
-      crossorigin="anonymous"
-      integrity="sha384-STiTZ2kjdnc/em4jSELZZ6VypRToc92cA0m6Nppx3J8C4mt0fjMNUm1xnm1yoP96"
-    />
-    <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20251227-v2-1" />
-    <script
-      src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
-      crossorigin="anonymous"
-      integrity="sha384-D/t0ZMqQW31H3az8ktEiNb39wyKnS82iFY52QPACM+IjKW3jDUhyIgh2PApRqJZs"
-    ></script>
-    <script
-      src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
-      crossorigin="anonymous"
-      integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
-    ></script>
-  </head>
-  <body class="is-light-base">
-    <button
-      type="button"
-      class="floating-theme-toggle"
-      data-theme-toggle
-      aria-pressed="false"
-      aria-label="Enable dark mode"
-    >
-      <span aria-hidden="true" data-theme-icon></span>
-    </button>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+                 script-src 'self' https://cdn.jsdelivr.net;
+                 style-src 'self' https://rsms.me;
+                 img-src 'self' data:;
+                 font-src https://rsms.me;
+                 connect-src 'self' https://cdn.jsdelivr.net;
+                 worker-src 'self' blob:;
+                 object-src 'none';
+                 base-uri 'self';
+                 upgrade-insecure-requests"
+  />
+  <meta name="referrer" content="no-referrer" />
+  <title>Copilot Impact Dashboard</title>
+  <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    rel="stylesheet"
+    href="https://rsms.me/inter/inter.css"
+    crossorigin="anonymous"
+    integrity="sha384-STiTZ2kjdnc/em4jSELZZ6VypRToc92cA0m6Nppx3J8C4mt0fjMNUm1xnm1yoP96"
+  />
+  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20251226-5" />
+  <script
+    src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
+    crossorigin="anonymous"
+    integrity="sha384-D/t0ZMqQW31H3az8ktEiNb39wyKnS82iFY52QPACM+IjKW3jDUhyIgh2PApRqJZs"
+  ></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+    crossorigin="anonymous"
+    integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
+  ></script>
 
-    <a href="#main" class="skip-link">Skip to main content</a>
-    <div class="toast-container" data-toast-container></div>
-    <div class="sticky-filter-bar" data-sticky-filter-bar hidden>
-      <span class="sticky-filter-bar__label">Filters</span>
-      <span class="sticky-filter-bar__summary" data-sticky-filter-summary></span>
-      <button
-        type="button"
-        class="sticky-filter-bar__btn"
-        data-sticky-filter-btn
-        aria-expanded="false"
-        aria-controls="stickyFiltersDropdown"
-      >
-        Show filters &#9660;
-      </button>
-      <div id="stickyFiltersDropdown" class="sticky-filter-dropdown" data-sticky-filter-dropdown hidden></div>
-    </div>
-
-    <main id="main">
-      <header class="page-header">
-        <article class="intro-card">
-          <div class="intro-header">
-            <span class="dashboard-pill">Viva Copilot Dashboard</span>
-            <p class="intro">
-              Copilot Dashboard v2: analyze the Viva Copilot Dashboard CSV export locally in your browser.
-            </p>
-            <div class="v2-theme-picker">
-              <label class="v2-control__label" for="themeSelect">Theme</label>
-              <select id="themeSelect" class="control-select" data-theme-select></select>
-            </div>
-          </div>
-
-          <div class="upload-zone" data-drop-zone role="region" aria-label="File upload area">
-            <input type="file" accept=".csv" data-file-input hidden aria-describedby="uploadHint" />
-            <div class="upload-actions">
-              <div class="upload-buttons">
-                <button type="button" class="upload-button" data-pick-file>Select CSV file</button>
-                <button type="button" class="upload-button upload-button--ghost" data-load-sample>Load sample</button>
+  <script
+    src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+    crossorigin="anonymous"
+    integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"
+  ></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"
+    crossorigin="anonymous"
+    integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H"
+  ></script>
+  <script
+    src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"
+    crossorigin="anonymous"
+    integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"
+  ></script>
+</head>
+<body>
+  <button
+    type="button"
+    class="floating-theme-toggle"
+    data-floating-theme-toggle
+    aria-pressed="false"
+    aria-label="Enable dark mode"
+  >
+    <span aria-hidden="true" data-floating-theme-icon></span>
+  </button>
+  <a href="#impact" class="skip-link">Skip to main content</a>
+  <div class="toast-container" data-toast-container></div>
+  <div class="sticky-filter-bar" data-sticky-filter-bar hidden>
+    <span class="sticky-filter-bar__label">Filters</span>
+    <span class="sticky-filter-bar__summary" data-sticky-filter-summary></span>
+    <button type="button" class="sticky-filter-bar__btn" data-sticky-filter-btn>Show filters &#9660;</button>
+    <div class="sticky-filter-dropdown" data-sticky-filter-dropdown hidden></div>
+  </div>
+  <main>
+    <header class="page-header" id="impact">
+      <article class="intro-card">
+        <div class="intro-header">
+          <span class="dashboard-pill">Microsoft Copilot Dashboard</span>
+          <p class="intro">Upload the Copilot CSV export from Viva Insights.</p>
+        </div>
+        <div class="upload-zone" data-drop-zone role="region" aria-label="File upload area">
+          <input type="file" id="fileInput" accept=".csv" data-file-input hidden aria-describedby="uploadHint" />
+          <div class="upload-actions">
+            <div class="upload-buttons">
+              <label for="fileInput" class="upload-button">Select CSV file</label>
+              <div class="upload-button-group">
+                <button type="button" class="upload-button upload-button--ghost" data-load-sample>Load sample dataset</button>
+                <button type="button" class="storage-button storage-button--inline" data-clear-storage hidden>Clear saved dataset</button>
               </div>
-              <span class="upload-hint muted" id="uploadHint">or drop the file anywhere in this panel</span>
             </div>
-
-            <div class="upload-progress" data-upload-progress hidden>
-              <progress class="upload-progress__bar" value="0" max="100" data-upload-progress-bar></progress>
-              <button type="button" class="upload-cancel" data-upload-cancel>Cancel import</button>
-            </div>
-
-            <p class="upload-meta" data-upload-meta>No file chosen yet.</p>
+            <span class="upload-hint muted" id="uploadHint">or drop the file anywhere in this panel</span>
           </div>
+          <div class="upload-progress" data-upload-progress hidden>
+            <progress class="upload-progress__bar" value="0" max="100" data-upload-progress-bar></progress>
+            <button type="button" class="upload-cancel" data-upload-cancel>Cancel import</button>
+          </div>
+          <div class="storage-controls" data-storage-controls>
+            <label class="storage-consent">
+              <input type="checkbox" data-consent-persist />
+              Save dataset on this device
+            </label>
+            <p class="storage-hint" data-storage-hint>Datasets stay on this device only when you opt in.</p>
+          </div>
+          <p class="upload-meta" data-upload-meta>No file chosen yet.</p>
+        </div>
+        <div class="upload-status" role="status" aria-live="polite" data-upload-status>Waiting for your data.</div>
+        <div class="post-upload-cta" data-post-upload-cta hidden aria-label="Next steps">
+          <button type="button" class="upload-button" data-post-upload-export>Export &#9660;</button>
+        </div>
+      </article>
+      <aside class="dataset-card" role="complementary" aria-label="Dataset information">
+      <h2>Dataset status</h2>
+      <p class="muted" data-dataset-message>Load a CSV export to unlock the full dashboard experience.</p>
+      <div class="dataset-meta-grid" data-dataset-meta hidden>
+          <div class="meta-item">
+            <span class="muted">Records processed</span>
+            <strong data-meta-records>0</strong>
+          </div>
+          <div class="meta-item">
+            <span class="muted">Active contributors</span>
+            <strong data-meta-users>0</strong>
+          </div>
+          <div class="meta-item">
+            <span class="muted">Date coverage</span>
+            <strong data-meta-range>-</strong>
+          </div>
+        </div>
+        <div class="dataset-actions">
+          <div class="theme-toggle">
+            <button type="button" class="theme-toggle__button" data-theme-toggle aria-pressed="false" aria-haspopup="menu" aria-expanded="false">
+              <span data-theme-label>Choose theme</span>
+            </button>
+            <div class="theme-menu" data-theme-menu hidden role="menu">
+              <div class="theme-menu-header">
+                <span class="theme-menu-title">Select theme</span>
+                <button type="button" class="theme-menu-close" data-theme-menu-close aria-label="Close theme menu">&times;</button>
+              </div>
+              <div class="theme-menu-grid">
+                <button type="button" class="theme-option" data-theme="light" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--light"></span>
+                  <span class="theme-option-name">Light</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="light-cool" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--light-cool"></span>
+                  <span class="theme-option-name">Cool Light</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="dark-midnight" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--dark-midnight"></span>
+                  <span class="theme-option-name">Midnight Dark</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="dark-carbon" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--dark-carbon"></span>
+                  <span class="theme-option-name">Carbon Black</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="dark-cyberpunk" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--dark-cyberpunk"></span>
+                  <span class="theme-option-name">Cyberpunk</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="dark-neon" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--dark-neon"></span>
+                  <span class="theme-option-name">Neon</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="dark-sunset" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--dark-sunset"></span>
+                  <span class="theme-option-name">Sunset</span>
+                </button>
+                <button type="button" class="theme-option" data-theme="custom" role="menuitem">
+                  <span class="theme-option-preview theme-option-preview--custom"></span>
+                  <span class="theme-option-name">Custom</span>
+                </button>
+              </div>
+              <div class="custom-theme-editor" data-custom-theme-editor>
+                <div class="custom-color-row">
+                  <span class="custom-color-label">Accent color</span>
+                  <input type="color" class="custom-color-input" data-custom-accent value="#ff6b35" />
+                </div>
+                <div class="custom-color-row">
+                  <span class="custom-color-label">Background</span>
+                  <input type="color" class="custom-color-input" data-custom-bg value="#1a1a2e" />
+                </div>
+                <div class="custom-color-row">
+                  <span class="custom-color-label">Text color</span>
+                  <input type="color" class="custom-color-input" data-custom-text value="#eaeaea" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="snapshot-controls" data-snapshot-controls hidden>
+            <div class="snapshot-controls__buttons">
+              <button type="button" class="storage-button" data-snapshot-save disabled>Save encrypted snapshot</button>
+              <button type="button" class="storage-button storage-button--ghost" data-snapshot-load>Load encrypted snapshot</button>
+            </div>
+            <p class="snapshot-controls__hint muted" data-snapshot-hint>Encrypted snapshots let trusted colleagues reproduce this view without sending raw files.</p>
+          </div>
+        </div>
+      </aside>
+    </header>
 
-          <div class="upload-status" role="status" aria-live="polite">
-            <p class="muted" data-upload-status>Upload a CSV to begin.</p>
-            <div class="muted" data-schema-summary hidden></div>
-            <div class="muted" data-schema-warnings hidden></div>
+    <section class="control-panel" aria-label="Dashboard filters">
+      <div class="active-filters-summary" data-active-filters-summary hidden>
+        <div class="active-filters-header">
+          <span class="active-filters-label">Active filters:</span>
+          <button type="button" class="clear-all-filters" data-clear-all-filters aria-label="Clear all active filters">
+            <span aria-hidden="true">✕</span> Clear all
+          </button>
+        </div>
+        <div class="active-filters-list" data-active-filters-list></div>
+      </div>
+      <div class="control-select control-select--multi">
+        <div class="control-select__label-row">
+          <label for="organizationFilter">Focus organization</label>
+          <select data-filter-organization-field class="control-inline-select" aria-label="Column used for organization filter">
+            <option value="organization" selected>Organization</option>
+            <option value="domain">Domain</option>
+          </select>
+        </div>
+        <select id="organizationFilter" data-filter-organization multiple size="7" class="multi-select">
+          <option value="all">All organizations</option>
+        </select>
+        <p class="control-hint">Hold Ctrl (Windows) / Cmd (Mac) to choose multiple organizations.</p>
+      </div>
+      <div class="control-select control-select--multi" data-country-filter-wrapper>
+        <div class="control-select__label-row">
+          <label for="countryFilter">Region</label>
+          <select data-filter-country-field class="control-inline-select" aria-label="Column used for region filter">
+            <option value="country" selected>Country or region</option>
+            <option value="domain">Domain</option>
+          </select>
+        </div>
+        <select id="countryFilter" data-filter-country multiple size="7" class="multi-select">
+          <option value="all">All regions</option>
+        </select>
+        <p class="control-hint">Hold Ctrl (Windows) / Cmd (Mac) to choose multiple regions.</p>
+      </div>
+      <div class="control-select control-select--toggle">
+        <span class="control-label">Time period</span>
+        <div class="filter-toggle" data-filter-timeframe-group role="group" aria-label="Time period">
+          <button type="button" class="filter-pill is-active" data-filter-timeframe-button="all">Entire dataset</button>
+          <button type="button" class="filter-pill" data-filter-timeframe-button="3m">Past 3 months</button>
+          <button type="button" class="filter-pill" data-filter-timeframe-button="6m">Past 6 months</button>
+          <button type="button" class="filter-pill" data-filter-timeframe-button="12m">Past 12 months</button>
+          <button type="button" class="filter-pill" data-filter-timeframe-button="custom">Custom range</button>
+        </div>
+        <select id="timeframeFilter" data-filter-timeframe hidden aria-label="Timeframe filter">
+          <option value="all" selected>Entire dataset</option>
+          <option value="3m">Past 3 months</option>
+          <option value="6m">Past 6 months</option>
+          <option value="12m">Past 12 months</option>
+          <option value="custom">Custom range</option>
+        </select>
+      </div>
+      <div class="control-select" data-custom-range hidden>
+        <label for="customRangeStart">Custom range</label>
+        <div class="custom-range-inputs">
+          <input type="date" id="customRangeStart" data-filter-custom-start aria-label="Custom range start date" />
+          <span class="range-separator" aria-hidden="true">to</span>
+          <input type="date" id="customRangeEnd" data-filter-custom-end aria-label="Custom range end date" />
+        </div>
+        <p class="range-hint" data-custom-range-hint hidden>Select start and end dates within the dataset range.</p>
+      </div>
+      <div class="control-select control-select--toggle">
+        <span class="control-label">Data aggregated by</span>
+        <div class="filter-toggle" data-filter-aggregate-group role="group" aria-label="Data aggregated by">
+          <button type="button" class="filter-pill" data-filter-aggregate-button="monthly">Monthly</button>
+          <button type="button" class="filter-pill is-active" data-filter-aggregate-button="weekly">Weekly</button>
+        </div>
+        <select id="aggregateFilter" data-filter-aggregate hidden aria-label="Aggregate filter">
+          <option value="monthly">Monthly</option>
+          <option value="weekly" selected>Weekly</option>
+        </select>
+      </div>
+      <div class="control-select control-select--toggle">
+        <span class="control-label">Metric</span>
+        <div class="filter-toggle" data-filter-metric-group role="group" aria-label="Metric">
+          <button type="button" class="filter-pill is-active" data-filter-metric-button="actions">Copilot actions taken</button>
+          <button type="button" class="filter-pill" data-filter-metric-button="hours">Copilot assisted hours</button>
+          <button type="button" class="filter-pill" data-filter-metric-button="adoption">Active users (%)</button>
+        </div>
+        <select id="metricFilter" data-filter-metric hidden aria-label="Metric filter">
+          <option value="actions" selected>Copilot actions taken</option>
+          <option value="hours">Copilot assisted hours</option>
+          <option value="adoption">Active users (%)</option>
+        </select>
+      </div>
+      <div class="control-select control-select--toggle">
+        <span class="control-label">View by</span>
+        <div class="filter-toggle" data-filter-group-group role="group" aria-label="View by">
+          <button type="button" class="filter-pill is-active" data-filter-group-button="organization">Organization</button>
+          <button type="button" class="filter-pill" data-filter-group-button="country">Country</button>
+          <button type="button" class="filter-pill" data-filter-group-button="domain">Domain</button>
+        </div>
+        <select id="groupFilter" data-filter-group hidden aria-label="Group filter">
+          <option value="organization" selected>Organization</option>
+          <option value="country">Country</option>
+          <option value="domain">Domain</option>
+        </select>
+      </div>
+      <div class="control-actions">
+        <button type="button" class="reset-button" data-reset-filters>Reset filters</button>
+      </div>
+    </section>
+    <section class="summary-grid" aria-label="Key metrics">
+      <article class="summary-card summary-card--actions">
+        <div class="summary-card__meta">
+          <span class="summary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" focusable="false">
+              <path d="M13 2.5L6 13.5h4.2l-1 8 8-12h-4.2L13 2.5Z" />
+            </svg>
+          </span>
+          <span class="summary-label">Copilot actions taken</span>
+        </div>
+        <span class="summary-value" data-summary-actions>-</span>
+        <span class="summary-note" data-summary-actions-note>Awaiting dataset.</span>
+      </article>
+      <article class="summary-card summary-card--hours">
+        <div class="summary-card__meta">
+          <span class="summary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" focusable="false">
+              <circle cx="12" cy="12" r="6.5" />
+              <path d="M12 8.25v4.25l2.5 1.6" />
+            </svg>
+          </span>
+          <span class="summary-label">Copilot assisted hours</span>
+        </div>
+        <span class="summary-value" data-summary-hours>-</span>
+        <span class="summary-note" data-summary-hours-note>Awaiting dataset.</span>
+      </article>
+      <article class="summary-card summary-card--users">
+        <div class="summary-card__meta">
+          <span class="summary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" focusable="false">
+              <circle cx="12" cy="10.5" r="2.6" />
+              <path d="M6.5 18.5c0-2.6 2.5-4.7 5.5-4.7s5.5 2.1 5.5 4.7" />
+              <circle cx="17.5" cy="9.2" r="1.8" />
+              <path d="M16.2 14.7a3.3 3.3 0 0 1 2.8 3.3" />
+            </svg>
+          </span>
+          <span class="summary-label">Active Copilot users</span>
+        </div>
+        <span class="summary-value" data-summary-users>-</span>
+        <span class="summary-note" data-summary-users-note>Upload data to calculate engagement depth.</span>
+      </article>
+      <article class="summary-card summary-card--period">
+        <div class="summary-card__meta">
+          <span class="summary-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" focusable="false">
+              <rect x="4.5" y="6.5" width="15" height="12.5" rx="2" />
+              <path d="M8 4.5v4" />
+              <path d="M16 4.5v4" />
+              <line x1="4.5" y1="10.5" x2="19.5" y2="10.5" />
+              <path d="M9.5 14h2" />
+              <path d="M12.5 17h2.5" />
+            </svg>
+          </span>
+          <span class="summary-label">Latest period</span>
+        </div>
+        <span class="summary-value summary-value--latest" data-summary-latest>
+          <span class="summary-latest-period-label" data-summary-latest-period>-</span>
+          <span class="summary-latest-metric" data-summary-latest-metric></span>
+        </span>
+        <span class="summary-note" data-summary-latest-note>Ready after parsing.</span>
+      </article>
+    </section>
+
+    <section class="trend-card" aria-label="Impact trend">
+      <header>
+        <div>
+          <h2 class="chart-title">Impact trend for the selected period</h2>
+      <p class="chart-subtitle" data-trend-caption>Upload data to visualize momentum.</p>
+    </div>
+    <div class="chip is-muted" data-trend-window>-</div>
+  </header>
+  <div class="chart-actions">
+    <button type="button" class="series-bulk-toggle" data-toggle-series-mode aria-pressed="false">Hide capability lines</button>
+    <div class="trend-view-toggle" role="group" aria-label="Trend value view">
+      <button type="button" class="trend-view-button is-active" data-trend-view="total" aria-pressed="true">Totals</button>
+      <button type="button" class="trend-view-button" data-trend-view="average" aria-pressed="false">Avg per user</button>
+    </div>
+    <div class="series-toggle-rail" data-series-toggle-group aria-label="Series visibility toggles"></div>
+        <div class="export-controls" data-export-controls aria-label="Export">
+          <button type="button" class="export-trigger" data-export-trigger aria-haspopup="true" aria-expanded="false">Export &#9660;</button>
+          <div class="export-menu" data-export-menu hidden role="menu">
+            <button type="button" data-export-excel-full role="menuitem">Download full report (Excel)</button>
+            <button type="button" data-export-excel role="menuitem">Download totals (Excel)</button>
+            <button type="button" data-export-pdf role="menuitem">Download PDF report</button>
+            <button type="button" data-export-csv role="menuitem">Download CSV (trend data)</button>
+            <button type="button" data-export-png role="menuitem">Download PNG</button>
+            <button type="button" data-export-video role="menuitem">Download animation</button>
+            <label class="export-option" data-export-include-details-wrapper>
+              <input type="checkbox" data-export-include-details checked />
+              Include category detail lines
+            </label>
+            <p class="export-hint" data-export-hint hidden></p>
           </div>
-        </article>
-        <aside class="dataset-card" role="complementary" aria-label="Dataset information">
-          <h2>Dataset status</h2>
-          <p class="muted" data-dataset-message>Load a CSV export to unlock the dashboard.</p>
-          <div class="dataset-meta-grid" data-dataset-meta hidden>
-            <div class="meta-item">
-              <span class="muted">Records processed</span>
-              <strong data-meta-records>0</strong>
-            </div>
-            <div class="meta-item">
-              <span class="muted">Unique users</span>
-              <strong data-meta-users>0</strong>
-            </div>
-            <div class="meta-item">
-              <span class="muted">Date range</span>
-              <strong data-meta-dates>-</strong>
-            </div>
-            <div class="meta-item">
-              <span class="muted">Metrics</span>
-              <strong data-meta-metrics>0</strong>
-            </div>
-            <div class="meta-item">
-              <span class="muted">Filtered out</span>
-              <strong data-meta-filtered>0</strong>
-            </div>
-          </div>
-        </aside>
+        </div>
+      </div>
+      <div class="trend-color-controls" data-trend-colors hidden>
+
+        <div class="trend-color-controls__group">
+
+          <label for="trendColorStart">Start color</label>
+
+          <input type="color" id="trendColorStart" data-trend-color-start aria-label="Choose start color" />
+
+        </div>
+
+        <div class="trend-color-controls__group">
+
+          <label for="trendColorEnd">End color</label>
+
+          <input type="color" id="trendColorEnd" data-trend-color-end aria-label="Choose end color" />
+
+        </div>
+
+        <div class="trend-color-controls__actions">
+
+          <button type="button" class="trend-color-button" data-apply-trend-colors>Apply gradient</button>
+
+          <button type="button" class="trend-color-button is-secondary" data-reset-trend-colors>Reset colors</button>
+
+        </div>
+
+        <p class="trend-color-controls__hint" data-trend-color-hint>Color choices stay on this device.</p>
+
+      </div>
+
+      <p class="chart-hint" data-series-hint hidden>Switch to actions metric to compare capability lines.</p>
+      <div class="chart-wrapper">
+        <canvas id="trendChart" role="img" aria-label="Line chart showing Copilot metric over time"></canvas>
+        <div class="chart-empty" data-trend-empty>Load a CSV file to render the trend.</div>
+      </div>
+    </section>
+
+    <section class="group-card" aria-label="Group breakdown">
+      <div class="group-header">
+        <h2>Impact trend breakdown</h2>
+        <p class="muted" data-group-caption>Select a metric and view to compare groups.</p>
+      </div>
+      <table class="group-table">
+        <thead>
+          <tr>
+            <th scope="col">Group</th>
+            <th scope="col" class="users-col">Users</th>
+            <th scope="col" class="value-col">Metric value</th>
+            <th scope="col" class="avg-col">Avg actions/user</th>
+            <th scope="col" class="share-col">Share</th>
+            <th scope="col">Momentum</th>
+          </tr>
+        </thead>
+        <tbody data-group-body></tbody>
+      </table>
+      <button type="button" class="view-more-button" data-view-more hidden aria-expanded="false">Show remaining groups/offices</button>
+    </section>
+
+    <section class="trend-card agent-hub" aria-label="Copilot agent exports" data-agent-hub hidden>
+      <header class="card-header-with-actions">
+        <div>
+          <h2 class="chart-title">Top Copilot agents</h2>
+          <p class="chart-subtitle">Upload the three Viva Insights exports to flip between user, agent, and combined views.</p>
+        </div>
+        <button type="button" class="storage-button storage-button--ghost" data-agent-reset hidden>Reset uploaded data</button>
       </header>
 
-      <div class="page-body">
-        <section class="card" aria-labelledby="filtersTitle" data-filters-card hidden>
-          <div class="card-header-with-actions">
-            <div>
-              <h2 class="card-title" id="filtersTitle">Filters</h2>
-              <div class="active-filters-summary" data-active-filters-summary hidden>
-                <div class="active-filters-header">
-                  <span class="active-filters-label">Active filters</span>
-                  <button type="button" class="clear-all-filters" data-clear-all-filters>Clear all</button>
-                </div>
-                <div class="active-filters-list" data-active-filters-list></div>
-              </div>
-            </div>
-            <div class="card-header-actions">
-              <button type="button" class="upload-button upload-button--ghost" data-export-summary>Download summary (CSV)</button>
-              <div class="export-controls" data-export-controls aria-label="Export">
-                <button
-                  type="button"
-                  class="export-trigger"
-                  data-export-trigger
-                  aria-haspopup="true"
-                  aria-expanded="false"
-                >
-                  Export &#9660;
-                </button>
-                <div class="export-menu" data-export-menu hidden role="menu">
-                  <button type="button" data-export-summary-menu role="menuitem">Download summary (CSV)</button>
-                  <button type="button" data-export-trend-csv-menu role="menuitem">Download trend data (CSV)</button>
-                  <button type="button" data-export-trend-menu role="menuitem">Download trend (PNG)</button>
-                  <button type="button" data-export-workload-csv-menu role="menuitem">Download workload data (CSV)</button>
-                  <button type="button" data-export-workload-menu role="menuitem">Download workload (PNG)</button>
-                  <button type="button" data-export-dimtrend-menu role="menuitem">Download top dimensions (PNG)</button>
-                  <button type="button" data-export-breakdown-menu role="menuitem">Download top breakdown (PNG)</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="filter-grid" data-filters-grid></div>
-        </section>
-
-        <section class="summary-grid" aria-label="Key metrics" data-summary-card hidden data-summary-grid></section>
-
-        <section class="card" aria-labelledby="trendTitle" data-trend-card hidden>
-          <div class="card-header-with-actions">
-            <div>
-              <h2 class="card-title" id="trendTitle">Trend</h2>
-              <p class="chart-subtitle" data-trend-caption>Upload data to visualize momentum.</p>
-            </div>
-            <div class="card-header-actions">
-              <div class="chip is-muted" data-trend-window>-</div>
-              <button type="button" class="upload-button upload-button--ghost" data-export-trend-png>Download PNG</button>
-            </div>
-          </div>
-          <p class="muted" data-trend-empty hidden>No data for the selected metric and date range.</p>
-          <div class="chart-actions" data-trend-controls>
-            <div class="trend-view-toggle" role="group" aria-label="Trend mode">
-              <button type="button" class="trend-view-button is-active" data-trend-mode="metric" aria-pressed="true">
-                Selected metric
-              </button>
-              <button type="button" class="trend-view-button" data-trend-mode="workloadActions" aria-pressed="false">
-                Apps (actions)
-              </button>
-              <button type="button" class="trend-view-button" data-trend-mode="workloadActiveDays" aria-pressed="false">
-                Apps (active days)
-              </button>
-            </div>
-            <div class="series-toggle-rail" data-series-toggle-group aria-label="Series visibility"></div>
-          </div>
-          <div class="chart-card">
-            <canvas data-trend-chart aria-label="Trend chart" role="img"></canvas>
-          </div>
-        </section>
-
-        <section class="card" aria-labelledby="workloadTitle" data-workload-card hidden>
-          <div class="card-header-with-actions">
-            <h2 class="card-title" id="workloadTitle">Workload breakdown</h2>
-            <div class="card-header-actions">
-              <div class="v2-workload-controls">
-                <label class="v2-control__label" for="workloadMode">Mode</label>
-                <select id="workloadMode" class="control-select" data-workload-mode></select>
-              </div>
-              <button type="button" class="upload-button upload-button--ghost" data-export-workload-png>Download PNG</button>
-            </div>
-          </div>
-          <p class="muted">
-            Aggregated from “actions taken in …” / “days of active usage in …” / “enabled days for …” columns when present.
-          </p>
-          <div class="chart-card">
-            <canvas data-workload-chart aria-label="Workload breakdown chart" role="img"></canvas>
-          </div>
-          <div class="table-card">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th scope="col">Workload</th>
-                  <th scope="col">Value</th>
-                </tr>
-              </thead>
-              <tbody data-workload-body></tbody>
-            </table>
-          </div>
-          <p class="muted" data-workload-empty hidden>No workload-specific columns found for this mode.</p>
-        </section>
-
-        <section class="card" aria-labelledby="dimensionTrendTitle" data-dimension-trend-card hidden>
-          <div class="card-header-with-actions">
-            <h2 class="card-title" id="dimensionTrendTitle">Top dimensions trend</h2>
-            <div class="card-header-actions">
-              <button type="button" class="upload-button upload-button--ghost" data-export-dimtrend-png>Download PNG</button>
-            </div>
-          </div>
-          <p class="muted">
-            Available for core metrics (Total Copilot actions/active days/enabled days).
-          </p>
-          <div class="chart-card">
-            <canvas data-dimension-trend-chart aria-label="Top dimensions trend chart" role="img"></canvas>
-          </div>
-        </section>
-
-        <section class="card" aria-labelledby="topTitle" data-top-card hidden>
-          <div class="card-header-with-actions">
-            <h2 class="card-title" id="topTitle">Top breakdown</h2>
-            <div class="card-header-actions">
-              <button type="button" class="upload-button upload-button--ghost" data-export-breakdown-png>Download PNG</button>
-            </div>
-          </div>
-          <p class="muted" data-top-empty hidden>No data for the selected dimension/metric.</p>
-          <div class="chart-card">
-            <canvas data-breakdown-chart aria-label="Top breakdown bar chart" role="img"></canvas>
-          </div>
-          <div class="table-card">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th scope="col" data-top-dimension-header></th>
-                  <th scope="col">Value</th>
-                </tr>
-              </thead>
-              <tbody data-top-body></tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="card" aria-labelledby="metricsTitle" data-metrics-card hidden>
-          <div class="card-header">
-            <h2 class="card-title" id="metricsTitle">Metrics</h2>
-            <div class="v2-metric-search">
-              <label class="v2-control__label" for="metricSearch">Search</label>
-              <input id="metricSearch" class="control-input" type="search" placeholder="Find a metric…" data-metric-search />
-            </div>
-          </div>
-          <div class="table-card">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th scope="col">Group</th>
-                  <th scope="col">Metric</th>
-                  <th scope="col">Total</th>
-                </tr>
-              </thead>
-              <tbody data-metrics-body></tbody>
-            </table>
-          </div>
-        </section>
+      <div class="agent-tablist" role="tablist" aria-label="Agent data views" data-agent-tabs>
+        <button type="button" class="agent-tab is-active" role="tab" aria-selected="true" data-agent-tab="users">Users</button>
+        <button type="button" class="agent-tab" role="tab" aria-selected="false" data-agent-tab="agents">Agents</button>
+        <button type="button" class="agent-tab" role="tab" aria-selected="false" data-agent-tab="combined">Users &amp; agents</button>
       </div>
-    </main>
 
-    <footer class="page-footer">
-      <p class="muted">Copilot Dashboard v2 · Local-only processing.</p>
-    </footer>
+      <div class="agent-panel" data-agent-panel="users" role="tabpanel">
+        <div class="agent-dropzone" data-agent-hub-dropzone="users">
+          <div>
+            <strong>Users CSV</strong>
+            <p>Drop <code>DeclarativeAgents_Users_*.csv</code> or <button type="button" class="agent-inline-upload" data-agent-hub-upload="users">browse</button> to replace this table.</p>
+            <p class="muted">Columns required: Username, Display name, Number of agents used, Agent responses received, Last activity date (UTC).</p>
+          </div>
+          <input
+            type="file"
+            accept=".csv"
+            data-agent-hub-input="users"
+            multiple
+            hidden
+            aria-label="Upload Users CSV"
+          />
+        </div>
+        <p class="agent-status" data-agent-hub-status="users">Upload a CSV to populate the users table.</p>
+        <p class="agent-meta" data-agent-hub-meta="users">No file uploaded yet.</p>
+        <div class="agent-filter-bar" data-agent-hub-filter-bar="users" hidden>
+          <div class="agent-filter-search">
+            <input
+              type="search"
+              class="agent-search-input"
+              placeholder="Filter by username or display name"
+              data-agent-hub-filter-input="users"
+              aria-label="Filter users"
+              id="agentUsersFilter"
+              name="agentUsersFilter"
+            />
+            <button type="button" class="agent-clear-button" data-agent-hub-filter-clear="users" hidden>Clear</button>
+          </div>
+        </div>
+        <div class="agent-table-wrapper" data-agent-hub-table-wrapper="users" hidden>
+          <table class="agent-data-table">
+            <thead>
+              <tr>
+                <th scope="col" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="users" data-agent-hub-sort-key="username">
+                    <span class="agent-sort-label">Username</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="users" data-agent-hub-sort-key="displayName">
+                    <span class="agent-sort-label">Display name</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" class="is-numeric" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="users" data-agent-hub-sort-key="agentCount">
+                    <span class="agent-sort-label">Number of agents used</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" class="is-numeric" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="users" data-agent-hub-sort-key="responses">
+                    <span class="agent-sort-label">Agent responses received</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="users" data-agent-hub-sort-key="lastActivity">
+                    <span class="agent-sort-label">Last activity date (UTC)</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody data-agent-hub-tbody="users"></tbody>
+          </table>
+        </div>
+        <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="users" hidden>Show all rows</button>
+        <div class="agent-empty" data-agent-hub-empty="users">Upload a Users CSV to get started.</div>
+      </div>
 
-    <script defer src="assets/copilot-dashboard-v2.js?v=20251227-v2-1"></script>
-  </body>
+      <div class="agent-panel" data-agent-panel="agents" role="tabpanel" hidden>
+        <div class="agent-dropzone" data-agent-hub-dropzone="agents">
+          <div>
+            <strong>Agents CSV</strong>
+            <p>Drop <code>DeclarativeAgents_Agents_*.csv</code> or <button type="button" class="agent-inline-upload" data-agent-hub-upload="agents">browse</button> to update this table.</p>
+            <p class="muted">Columns required: Agent ID, Agent name, Creator type, Active users (licensed/unlicensed), Responses sent to users, Last activity date (UTC).</p>
+          </div>
+          <input
+            type="file"
+            accept=".csv"
+            data-agent-hub-input="agents"
+            multiple
+            hidden
+            aria-label="Upload Agents CSV"
+          />
+        </div>
+        <p class="agent-status" data-agent-hub-status="agents">Upload a CSV to populate the agents table.</p>
+        <p class="agent-meta" data-agent-hub-meta="agents">No file uploaded yet.</p>
+        <div class="agent-filter-bar" data-agent-hub-filter-bar="agents" hidden>
+          <div class="agent-filter-search">
+            <input
+              type="search"
+              class="agent-search-input"
+              placeholder="Filter by agent name, ID, or creator type"
+              data-agent-hub-filter-input="agents"
+              aria-label="Filter agents"
+              id="agentAgentsFilter"
+              name="agentAgentsFilter"
+            />
+            <button type="button" class="agent-clear-button" data-agent-hub-filter-clear="agents" hidden>Clear</button>
+          </div>
+        </div>
+        <div class="agent-table-wrapper" data-agent-hub-table-wrapper="agents" hidden>
+          <table class="agent-data-table">
+            <thead>
+              <tr>
+                <th scope="col" class="agent-col-agentId" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="agents" data-agent-hub-sort-key="agentId">
+                    <span class="agent-sort-label">Agent ID</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="agents" data-agent-hub-sort-key="agentName">
+                    <span class="agent-sort-label">Agent name</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="agents" data-agent-hub-sort-key="creatorType">
+                    <span class="agent-sort-label">Creator type</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" class="is-numeric" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="agents" data-agent-hub-sort-key="activeLicensed">
+                    <span class="agent-sort-label">Active users (licensed)</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" class="is-numeric" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="agents" data-agent-hub-sort-key="activeUnlicensed">
+                    <span class="agent-sort-label">Active users (unlicensed)</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" class="is-numeric" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="agents" data-agent-hub-sort-key="responses">
+                    <span class="agent-sort-label">Responses sent to users</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="agents" data-agent-hub-sort-key="lastActivity">
+                    <span class="agent-sort-label">Last activity date (UTC)</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody data-agent-hub-tbody="agents"></tbody>
+          </table>
+        </div>
+        <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="agents" hidden>Show all rows</button>
+        <div class="agent-empty" data-agent-hub-empty="agents">Upload an Agents CSV to view this data.</div>
+      </div>
+
+      <div class="agent-panel" data-agent-panel="combined" role="tabpanel" hidden>
+        <div class="agent-dropzone" data-agent-hub-dropzone="combined">
+          <div>
+            <strong>Users &amp; agents CSV</strong>
+            <p>Drop <code>DeclarativeAgents_Users___agents_*.csv</code> or <button type="button" class="agent-inline-upload" data-agent-hub-upload="combined">browse</button> to refresh this table.</p>
+            <p class="muted">Columns required: Agent ID, Agent name, Creator type, Username, Responses sent to users, Last activity date (UTC).</p>
+          </div>
+          <input
+            type="file"
+            accept=".csv"
+            data-agent-hub-input="combined"
+            multiple
+            hidden
+            aria-label="Upload Users and Agents CSV"
+          />
+        </div>
+        <p class="agent-status" data-agent-hub-status="combined">Upload a CSV to populate the combined table.</p>
+        <p class="agent-meta" data-agent-hub-meta="combined">No file uploaded yet.</p>
+        <div class="agent-filter-bar" data-agent-hub-filter-bar="combined" hidden>
+          <div class="agent-filter-search">
+            <input
+              type="search"
+              class="agent-search-input"
+              placeholder="Filter by agent, creator type, or username"
+              data-agent-hub-filter-input="combined"
+              aria-label="Filter combined rows"
+              id="agentCombinedFilter"
+              name="agentCombinedFilter"
+            />
+            <button type="button" class="agent-clear-button" data-agent-hub-filter-clear="combined" hidden>Clear</button>
+          </div>
+        </div>
+        <div class="agent-table-wrapper" data-agent-hub-table-wrapper="combined" hidden>
+          <table class="agent-data-table">
+            <thead>
+              <tr>
+                <th scope="col" class="agent-col-agentId" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="combined" data-agent-hub-sort-key="agentId">
+                    <span class="agent-sort-label">Agent ID</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="combined" data-agent-hub-sort-key="agentName">
+                    <span class="agent-sort-label">Agent name</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="combined" data-agent-hub-sort-key="creatorType">
+                    <span class="agent-sort-label">Creator type</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="combined" data-agent-hub-sort-key="username">
+                    <span class="agent-sort-label">Username</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" class="is-numeric" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="combined" data-agent-hub-sort-key="responses">
+                    <span class="agent-sort-label">Responses sent to users</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+                <th scope="col" aria-sort="none">
+                  <button type="button" class="agent-sort-button" data-agent-hub-sort-context="combined" data-agent-hub-sort-key="lastActivity">
+                    <span class="agent-sort-label">Last activity date (UTC)</span>
+                    <span class="agent-sort-indicator" aria-hidden="true"></span>
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody data-agent-hub-tbody="combined"></tbody>
+          </table>
+        </div>
+        <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="combined" hidden>Show all rows</button>
+        <div class="agent-empty" data-agent-hub-empty="combined">Upload the Users &amp; Agents CSV to view matching rows.</div>
+      </div>
+    </section>
+
+    <section class="trend-card active-days-card" aria-label="Copilot activity last 30 days" data-active-days-card>
+      <header>
+        <div>
+          <h2 class="chart-title">Copilot activity (last 30 days)</h2>
+          <p class="chart-subtitle" data-active-days-caption>Upload data to review Copilot activity for the last 30 days.</p>
+        </div>
+        <div class="usage-trend-controls" role="group" aria-label="Active usage view" data-active-days-controls>
+          <button type="button" class="usage-trend-toggle is-active" data-active-days-view="users">Unique users</button>
+          <button type="button" class="usage-trend-toggle" data-active-days-view="prompts">Total prompts</button>
+        </div>
+      </header>
+      <div class="active-days-grid" data-active-days-grid>
+        <article class="active-days-item">
+          <span class="active-days-label">Word</span>
+          <span class="active-days-value" data-active-days-value="word">-</span>
+        </article>
+        <article class="active-days-item">
+          <span class="active-days-label">Teams</span>
+          <span class="active-days-value" data-active-days-value="teams">-</span>
+        </article>
+        <article class="active-days-item">
+          <span class="active-days-label">Outlook</span>
+          <span class="active-days-value" data-active-days-value="outlook">-</span>
+        </article>
+        <article class="active-days-item">
+          <span class="active-days-label">PowerPoint</span>
+          <span class="active-days-value" data-active-days-value="powerpoint">-</span>
+        </article>
+        <article class="active-days-item">
+          <span class="active-days-label">Excel</span>
+          <span class="active-days-value" data-active-days-value="excel">-</span>
+        </article>
+        <article class="active-days-item">
+          <span class="active-days-label">OneNote</span>
+          <span class="active-days-value" data-active-days-value="onenote">-</span>
+        </article>
+        <article class="active-days-item">
+          <span class="active-days-label">Loop</span>
+          <span class="active-days-value" data-active-days-value="loop">-</span>
+        </article>
+        <article class="active-days-item">
+          <span class="active-days-label">Copilot chat (work)</span>
+          <span class="active-days-value" data-active-days-value="chatWork">-</span>
+        </article>
+        <article class="active-days-item">
+          <span class="active-days-label">Copilot Chat (web)</span>
+          <span class="active-days-value" data-active-days-value="chatWeb">-</span>
+        </article>
+      </div>
+    </section>
+    <section class="trend-card insight-card" aria-label="Adoption by app" data-adoption-card>
+      <header class="card-header-with-actions">
+        <div>
+          <h2 class="chart-title">Adoption by app</h2>
+          <p class="chart-subtitle" data-adoption-caption>Upload data to see which apps drive Copilot usage.</p>
+        </div>
+        <div class="card-header-actions">
+          <div class="chart-export-group">
+            <button type="button" class="storage-button storage-button--inline" data-adoption-export-csv>Download CSV</button>
+          </div>
+          <div class="adoption-controls">
+            <button type="button" class="view-more-button" data-adoption-toggle hidden>Show app capabilities</button>
+          </div>
+        </div>
+      </header>
+      <div class="adoption-table-wrapper">
+        <table class="adoption-table" data-adoption-table>
+          <thead>
+            <tr>
+              <th scope="col">Apps &amp; capabilities</th>
+              <th scope="col" class="is-numeric">Active users</th>
+              <th scope="col" class="is-numeric">% of active users</th>
+            </tr>
+          </thead>
+          <tbody data-adoption-body></tbody>
+        </table>
+        <div class="chart-empty" data-adoption-empty hidden>Load data to view adoption by app.</div>
+      </div>
+      <footer class="adoption-footer">
+        <div class="muted">Active Copilot users in view</div>
+        <div class="adoption-total" data-adoption-total>-</div>
+      </footer>
+    </section>
+    <section class="trend-card insight-card" aria-label="Usage intensity insights" data-usage-card>
+      <header class="card-header-with-actions">
+        <div>
+          <h2 class="chart-title">Usage intensity</h2>
+          <p class="chart-subtitle" data-usage-caption>Upload data to break down active users.</p>
+        </div>
+        <div class="card-header-actions">
+          <div class="chip is-muted" data-usage-window>-</div>
+          <div class="chart-export-group">
+            <button type="button" class="storage-button storage-button--inline" data-usage-intensity-export-csv>Download CSV</button>
+          </div>
+        </div>
+      </header>
+      <div class="usage-thresholds" data-usage-thresholds>
+        <div class="usage-thresholds__field">
+          <label for="usageThresholdMiddle">Middle threshold</label>
+          <input type="number" id="usageThresholdMiddle" data-usage-threshold-middle min="1" step="1" />
+        </div>
+        <div class="usage-thresholds__field">
+          <label for="usageThresholdHigh">High threshold</label>
+          <input type="number" id="usageThresholdHigh" data-usage-threshold-high min="1" step="1" />
+        </div>
+      </div>
+      <div class="usage-month-controls" data-usage-month-controls></div>
+      <div class="usage-month-grid" data-usage-month-grid></div>
+      <div class="chart-empty" data-usage-empty hidden>Upload data to break down active users by month.</div>
+    </section>
+    <section class="trend-card insight-card" aria-label="Usage intensity trend" data-usage-trend-card>
+      <header class="card-header-with-actions">
+        <div>
+          <h2 class="chart-title">Usage intensity comparison</h2>
+          <p class="chart-subtitle" data-usage-trend-caption>Upload data to compare frequent and consistent usage.</p>
+        </div>
+        <div class="card-header-actions">
+          <div class="usage-trend-controls" role="group" aria-label="Usage intensity metric view">
+            <button type="button" class="usage-trend-toggle is-active" data-usage-trend-mode="number">Show numbers</button>
+            <button type="button" class="usage-trend-toggle" data-usage-trend-mode="percentage">Show percentages</button>
+          </div>
+          <div class="chart-export-group">
+            <button type="button" class="storage-button storage-button--inline" data-usage-export-png>Download PNG</button>
+            <button type="button" class="storage-button storage-button--inline" data-usage-export-csv>Download CSV</button>
+          </div>
+        </div>
+      </header>
+      <div class="usage-region-controls" data-usage-trend-region-controls></div>
+      <div class="usage-trend-chart">
+        <canvas id="usageTrendChart" data-usage-trend-chart aria-label="Usage intensity trend"></canvas>
+        <div class="chart-empty" data-usage-trend-empty hidden>Upload data to visualize usage intensity trend.</div>
+      </div>
+    </section>
+    <section class="trend-card insight-card" aria-label="Licensed users trend" data-enabled-licenses-card>
+      <header>
+        <div>
+          <h2 class="chart-title">Enabled Copilot users</h2>
+          <p class="chart-subtitle" data-enabled-licenses-caption>Upload data to visualize licensed users by month.</p>
+        </div>
+      </header>
+      <div class="enabled-licenses-controls">
+        <div class="export-controls" data-enabled-licenses-export-controls>
+          <button type="button" class="export-trigger" data-enabled-licenses-export-trigger aria-haspopup="true" aria-expanded="false">Export &#9660;</button>
+          <div class="export-menu" data-enabled-licenses-export-menu hidden role="menu">
+            <button type="button" data-enabled-licenses-export-transparent role="menuitem">PNG (transparent)</button>
+            <button type="button" data-enabled-licenses-export-white role="menuitem">PNG (white bg)</button>
+            <button type="button" data-enabled-licenses-export-no-values role="menuitem">PNG (no values)</button>
+          </div>
+        </div>
+        <div class="enabled-licenses-color-controls" data-enabled-licenses-color-controls>
+          <div class="enabled-licenses-color-controls__group">
+            <label for="enabledLicensesColorStart">Start color</label>
+            <input type="color" id="enabledLicensesColorStart" data-enabled-licenses-color-start aria-label="Choose start color" />
+          </div>
+          <div class="enabled-licenses-color-controls__group">
+            <label for="enabledLicensesColorEnd">End color</label>
+            <input type="color" id="enabledLicensesColorEnd" data-enabled-licenses-color-end aria-label="Choose end color" />
+          </div>
+          <label class="enabled-licenses-gradient-toggle">
+            <input type="checkbox" data-enabled-licenses-gradient />
+            Use gradient
+          </label>
+          <label class="enabled-licenses-value-toggle">
+            <input type="checkbox" data-enabled-licenses-show-values checked />
+            Show values on bars
+          </label>
+          <div class="enabled-licenses-color-controls__group enabled-licenses-override" data-enabled-licenses-override hidden>
+            <label for="enabledLicensesOverride">Override last month</label>
+            <div class="enabled-licenses-override__inputs">
+              <input
+                type="number"
+                id="enabledLicensesOverride"
+                inputmode="numeric"
+                min="0"
+                step="1"
+                data-enabled-licenses-override-input
+                aria-describedby="enabledLicensesOverrideHint"
+              />
+              <div class="enabled-licenses-override__buttons">
+                <button type="button" class="trend-color-button" data-enabled-licenses-override-apply>Set</button>
+                <button type="button" class="trend-color-button is-secondary" data-enabled-licenses-override-clear>Clear</button>
+              </div>
+            </div>
+            <p class="enabled-licenses-override__hint" id="enabledLicensesOverrideHint" data-enabled-licenses-override-hint></p>
+          </div>
+          <div class="enabled-licenses-color-controls__actions">
+            <button type="button" class="trend-color-button" data-enabled-licenses-apply>Apply</button>
+            <button type="button" class="trend-color-button is-secondary" data-enabled-licenses-reset>Reset</button>
+          </div>
+        </div>
+      </div>
+      <div class="enabled-licenses-chart">
+        <canvas id="enabledLicensesChart" data-enabled-licenses-chart aria-label="Bar chart showing enabled Copilot users by month"></canvas>
+        <div class="chart-empty" data-enabled-licenses-empty hidden>Upload data to visualize license coverage.</div>
+      </div>
+    </section>
+    <section class="trend-card insight-card" aria-label="Returning users" data-returning-card>
+      <header class="card-header-with-actions">
+        <div>
+          <h2 class="chart-title">Returning users</h2>
+          <p class="chart-subtitle" data-returning-caption>Upload data to monitor recurring adoption.</p>
+        </div>
+        <div class="card-header-actions">
+          <div class="usage-trend-controls" role="group" aria-label="Returning users metric view" data-returning-metric-controls>
+            <button type="button" class="usage-trend-toggle is-active" data-returning-metric-button="total">Total users</button>
+            <button type="button" class="usage-trend-toggle" data-returning-metric-button="percentage">Percentage</button>
+          </div>
+          <div class="usage-trend-controls" role="group" aria-label="Returning users interval view" data-returning-interval-controls>
+            <button type="button" class="usage-trend-toggle is-active" data-returning-interval="weekly">Weekly</button>
+            <button type="button" class="usage-trend-toggle" data-returning-interval="monthly">Monthly</button>
+          </div>
+          <div class="chart-export-group">
+            <button type="button" class="storage-button storage-button--inline" data-returning-export-png>Download PNG</button>
+            <button type="button" class="storage-button storage-button--inline" data-returning-export-csv>Download CSV</button>
+          </div>
+        </div>
+      </header>
+      <div class="returning-region-controls" data-returning-region-controls></div>
+      <div class="returning-chart">
+        <canvas id="returningUsersChart" data-returning-chart aria-label="Returning users by period"></canvas>
+        <div class="chart-empty" data-returning-empty hidden>Load data to view returning users.</div>
+      </div>
+      <div class="returning-summary">
+        <div class="insight-summary" data-returning-summary>-</div>
+      </div>
+    </section>
+    <section class="category-grid" aria-label="Copilot capability highlights">
+      <article class="category-card" data-category="meetings">
+        <header class="category-card__header">
+          <span class="category-icon" data-letter="M"></span>
+          <div class="category-card__header-text">
+            <h3>Meetings</h3>
+            <p>Where Copilot accelerates meeting recaps and follow-ups.</p>
+          </div>
+        </header>
+        <div class="category-card__stats" data-category-stats="meetings">
+          <p class="category-card__placeholder muted">Upload data to view insights.</p>
+        </div>
+      </article>
+      <article class="category-card" data-category="emails">
+        <header class="category-card__header">
+          <span class="category-icon" data-letter="E"></span>
+          <div class="category-card__header-text">
+            <h3>Emails</h3>
+            <p>Drafting, coaching, and summarizing in Outlook.</p>
+          </div>
+        </header>
+        <div class="category-card__stats" data-category-stats="emails">
+          <p class="category-card__placeholder muted">Upload data to view insights.</p>
+        </div>
+      </article>
+      <article class="category-card" data-category="chats">
+        <header class="category-card__header">
+          <span class="category-icon" data-letter="T"></span>
+          <div class="category-card__header-text">
+            <h3>Teams</h3>
+            <p>Boosting collaboration in Teams conversations.</p>
+          </div>
+        </header>
+        <div class="category-card__stats" data-category-stats="chats">
+          <p class="category-card__placeholder muted">Upload data to view insights.</p>
+        </div>
+      </article>
+      <article class="category-card" data-category="documents">
+        <header class="category-card__header">
+          <span class="category-icon" data-letter="D"></span>
+          <div class="category-card__header-text">
+            <h3>Documents</h3>
+            <p>Summaries and creation across Word, Excel, and PowerPoint.</p>
+          </div>
+        </header>
+        <div class="category-card__stats" data-category-stats="documents">
+          <p class="category-card__placeholder muted">Upload data to view insights.</p>
+        </div>
+      </article>
+      <article class="category-card" data-category="copilot-chat">
+        <header class="category-card__header">
+          <span class="category-icon" data-letter="C"></span>
+          <div class="category-card__header-text">
+            <h3>Copilot chat</h3>
+            <p>Prompt volume across work and web chat experiences.</p>
+          </div>
+        </header>
+        <div class="category-card__stats" data-category-stats="copilot-chat">
+          <p class="category-card__placeholder muted">Upload data to view insights.</p>
+        </div>
+      </article>
+    </section>
+    <section class="agent-toggle" data-agent-toggle-wrapper>
+      <div class="agent-toggle__buttons">
+        <button type="button" class="storage-button" data-agent-toggle aria-expanded="false">Show agent usage</button>
+        <button
+          type="button"
+          class="storage-button is-secondary"
+          data-top-users-panel-toggle
+          aria-expanded="false"
+          aria-controls="topUsersPanel"
+        >
+          Show top users
+        </button>
+      </div>
+    </section>
+    <div class="top-users-panel" data-top-users-panel id="topUsersPanel" hidden>
+      <section class="group-card" aria-label="Top users">
+        <div class="group-header">
+          <h2>Top users by total actions</h2>
+          <p class="muted">Reflects current filters; capped at 20 users.</p>
+        </div>
+        <div class="top-users" data-top-users></div>
+        <button type="button" class="view-more-button" data-top-users-toggle hidden aria-expanded="false">Show remaining users</button>
+      </section>
+    </div>
+    <div data-agent-hub-anchor></div>
+  </main>
+  <footer class="page-footer">
+    <p class="muted">Built by Christoffer Besler Hansen · Licensed under AGPL-3.0.</p>
+  </footer>
+  <dialog class="snapshot-dialog" data-snapshot-export-dialog>
+    <form class="snapshot-dialog__form" data-snapshot-export-form>
+      <h2 class="snapshot-dialog__title">Save encrypted snapshot</h2>
+      <p class="snapshot-dialog__description muted">Enter a password to encrypt the current dataset and filters. Share the password only with people you trust.</p>
+      <label class="snapshot-dialog__label">
+        <span>Password</span>
+        <input type="password" autocomplete="new-password" required data-snapshot-password />
+      </label>
+      <label class="snapshot-dialog__label">
+        <span>Confirm password</span>
+        <input type="password" autocomplete="new-password" required data-snapshot-password-confirm />
+      </label>
+      <div class="snapshot-dialog__error" data-snapshot-error hidden></div>
+      <div class="snapshot-dialog__output" data-snapshot-output hidden>
+        <label class="snapshot-dialog__label">
+          <span>Snapshot package</span>
+          <textarea readonly rows="6" data-snapshot-output-text></textarea>
+        </label>
+        <div class="snapshot-dialog__output-actions">
+          <button type="button" class="storage-button" data-snapshot-copy>Copy to clipboard</button>
+          <button type="button" class="storage-button" data-snapshot-download>Download file</button>
+          <button type="button" class="storage-button" data-snapshot-export-html>Download SharePoint bundle (ZIP)</button>
+        </div>
+      </div>
+      <div class="snapshot-dialog__static" data-snapshot-static hidden>
+        <p class="snapshot-dialog__hint muted">Need a password-free package for internal portals? Download the static HTML bundle.</p>
+        <div class="snapshot-dialog__output-actions">
+          <button type="button" class="storage-button" data-snapshot-export-static>Download static HTML bundle</button>
+        </div>
+      </div>
+      <div class="snapshot-dialog__actions">
+        <button type="button" class="storage-button storage-button--ghost" data-snapshot-cancel>Cancel</button>
+        <button type="submit" class="storage-button" data-snapshot-generate>Generate snapshot</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog class="snapshot-dialog" data-snapshot-import-dialog>
+    <form class="snapshot-dialog__form" data-snapshot-import-form>
+      <h2 class="snapshot-dialog__title">Load encrypted snapshot</h2>
+      <p class="snapshot-dialog__description muted">Paste an exported snapshot or pick a saved file, then enter the shared password.</p>
+      <label class="snapshot-dialog__label">
+        <span>Snapshot text</span>
+        <textarea rows="6" data-snapshot-import-text placeholder="Paste snapshot package here"></textarea>
+      </label>
+      <label class="snapshot-dialog__label snapshot-dialog__file">
+        <span>Or select snapshot file</span>
+        <input type="file" accept=".copilot-snapshot,.json,.txt" data-snapshot-import-file />
+      </label>
+      <label class="snapshot-dialog__label">
+        <span>Password</span>
+        <input type="password" autocomplete="current-password" required data-snapshot-import-password />
+      </label>
+      <div class="snapshot-dialog__error" data-snapshot-import-error hidden></div>
+      <div class="snapshot-dialog__actions">
+        <button type="button" class="storage-button storage-button--ghost" data-snapshot-import-cancel>Cancel</button>
+        <button type="submit" class="storage-button" data-snapshot-import-submit>Load snapshot</button>
+      </div>
+    </form>
+  </dialog>
+  <script
+    defer
+    src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"
+    crossorigin="anonymous"
+    integrity="sha384-rNlaE5fs9dGIjmxWDALQh/RBAaGRYT5ChrzHo6tRfgrZ36iRFAiquP5g41Jsv+0j"
+  ></script>
+  <script defer src="assets/sharepoint-static-assets.js"></script>
+  <script defer src="assets/vendor/fflate.min.js"></script>
+  <script defer src="assets/copilot-dashboard.js?v=20251226-5"></script>
+</body>
 </html>

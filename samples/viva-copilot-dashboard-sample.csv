@@ -1,9 +1,0 @@
-PersonId,MetricDate,Copilot actions taken in Teams,Copilot actions taken in Word,Copilot actions taken in Excel,Total Copilot actions taken,Total Copilot active days,Total Copilot enabled days,Days of active Copilot usage in Teams,Days of active Copilot usage in Word,Copilot chat (work) prompts submitted,Copilot Chat (web) prompts submitted,Organization,FunctionType
-USR-001,2025-10-26,2,0,0,2,1,7,1,0,0,0,Drammen,
-USR-002,2025-11-09,0,0,0,0,0,0,0,0,0,0,Aarhus N,
-USR-003,2025-11-09,5,3,2,10,5,7,2,1,26,12,Växjö,
-USR-004,2025-12-07,6,0,0,6,3,7,1,0,2,5,Helsingborg,
-USR-005,2025-10-12,23,0,121,144,4,7,1,0,2,0,Trondheim,
-USR-006,2025-09-21,2,0,1,3,3,7,1,0,2,53,Laksevåg,
-USR-007,2025-09-28,0,1,1,2,5,7,1,0,66,7,Aarhus N,
-USR-008,2025-08-31,0,0,0,0,0,7,0,0,0,0,Bodø,

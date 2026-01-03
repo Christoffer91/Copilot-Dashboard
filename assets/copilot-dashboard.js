@@ -3473,9 +3473,14 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             // Clone filter controls into dropdown (excluding active-filters-summary)
             const cloneFilters = () => {
               dom.stickyFilterDropdown.innerHTML = "";
+              const stripDuplicateIds = root => {
+                root.querySelectorAll("[id]").forEach(el => el.removeAttribute("id"));
+                root.querySelectorAll("label[for]").forEach(el => el.removeAttribute("for"));
+              };
               const controls = dom.controlPanel.querySelectorAll(".control-select");
               controls.forEach(control => {
                 const clone = control.cloneNode(true);
+                stripDuplicateIds(clone);
                 dom.stickyFilterDropdown.appendChild(clone);
               });
               

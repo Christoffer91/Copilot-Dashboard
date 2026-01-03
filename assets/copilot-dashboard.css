@@ -1731,6 +1731,14 @@ body.is-custom-theme {
       height: 0;
     }
 
+    /* Keep org + country on their own row on wide screens */
+    @media (min-width: 960px) {
+      .control-panel .control-select--multi {
+        flex: 0 0 calc(50% - (var(--space-lg) / 2));
+        max-width: calc(50% - (var(--space-lg) / 2));
+      }
+    }
+
     /* Sticky filter mini-bar (appears after scrolling past filters) */
     .sticky-filter-bar {
       position: fixed;
@@ -3238,6 +3246,13 @@ body.is-custom-theme {
 
     .export-menu button:hover {
       color: var(--green-500);
+    }
+
+    .export-menu__subtitle {
+      font-size: var(--font-size-xs);
+      font-weight: 500;
+      color: var(--grey-500);
+      line-height: 1.3;
     }
 
     .export-option {

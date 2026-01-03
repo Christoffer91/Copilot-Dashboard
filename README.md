@@ -10,6 +10,10 @@ A client-only dashboard for exploring Viva Insights Copilot CSV exports: filter 
 - Rich filters, multi-metric charts, agent hub tables, theme toggles, and per-capability insights.
 - **Theme system**: 7 built-in themes (Light, Cool Light, Midnight Dark, Carbon Black, Cyberpunk, Neon, Sunset) + custom color picker.
 - Exports: PNG/PDF/CSV, Excel summaries, encrypted snapshots, and SharePoint bundle generator.
+  - Export menu clarifies the difference between:
+    - CSV (trend data): time series used by charts
+    - Pivot (CSV): period × country × organization
+
   - Trend-card export menu:
     - Download full report (Excel)
     - Download country report (Excel) (workbook contains an “All orgs (pivot)” sheet + one sheet per country with **all** organizations)
@@ -99,6 +103,11 @@ This project was primarily developed with the assistance of **OpenAI Codex** and
 
 The author and AI assistants are not liable for any damages or losses arising from the use of this software.
 
+## Known issue (OneDrive reverts)
+If this repo is stored inside OneDrive, files may be silently overwritten seconds after edits, causing regressions (e.g. missing export items, CSS/layout reverting, cache-bust drifting).
+
+Recommended: move the repo out of OneDrive (preferred) or pause OneDrive sync for this folder while editing.
+
 ## License
 Copyright (c) 2025 Christoffer Besler Hansen.  
 Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
@@ -120,3 +129,8 @@ Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 ### 2025-12-30
 - Restored export menu items: country report (Excel), pivot (CSV), organizations (Excel).
 - Improved ultrawide support by allowing the page to expand on large screens and fitting more “Usage intensity” cards per row.
+
+### 2026-01-03
+- Export menu: added helper subtitles for trend CSV vs pivot CSV.
+- Sticky filter dropdown: avoids duplicate `id`/`for` in cloned controls (a11y/robustness).
+- Documented OneDrive revert mitigation and cache-bust workflow.

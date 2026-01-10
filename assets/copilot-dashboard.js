@@ -3200,11 +3200,19 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
       
           setTrendColorInputs(DEFAULT_TREND_START_COLOR, DEFAULT_TREND_END_COLOR);
           loadPersistencePreference();
-          const storedTheme = loadStoredThemePreference();
-          if (storedTheme) {
-            applyTheme(storedTheme, { persist: false });
-          } else {
-            applyTheme(state.theme, { persist: false });
+          const sharedThemeId = normalizeThemeId(document.documentElement.getAttribute("data-tools-theme") || "");
+          const storedTheme = (THEME_BY_ID.has(sharedThemeId) ? sharedThemeId : null) || loadStoredThemePreference();
+          applyTheme(storedTheme || state.theme, { persist: false });
+
+          if (document.documentElement.hasAttribute("data-tools-theme")) {
+            window.addEventListener("chansenThemeChange", (event) => {
+              const nextTheme = normalizeThemeId(event?.detail?.themeId || "");
+              if (!THEME_BY_ID.has(nextTheme)) {
+                return;
+              }
+              applyTheme(nextTheme, { persist: false });
+              renderDashboard();
+            });
           }
           loadStoredTrendGradient();
           loadStoredDatasetFromDevice();

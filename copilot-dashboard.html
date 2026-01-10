@@ -27,7 +27,9 @@
     crossorigin="anonymous"
     integrity="sha384-STiTZ2kjdnc/em4jSELZZ6VypRToc92cA0m6Nppx3J8C4mt0fjMNUm1xnm1yoP96"
   />
-  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20260103-5" />
+  <link rel="stylesheet" href="../assets/chansen-ui.css?v=20260110b" />
+  <script src="../assets/chansen-ui-theme.js?v=20260110b"></script>
+  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20260110b" />
   <script
     src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
     crossorigin="anonymous"
@@ -56,15 +58,6 @@
   ></script>
 </head>
 <body>
-  <button
-    type="button"
-    class="floating-theme-toggle"
-    data-floating-theme-toggle
-    aria-pressed="false"
-    aria-label="Enable dark mode"
-  >
-    <span aria-hidden="true" data-floating-theme-icon></span>
-  </button>
   <a href="#impact" class="skip-link">Skip to main content</a>
   <div class="toast-container" data-toast-container></div>
   <div class="sticky-filter-bar" data-sticky-filter-bar hidden>
@@ -128,65 +121,6 @@
           </div>
         </div>
         <div class="dataset-actions">
-          <div class="theme-toggle">
-            <button type="button" class="theme-toggle__button" data-theme-toggle aria-pressed="false" aria-haspopup="menu" aria-expanded="false">
-              <span data-theme-label>Choose theme</span>
-            </button>
-            <div class="theme-menu" data-theme-menu hidden role="menu">
-              <div class="theme-menu-header">
-                <span class="theme-menu-title">Select theme</span>
-                <button type="button" class="theme-menu-close" data-theme-menu-close aria-label="Close theme menu">&times;</button>
-              </div>
-              <div class="theme-menu-grid">
-                <button type="button" class="theme-option" data-theme="light" role="menuitem">
-                  <span class="theme-option-preview theme-option-preview--light"></span>
-                  <span class="theme-option-name">Light</span>
-                </button>
-                <button type="button" class="theme-option" data-theme="light-cool" role="menuitem">
-                  <span class="theme-option-preview theme-option-preview--light-cool"></span>
-                  <span class="theme-option-name">Cool Light</span>
-                </button>
-                <button type="button" class="theme-option" data-theme="dark-midnight" role="menuitem">
-                  <span class="theme-option-preview theme-option-preview--dark-midnight"></span>
-                  <span class="theme-option-name">Midnight Dark</span>
-                </button>
-                <button type="button" class="theme-option" data-theme="dark-carbon" role="menuitem">
-                  <span class="theme-option-preview theme-option-preview--dark-carbon"></span>
-                  <span class="theme-option-name">Carbon Black</span>
-                </button>
-                <button type="button" class="theme-option" data-theme="dark-cyberpunk" role="menuitem">
-                  <span class="theme-option-preview theme-option-preview--dark-cyberpunk"></span>
-                  <span class="theme-option-name">Cyberpunk</span>
-                </button>
-                <button type="button" class="theme-option" data-theme="dark-neon" role="menuitem">
-                  <span class="theme-option-preview theme-option-preview--dark-neon"></span>
-                  <span class="theme-option-name">Neon</span>
-                </button>
-                <button type="button" class="theme-option" data-theme="dark-sunset" role="menuitem">
-                  <span class="theme-option-preview theme-option-preview--dark-sunset"></span>
-                  <span class="theme-option-name">Sunset</span>
-                </button>
-                <button type="button" class="theme-option" data-theme="custom" role="menuitem">
-                  <span class="theme-option-preview theme-option-preview--custom"></span>
-                  <span class="theme-option-name">Custom</span>
-                </button>
-              </div>
-              <div class="custom-theme-editor" data-custom-theme-editor>
-                <div class="custom-color-row">
-                  <span class="custom-color-label">Accent color</span>
-                  <input type="color" class="custom-color-input" data-custom-accent value="#ff6b35" />
-                </div>
-                <div class="custom-color-row">
-                  <span class="custom-color-label">Background</span>
-                  <input type="color" class="custom-color-input" data-custom-bg value="#1a1a2e" />
-                </div>
-                <div class="custom-color-row">
-                  <span class="custom-color-label">Text color</span>
-                  <input type="color" class="custom-color-input" data-custom-text value="#eaeaea" />
-                </div>
-              </div>
-            </div>
-          </div>
           <div class="snapshot-controls" data-snapshot-controls hidden>
             <div class="snapshot-controls__buttons">
               <button type="button" class="storage-button" data-snapshot-save disabled>Save encrypted snapshot</button>
@@ -1107,6 +1041,6 @@
   ></script>
   <script defer src="assets/sharepoint-static-assets.js"></script>
   <script defer src="assets/vendor/fflate.min.js"></script>
-  <script defer src="assets/copilot-dashboard.js?v=20260103-5"></script>
+  <script defer src="assets/copilot-dashboard.js?v=20260110b"></script>
 </body>
 </html>

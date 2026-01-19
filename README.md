@@ -52,42 +52,6 @@ How to export the CSV from Viva Insights:
 - Dataset persistence uses `localStorage` but is **off by default** and requires explicit opt-in each session via the “Save dataset on this device” checkbox.
 - Encrypted snapshots use Web Crypto; keep your password safe—there is no recovery.
 
-## Security Review (2025-12-09)
-
-### Accepted Risks
-
-1. **CDN Dependencies** — External libraries (Chart.js, PapaParse, xlsx, etc.) are loaded from `cdn.jsdelivr.net`. While Subresource Integrity (SRI) hashes are in place to prevent tampering, there is a theoretical supply chain risk if the CDN is compromised with new library versions. **Decision:** Accepted for internet-hosted deployment; SRI provides adequate protection. Review at next security assessment.
-
-2. **localStorage with Anonymized Data** — The dashboard caches data in `localStorage` when users opt-in. **Decision:** Accepted because all uploaded Viva Insights data is anonymized (no PII). If future use cases involve identifiable data, this should be revisited.
-
-### Mitigations in Place
-- Strict Content Security Policy (CSP) restricting script sources
-- SRI hashes on all CDN-loaded scripts
-- Safe DOM manipulation using `textContent` (no `innerHTML` with user data)
-- AES-256-GCM encryption for snapshots with PBKDF2 key derivation
-- Console logging suppressed in production (DEBUG flag = false)
-
-## Dependencies (runtime)
-- CDN: `pako` (gzip), `chart.js`, `papaparse`, `gif.js` (lazy-loaded for animation export), `xlsx`, `html2canvas`, `jspdf`, Inter font.
-- Local: `assets/vendor/fflate.min.js` (compression fallback), `assets/sharepoint-static-assets.js` (SharePoint bundle styling), `assets/copilot-dashboard.js/css`.
-
-## Development
-- Entry point: `copilot-dashboard.html`
-- Scripts/styles: `assets/copilot-dashboard.js`, `assets/copilot-dashboard.css`
-- Sample data: `samples/copilot-sample.csv`
-
-## Responsive layout (ultrawide)
-- On screens wider than ~1280px, the page expands to use available width (no 2200px cap) to better support ultrawide monitors.
-- “Usage intensity” uses a responsive grid that fits more month cards per row when there is space.
-
-## Maintenance notes (OneDrive sync)
-If OneDrive keeps reverting changes to key files, this repo sometimes uses the macOS immutable flag to prevent rapid rollbacks.
-
-- Unlock before editing: `chflags nouchg copilot-dashboard.html assets/copilot-dashboard.css assets/copilot-dashboard.js`
-- Re-lock after editing (recommended if OneDrive is fighting you): `chflags uchg copilot-dashboard.html assets/copilot-dashboard.css assets/copilot-dashboard.js`
-
-Contributions: open PRs/issues. Please keep CSP-tight changes and avoid introducing analytics without a clear opt-in.
-
 ## AI-Assisted Development
 
 This project was primarily developed with the assistance of **OpenAI Codex** and **GitHub Copilot** AI agents. While Christoffer Besler Hansen provided direction, requirements, and review, the majority of the code was generated through AI-assisted development.
@@ -102,11 +66,6 @@ This project was primarily developed with the assistance of **OpenAI Codex** and
 - Not rely on this tool for critical business decisions without independent verification
 
 The author and AI assistants are not liable for any damages or losses arising from the use of this software.
-
-## Known issue (OneDrive reverts)
-If this repo is stored inside OneDrive, files may be silently overwritten seconds after edits, causing regressions (e.g. missing export items, CSS/layout reverting, cache-bust drifting).
-
-Recommended: move the repo out of OneDrive (preferred) or pause OneDrive sync for this folder while editing.
 
 ## License
 Copyright (c) 2025 Christoffer Besler Hansen.  

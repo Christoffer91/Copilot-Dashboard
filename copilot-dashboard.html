@@ -17,7 +17,7 @@
                  base-uri 'self';
                  upgrade-insecure-requests"
   />
-  <meta name="referrer" content="no-referrer" />
+  <meta name="referrer" content="same-origin" />
   <title>Copilot Impact Dashboard</title>
   <link rel="icon" href="data:," />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -27,9 +27,9 @@
     crossorigin="anonymous"
     integrity="sha384-STiTZ2kjdnc/em4jSELZZ6VypRToc92cA0m6Nppx3J8C4mt0fjMNUm1xnm1yoP96"
   />
-  <link rel="stylesheet" href="../assets/chansen-ui.css?v=20260110b" />
-  <script src="../assets/chansen-ui-theme.js?v=20260110b"></script>
-  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20260110b" />
+  <link rel="stylesheet" href="../assets/chansen-ui.css?v=20260123a" />
+  <script src="../assets/chansen-ui-theme.js?v=20260123a"></script>
+  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20260123a" />
   <script
     src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
     crossorigin="anonymous"
@@ -71,15 +71,18 @@
       <article class="intro-card">
         <div class="intro-header">
           <span class="dashboard-pill">Microsoft Copilot Dashboard</span>
-          <p class="intro">Upload the Copilot CSV export from Viva Insights.</p>
+          <p class="intro">Load the centrally managed Copilot CSV export (or upload a local export for ad-hoc analysis).</p>
         </div>
         <div class="upload-zone" data-drop-zone role="region" aria-label="File upload area">
           <input type="file" id="fileInput" accept=".csv" data-file-input hidden aria-describedby="uploadHint" />
+          <input type="file" id="centralFileInput" accept=".csv" data-central-file-input hidden aria-describedby="uploadHint" />
           <div class="upload-actions">
             <div class="upload-buttons">
               <label for="fileInput" class="upload-button">Select CSV file</label>
               <div class="upload-button-group">
+                <button type="button" class="upload-button upload-button--ghost" data-load-central hidden>Load central dataset</button>
                 <button type="button" class="upload-button upload-button--ghost" data-load-sample>Load sample dataset</button>
+                <label for="centralFileInput" class="upload-button upload-button--ghost" data-upload-central hidden>Upload central dataset</label>
                 <button type="button" class="storage-button storage-button--inline" data-clear-storage hidden>Clear saved dataset</button>
               </div>
             </div>
@@ -408,12 +411,51 @@
       </header>
 
       <div class="agent-tablist" role="tablist" aria-label="Agent data views" data-agent-tabs>
-        <button type="button" class="agent-tab is-active" role="tab" aria-selected="true" data-agent-tab="users">Users</button>
-        <button type="button" class="agent-tab" role="tab" aria-selected="false" data-agent-tab="agents">Agents</button>
-        <button type="button" class="agent-tab" role="tab" aria-selected="false" data-agent-tab="combined">Users &amp; agents</button>
+        <button type="button" class="agent-tab is-active" role="tab" aria-selected="true" data-agent-tab="users">
+          Users
+          <span class="agent-tab-badge" data-agent-tab-badge="users">0</span>
+        </button>
+        <button type="button" class="agent-tab" role="tab" aria-selected="false" data-agent-tab="agents">
+          Agents
+          <span class="agent-tab-badge" data-agent-tab-badge="agents">0</span>
+        </button>
+        <button type="button" class="agent-tab" role="tab" aria-selected="false" data-agent-tab="combined">
+          Users &amp; agents
+          <span class="agent-tab-badge" data-agent-tab-badge="combined">0</span>
+        </button>
       </div>
 
       <div class="agent-panel" data-agent-panel="users" role="tabpanel">
+        <div class="agent-kpi-grid" data-agent-kpi-grid="users">
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">📊</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Total Users</span>
+              <span class="agent-kpi-value" data-agent-kpi="users-total">-</span>
+            </div>
+          </article>
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">🎯</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Avg Agents Used</span>
+              <span class="agent-kpi-value" data-agent-kpi="users-avg">-</span>
+            </div>
+          </article>
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">👤</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Top User</span>
+              <span class="agent-kpi-value" data-agent-kpi="users-top">-</span>
+            </div>
+          </article>
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">💬</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Total Responses</span>
+              <span class="agent-kpi-value" data-agent-kpi="users-responses">-</span>
+            </div>
+          </article>
+        </div>
         <div class="agent-dropzone" data-agent-hub-dropzone="users">
           <div>
             <strong>Users CSV</strong>
@@ -429,8 +471,23 @@
             aria-label="Upload Users CSV"
           />
         </div>
+        <button type="button" class="agent-replace-button" data-agent-replace-upload="users">
+          📁 Replace data
+        </button>
         <p class="agent-status" data-agent-hub-status="users">Upload a CSV to populate the users table.</p>
         <p class="agent-meta" data-agent-hub-meta="users">No file uploaded yet.</p>
+        <div class="agent-quick-filters" data-agent-quick-filters="users" hidden>
+          <span class="agent-quick-label">Quick filters:</span>
+          <button type="button" class="agent-filter-pill is-active" data-quick-filter="users" data-filter-key="all">
+            All
+          </button>
+          <button type="button" class="agent-filter-pill" data-quick-filter="users" data-filter-key="power">
+            Power users (5+ agents)
+          </button>
+          <button type="button" class="agent-filter-pill" data-quick-filter="users" data-filter-key="single">
+            Single agent
+          </button>
+        </div>
         <div class="agent-filter-bar" data-agent-hub-filter-bar="users" hidden>
           <div class="agent-filter-search">
             <input
@@ -484,11 +541,71 @@
             <tbody data-agent-hub-tbody="users"></tbody>
           </table>
         </div>
+        <div class="agent-loading-skeleton" data-agent-loading="users" hidden>
+          <div class="agent-skeleton-row">
+            <div class="agent-skeleton-cell" style="width: 30%"></div>
+            <div class="agent-skeleton-cell" style="width: 25%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+          </div>
+          <div class="agent-skeleton-row">
+            <div class="agent-skeleton-cell" style="width: 28%"></div>
+            <div class="agent-skeleton-cell" style="width: 27%"></div>
+            <div class="agent-skeleton-cell" style="width: 13%"></div>
+            <div class="agent-skeleton-cell" style="width: 17%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+          </div>
+          <div class="agent-skeleton-row">
+            <div class="agent-skeleton-cell" style="width: 32%"></div>
+            <div class="agent-skeleton-cell" style="width: 23%"></div>
+            <div class="agent-skeleton-cell" style="width: 18%"></div>
+            <div class="agent-skeleton-cell" style="width: 12%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+          </div>
+        </div>
         <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="users" hidden>Show all rows</button>
-        <div class="agent-empty" data-agent-hub-empty="users">Upload a Users CSV to get started.</div>
+        <div class="agent-empty-state" data-agent-hub-empty="users">
+          <div class="agent-empty-icon">📊</div>
+          <h3 class="agent-empty-title">No data uploaded yet</h3>
+          <p class="agent-empty-description">Upload your Viva Insights export to see user agent insights</p>
+          <button type="button" class="agent-empty-button" data-agent-empty-upload="users">
+            📁 Upload Users CSV
+          </button>
+        </div>
       </div>
 
       <div class="agent-panel" data-agent-panel="agents" role="tabpanel" hidden>
+        <div class="agent-kpi-grid" data-agent-kpi-grid="agents">
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">🤖</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Total Agents</span>
+              <span class="agent-kpi-value" data-agent-kpi="agents-total">-</span>
+            </div>
+          </article>
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">👥</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Avg Active Users</span>
+              <span class="agent-kpi-value" data-agent-kpi="agents-avg">-</span>
+            </div>
+          </article>
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">⭐</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Top Agent</span>
+              <span class="agent-kpi-value" data-agent-kpi="agents-top">-</span>
+            </div>
+          </article>
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">💬</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Total Responses</span>
+              <span class="agent-kpi-value" data-agent-kpi="agents-responses">-</span>
+            </div>
+          </article>
+        </div>
         <div class="agent-dropzone" data-agent-hub-dropzone="agents">
           <div>
             <strong>Agents CSV</strong>
@@ -504,8 +621,26 @@
             aria-label="Upload Agents CSV"
           />
         </div>
+        <button type="button" class="agent-replace-button" data-agent-replace-upload="agents">
+          📁 Replace data
+        </button>
         <p class="agent-status" data-agent-hub-status="agents">Upload a CSV to populate the agents table.</p>
         <p class="agent-meta" data-agent-hub-meta="agents">No file uploaded yet.</p>
+        <div class="agent-quick-filters" data-agent-quick-filters="agents" hidden>
+          <span class="agent-quick-label">Quick filters:</span>
+          <button type="button" class="agent-filter-pill is-active" data-quick-filter="agents" data-filter-key="all">
+            All
+          </button>
+          <button type="button" class="agent-filter-pill" data-quick-filter="agents" data-filter-key="microsoft">
+            Microsoft agents
+          </button>
+          <button type="button" class="agent-filter-pill" data-quick-filter="agents" data-filter-key="custom">
+            Custom agents
+          </button>
+          <button type="button" class="agent-filter-pill" data-quick-filter="agents" data-filter-key="higheng">
+            High engagement (100+ responses)
+          </button>
+        </div>
         <div class="agent-filter-bar" data-agent-hub-filter-bar="agents" hidden>
           <div class="agent-filter-search">
             <input
@@ -571,11 +706,71 @@
             <tbody data-agent-hub-tbody="agents"></tbody>
           </table>
         </div>
+        <div class="agent-loading-skeleton" data-agent-loading="agents" hidden>
+          <div class="agent-skeleton-row">
+            <div class="agent-skeleton-cell" style="width: 30%"></div>
+            <div class="agent-skeleton-cell" style="width: 25%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+          </div>
+          <div class="agent-skeleton-row">
+            <div class="agent-skeleton-cell" style="width: 28%"></div>
+            <div class="agent-skeleton-cell" style="width: 27%"></div>
+            <div class="agent-skeleton-cell" style="width: 13%"></div>
+            <div class="agent-skeleton-cell" style="width: 17%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+          </div>
+          <div class="agent-skeleton-row">
+            <div class="agent-skeleton-cell" style="width: 32%"></div>
+            <div class="agent-skeleton-cell" style="width: 23%"></div>
+            <div class="agent-skeleton-cell" style="width: 18%"></div>
+            <div class="agent-skeleton-cell" style="width: 12%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+          </div>
+        </div>
         <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="agents" hidden>Show all rows</button>
-        <div class="agent-empty" data-agent-hub-empty="agents">Upload an Agents CSV to view this data.</div>
+        <div class="agent-empty-state" data-agent-hub-empty="agents">
+          <div class="agent-empty-icon">🤖</div>
+          <h3 class="agent-empty-title">No data uploaded yet</h3>
+          <p class="agent-empty-description">Upload your Viva Insights export to see agent usage insights</p>
+          <button type="button" class="agent-empty-button" data-agent-empty-upload="agents">
+            📁 Upload Agents CSV
+          </button>
+        </div>
       </div>
 
       <div class="agent-panel" data-agent-panel="combined" role="tabpanel" hidden>
+        <div class="agent-kpi-grid" data-agent-kpi-grid="combined">
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">📈</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Total Pairs</span>
+              <span class="agent-kpi-value" data-agent-kpi="combined-total">-</span>
+            </div>
+          </article>
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">🤖</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Unique Agents</span>
+              <span class="agent-kpi-value" data-agent-kpi="combined-agents">-</span>
+            </div>
+          </article>
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">👥</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Unique Users</span>
+              <span class="agent-kpi-value" data-agent-kpi="combined-users">-</span>
+            </div>
+          </article>
+          <article class="agent-kpi-card">
+            <div class="agent-kpi-icon">💬</div>
+            <div class="agent-kpi-content">
+              <span class="agent-kpi-label">Total Responses</span>
+              <span class="agent-kpi-value" data-agent-kpi="combined-responses">-</span>
+            </div>
+          </article>
+        </div>
         <div class="agent-dropzone" data-agent-hub-dropzone="combined">
           <div>
             <strong>Users &amp; agents CSV</strong>
@@ -591,8 +786,17 @@
             aria-label="Upload Users and Agents CSV"
           />
         </div>
+        <button type="button" class="agent-replace-button" data-agent-replace-upload="combined">
+          📁 Replace data
+        </button>
         <p class="agent-status" data-agent-hub-status="combined">Upload a CSV to populate the combined table.</p>
         <p class="agent-meta" data-agent-hub-meta="combined">No file uploaded yet.</p>
+        <div class="agent-quick-filters" data-agent-quick-filters="combined" hidden>
+          <span class="agent-quick-label">Quick filters:</span>
+          <button type="button" class="agent-filter-pill is-active" data-quick-filter="combined" data-filter-key="all">
+            All
+          </button>
+        </div>
         <div class="agent-filter-bar" data-agent-hub-filter-bar="combined" hidden>
           <div class="agent-filter-search">
             <input
@@ -652,8 +856,38 @@
             <tbody data-agent-hub-tbody="combined"></tbody>
           </table>
         </div>
+        <div class="agent-loading-skeleton" data-agent-loading="combined" hidden>
+          <div class="agent-skeleton-row">
+            <div class="agent-skeleton-cell" style="width: 30%"></div>
+            <div class="agent-skeleton-cell" style="width: 25%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+          </div>
+          <div class="agent-skeleton-row">
+            <div class="agent-skeleton-cell" style="width: 28%"></div>
+            <div class="agent-skeleton-cell" style="width: 27%"></div>
+            <div class="agent-skeleton-cell" style="width: 13%"></div>
+            <div class="agent-skeleton-cell" style="width: 17%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+          </div>
+          <div class="agent-skeleton-row">
+            <div class="agent-skeleton-cell" style="width: 32%"></div>
+            <div class="agent-skeleton-cell" style="width: 23%"></div>
+            <div class="agent-skeleton-cell" style="width: 18%"></div>
+            <div class="agent-skeleton-cell" style="width: 12%"></div>
+            <div class="agent-skeleton-cell" style="width: 15%"></div>
+          </div>
+        </div>
         <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="combined" hidden>Show all rows</button>
-        <div class="agent-empty" data-agent-hub-empty="combined">Upload the Users &amp; Agents CSV to view matching rows.</div>
+        <div class="agent-empty-state" data-agent-hub-empty="combined">
+          <div class="agent-empty-icon">📈</div>
+          <h3 class="agent-empty-title">No data uploaded yet</h3>
+          <p class="agent-empty-description">Upload your Viva Insights export to see combined user & agent data</p>
+          <button type="button" class="agent-empty-button" data-agent-empty-upload="combined">
+            📁 Upload Combined CSV
+          </button>
+        </div>
       </div>
     </section>
 
@@ -1041,6 +1275,6 @@
   ></script>
   <script defer src="assets/sharepoint-static-assets.js"></script>
   <script defer src="assets/vendor/fflate.min.js"></script>
-  <script defer src="assets/copilot-dashboard.js?v=20260110b"></script>
+  <script defer src="assets/copilot-dashboard.js?v=20260123a"></script>
 </body>
 </html>

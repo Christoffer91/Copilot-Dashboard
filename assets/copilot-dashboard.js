@@ -20,7 +20,7 @@
   }
 
   function initializeDashboard() {
-    const ASSET_VERSION = "20260207a";
+    const ASSET_VERSION = "20260207b";
 
           function withAssetVersion(path) {
             if (!ASSET_VERSION || typeof path !== "string" || !path.length) {
@@ -283,8 +283,8 @@
             topUsersExpanded: false,
             activeDaysView: "users",
             usageThresholds: {
-              middle: 17,
-              high: 35
+              middle: 25,
+              high: 50
             },
             usageMonthSelection: [],
             usageTrendMode: "number",
@@ -2260,8 +2260,8 @@
           });
           const DEFAULT_TREND_START_COLOR = sanitizeHexColor(defaultTrendPalette[0]) || '#006E00';
           const DEFAULT_TREND_END_COLOR = sanitizeHexColor(defaultTrendPalette[defaultTrendPalette.length - 1]) || '#14AA24';
-          const DEFAULT_USAGE_THRESHOLD_MIDDLE = 17;
-          const DEFAULT_USAGE_THRESHOLD_HIGH = 35;
+          const DEFAULT_USAGE_THRESHOLD_MIDDLE = 25;
+          const DEFAULT_USAGE_THRESHOLD_HIGH = 50;
           const TREND_COLOR_STORAGE_KEY = 'copilotTrendGradient';
           const DATA_STORAGE_KEY = 'copilotDashboardDataset';
           const DATA_STORAGE_META_KEY = 'copilotDashboardDatasetMeta';
@@ -10010,7 +10010,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               };
             }).filter(entry => entry.monthDate instanceof Date);
             monthlyUsageArray.sort((a, b) => a.monthDate - b.monthDate);
-            const monthlyUsageIntensity = monthlyUsageArray.slice(-12).map(entry => entry.data);
+            const monthlyUsageIntensity = monthlyUsageArray.map(entry => entry.data);
             const weeksByMonth = new Map();
             weekMap.forEach(weekEntry => {
               if (!weekEntry || !(weekEntry.date instanceof Date)) {
@@ -10704,7 +10704,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }
             let selection = state.usageMonthSelection.filter(key => monthKeys.includes(key));
             if (!selection.length) {
-              selection = monthKeys.slice();
+              selection = monthKeys.slice(-12);
             }
             state.usageMonthSelection = selection;
       

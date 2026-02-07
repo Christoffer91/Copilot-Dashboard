@@ -1820,14 +1820,17 @@
             }
           });
       
-          const dom = {
-            dropZone: document.querySelector("[data-drop-zone]"),
-            fileInput: document.querySelector("[data-file-input]"),
-            toastContainer: document.querySelector("[data-toast-container]"),
-            uploadMeta: document.querySelector("[data-upload-meta]"),
-            uploadStatus: document.querySelector("[data-upload-status]"),
-            uploadProgress: document.querySelector("[data-upload-progress]"),
-            uploadProgressBar: document.querySelector("[data-upload-progress-bar]"),
+	          const dom = {
+	            dropZone: document.querySelector("[data-drop-zone]"),
+	            fileInput: document.querySelector("[data-file-input]"),
+	            centralFileInput: document.querySelector("[data-central-file-input]"),
+	            loadCentralButton: document.querySelector("[data-load-central]"),
+	            uploadCentralLabel: document.querySelector("[data-upload-central]"),
+	            toastContainer: document.querySelector("[data-toast-container]"),
+	            uploadMeta: document.querySelector("[data-upload-meta]"),
+	            uploadStatus: document.querySelector("[data-upload-status]"),
+	            uploadProgress: document.querySelector("[data-upload-progress]"),
+	            uploadProgressBar: document.querySelector("[data-upload-progress-bar]"),
             uploadCancel: document.querySelector("[data-upload-cancel]"),
             postUploadCta: document.querySelector("[data-post-upload-cta]"),
             postUploadExport: document.querySelector("[data-post-upload-export]"),
@@ -3452,14 +3455,27 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             });
           }
       
-          dom.fileInput.addEventListener("change", event => {
-            const files = event.target.files || [];
-            const file = files[0];
-            if (file) {
-              handleFile(file);
-              event.target.value = "";
-            }
-          });
+	          dom.fileInput.addEventListener("change", event => {
+	            const files = event.target.files || [];
+	            const file = files[0];
+	            if (file) {
+	              handleFile(file);
+	              event.target.value = "";
+	            }
+	          });
+
+	          if (dom.loadCentralButton) {
+	            dom.loadCentralButton.addEventListener("click", event => {
+	              event.preventDefault();
+	              loadCentralDataset();
+	            });
+	          }
+
+	          if (dom.centralFileInput) {
+	            dom.centralFileInput.addEventListener("change", event => {
+	              handleCentralFileSelection(event);
+	            });
+	          }
       
           if (dom.uploadCancel) {
             dom.uploadCancel.disabled = true;
@@ -3470,12 +3486,12 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             });
           }
       
-          if (dom.loadSampleButton) {
-            dom.loadSampleButton.addEventListener("click", event => {
-              event.preventDefault();
-              loadSampleDataset();
-            });
-          }
+	          if (dom.loadSampleButton) {
+	            dom.loadSampleButton.addEventListener("click", event => {
+	              event.preventDefault();
+	              loadSampleDataset();
+	            });
+	          }
       
           if (dom.resetFiltersButton) {
             dom.resetFiltersButton.addEventListener("click", event => {

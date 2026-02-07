@@ -51,6 +51,8 @@ How to export the CSV from Viva Insights:
 - All parsing/rendering runs locally; no analytics or remote posts.
 - Dataset persistence uses `localStorage` but is **off by default** and requires explicit opt-in each session via the “Save dataset on this device” checkbox.
 - Encrypted snapshots use Web Crypto; keep your password safe—there is no recovery.
+- Third-party libraries are vendored under `assets/vendor/` so the dashboard can run without loading script dependencies from external CDNs.
+- Filter preferences are stored per browser tab by default; they are only persisted across sessions when the user opts in to saving data on the device.
 
 ## AI-Assisted Development
 

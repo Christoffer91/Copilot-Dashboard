@@ -1,0 +1,22 @@
+name: Vendor dependency check
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 9 * * 1" # Mondays 09:00 UTC
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Verify vendored files match lockfile
+        run: node scripts/vendor/verify-vendor.mjs
+
+      - name: Check for upstream npm updates (informational)
+        run: node scripts/vendor/check-updates.mjs

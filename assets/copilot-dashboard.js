@@ -23,8 +23,8 @@
     const HIGH_RES_PIXEL_RATIO = Math.max(window.devicePixelRatio || 1, 2.5);
           Chart.defaults.devicePixelRatio = HIGH_RES_PIXEL_RATIO;
           const GIF_WORKER_SOURCE_URL = "assets/vendor/gif.worker.js";
-          const GIFJS_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.js";
-          const GIFJS_SCRIPT_INTEGRITY = "sha384-NRBudS8j0C4n1zt6ZpidRjH724QT7VXARyeGDI9SYn4b0X7JUxBIP0JlUxXXyZPc";
+          const GIFJS_SCRIPT_URL = "assets/vendor/gif.js";
+          const GIFJS_SCRIPT_INTEGRITY = "";
           let gifWorkerUrlPromise = null;
           let gifLibraryPromise = null;
           let activeParseController = null;
@@ -5320,7 +5320,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               "",
               "## Tips",
               "- Keep the password private; it decrypts the dataset inside the browser only.",
-              "- For best results, ensure Chart.js and other CDN domains are allowed by your tenant CSP.",
+              "- This bundle is self-contained and does not require script dependencies from external CDNs.",
               "- If you prefer hosting outside SharePoint, upload the same bundle to any internal static host.",
               "",
               `Bundle generated: ${filename}`,
@@ -5461,16 +5461,41 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             const bundleHtml = sanitizedHtml.includes(hook)
               ? sanitizedHtml.replace(hook, `${embedScriptTag}\n  ${hook}`)
               : sanitizedHtml.replace("</head>", `  ${embedScriptTag}\n</head>`);
-            const [cssBytes, jsBytes, vendorBytes] = await Promise.all([
+            const [
+              cssBytes,
+              jsBytes,
+              vendorBytes,
+              papaBytes,
+              chartBytes,
+              xlsxBytes,
+              html2canvasBytes,
+              jspdfBytes,
+              pakoBytes,
+              gifBytes
+            ] = await Promise.all([
               resolveAssetBytes(null, "assets/copilot-dashboard.css"),
               resolveAssetBytes(null, "assets/copilot-dashboard.js"),
-              resolveAssetBytes(null, "assets/vendor/fflate.min.js")
+              resolveAssetBytes(null, "assets/vendor/fflate.min.js"),
+              resolveAssetBytes(null, "assets/vendor/papaparse.min.js"),
+              resolveAssetBytes(null, "assets/vendor/chart.umd.min.js"),
+              resolveAssetBytes(null, "assets/vendor/xlsx.full.min.js"),
+              resolveAssetBytes(null, "assets/vendor/html2canvas.min.js"),
+              resolveAssetBytes(null, "assets/vendor/jspdf.umd.min.js"),
+              resolveAssetBytes(null, "assets/vendor/pako.min.js"),
+              resolveAssetBytes(null, "assets/vendor/gif.js")
             ]);
             const files = [
               { name: "index.html", data: encoder.encode(bundleHtml) },
               { name: "assets/copilot-dashboard.css", data: cssBytes },
               { name: "assets/copilot-dashboard.js", data: jsBytes },
               { name: "assets/vendor/fflate.min.js", data: vendorBytes },
+              { name: "assets/vendor/papaparse.min.js", data: papaBytes },
+              { name: "assets/vendor/chart.umd.min.js", data: chartBytes },
+              { name: "assets/vendor/xlsx.full.min.js", data: xlsxBytes },
+              { name: "assets/vendor/html2canvas.min.js", data: html2canvasBytes },
+              { name: "assets/vendor/jspdf.umd.min.js", data: jspdfBytes },
+              { name: "assets/vendor/pako.min.js", data: pakoBytes },
+              { name: "assets/vendor/gif.js", data: gifBytes },
               { name: "assets/embed-options.js", data: encoder.encode(`window.__COPILOT_EMBED_OPTIONS__ = ${JSON.stringify(embedOptions)};`) },
               { name: "README-sharepoint.md", data: encoder.encode(buildSharePointReadme({ filename: bundleName })) }
             ];
@@ -7394,10 +7419,19 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
       
           function loadStoredFilterPreferences() {
             try {
-              if (window.localStorage) {
-                const raw = localStorage.getItem(FILTER_PREFERENCES_KEY);
+              if (window.sessionStorage) {
+                const raw = sessionStorage.getItem(FILTER_PREFERENCES_KEY);
                 if (!raw) {
-                  return null;
+                  // Fall back to persisted preferences only when the user has opted into saving data.
+                  if (!state.persistDatasets || !window.localStorage) {
+                    return null;
+                  }
+                  const persisted = localStorage.getItem(FILTER_PREFERENCES_KEY);
+                  if (!persisted) {
+                    return null;
+                  }
+                  const parsedPersisted = JSON.parse(persisted);
+                  return parsedPersisted && typeof parsedPersisted === "object" ? parsedPersisted : null;
                 }
                 const parsed = JSON.parse(raw);
                 return parsed && typeof parsed === "object" ? parsed : null;
@@ -7425,8 +7459,17 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               countryField: state.filterFields.country
             };
             try {
+              // Always keep per-tab preferences so refreshes don't reset filters,
+              // but don't persist across sessions unless the user opted in.
+              if (window.sessionStorage) {
+                sessionStorage.setItem(FILTER_PREFERENCES_KEY, JSON.stringify(preferences));
+              }
               if (window.localStorage) {
-                localStorage.setItem(FILTER_PREFERENCES_KEY, JSON.stringify(preferences));
+                if (state.persistDatasets) {
+                  localStorage.setItem(FILTER_PREFERENCES_KEY, JSON.stringify(preferences));
+                } else {
+                  localStorage.removeItem(FILTER_PREFERENCES_KEY);
+                }
               }
             } catch (error) {
               logWarn("Unable to persist filter preferences", error);
@@ -12117,7 +12160,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               script.src = GIFJS_SCRIPT_URL;
               script.async = true;
               script.crossOrigin = "anonymous";
-              script.integrity = GIFJS_SCRIPT_INTEGRITY;
+              if (GIFJS_SCRIPT_INTEGRITY) {
+                script.integrity = GIFJS_SCRIPT_INTEGRITY;
+              }
               script.addEventListener("load", () => resolve(typeof GIF !== "undefined"), { once: true });
               script.addEventListener("error", () => reject(new Error("Failed to load GIF export library.")), { once: true });
               document.head.appendChild(script);

@@ -7,55 +7,29 @@
   <meta
     http-equiv="Content-Security-Policy"
     content="default-src 'self';
-                 script-src 'self' https://cdn.jsdelivr.net;
-                 style-src 'self' https://rsms.me;
+                 script-src 'self';
+                 style-src 'self';
                  img-src 'self' data:;
-                 font-src https://rsms.me;
-                 connect-src 'self' https://cdn.jsdelivr.net;
+                 font-src 'self';
+                 connect-src 'self';
                  worker-src 'self' blob:;
                  object-src 'none';
                  base-uri 'self';
+                 form-action 'self';
+                 navigate-to 'self';
                  upgrade-insecure-requests"
   />
   <meta name="referrer" content="same-origin" />
   <title>Copilot Impact Dashboard</title>
   <link rel="icon" href="data:," />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    rel="stylesheet"
-    href="https://rsms.me/inter/inter.css"
-    crossorigin="anonymous"
-    integrity="sha384-STiTZ2kjdnc/em4jSELZZ6VypRToc92cA0m6Nppx3J8C4mt0fjMNUm1xnm1yoP96"
-  />
   <link rel="stylesheet" href="../assets/chansen-ui.css?v=20260123a" />
   <script src="../assets/chansen-ui-theme.js?v=20260123a"></script>
   <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20260123a" />
-  <script
-    src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
-    crossorigin="anonymous"
-    integrity="sha384-D/t0ZMqQW31H3az8ktEiNb39wyKnS82iFY52QPACM+IjKW3jDUhyIgh2PApRqJZs"
-  ></script>
-  <script
-    src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
-    crossorigin="anonymous"
-    integrity="sha384-vsrfeLOOY6KuIYKDlmVH5UiBmgIdB1oEf7p01YgWHuqmOHfZr374+odEv96n9tNC"
-  ></script>
-
-  <script
-    src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
-    crossorigin="anonymous"
-    integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"
-  ></script>
-  <script
-    src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"
-    crossorigin="anonymous"
-    integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H"
-  ></script>
-  <script
-    src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"
-    crossorigin="anonymous"
-    integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk"
-  ></script>
+  <script defer src="assets/vendor/papaparse.min.js"></script>
+  <script defer src="assets/vendor/chart.umd.min.js"></script>
+  <script defer src="assets/vendor/xlsx.full.min.js"></script>
+  <script defer src="assets/vendor/html2canvas.min.js"></script>
+  <script defer src="assets/vendor/jspdf.umd.min.js"></script>
 </head>
 <body>
   <a href="#impact" class="skip-link">Skip to main content</a>
@@ -1267,12 +1241,7 @@
       </div>
     </form>
   </dialog>
-  <script
-    defer
-    src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"
-    crossorigin="anonymous"
-    integrity="sha384-rNlaE5fs9dGIjmxWDALQh/RBAaGRYT5ChrzHo6tRfgrZ36iRFAiquP5g41Jsv+0j"
-  ></script>
+  <script defer src="assets/vendor/pako.min.js"></script>
   <script defer src="assets/sharepoint-static-assets.js"></script>
   <script defer src="assets/vendor/fflate.min.js"></script>
   <script defer src="assets/copilot-dashboard.js?v=20260123a"></script>

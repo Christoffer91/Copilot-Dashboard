@@ -1,0 +1,96 @@
+{
+  "entries": [
+    {
+      "bytes": 19469,
+      "id": "papaparse",
+      "package": "papaparse",
+      "path": "assets/vendor/papaparse.min.js",
+      "sha256": "b8e870c5d2b29772f10c9fa9a693c8b896aac8540ed6701e3cc6304c683febdb",
+      "source": "npm",
+      "url": "https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js",
+      "version": "5.4.1"
+    },
+    {
+      "bytes": 205889,
+      "id": "chartjs",
+      "package": "chart.js",
+      "path": "assets/vendor/chart.umd.min.js",
+      "sha256": "206b6e8bb00fc7bba2c7ee80ca41db3e9e05ba7be0aa35abeba9cfd5357f5d0e",
+      "source": "npm",
+      "url": "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js",
+      "version": "4.4.7"
+    },
+    {
+      "bytes": 881727,
+      "id": "xlsx",
+      "package": "xlsx",
+      "path": "assets/vendor/xlsx.full.min.js",
+      "sha256": "c9506197caf809a075b6dee1da0d36fb19da7158ffe8a88e7b0c96c5d8623c99",
+      "source": "npm",
+      "url": "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+      "version": "0.18.5"
+    },
+    {
+      "bytes": 198689,
+      "id": "html2canvas",
+      "package": "html2canvas",
+      "path": "assets/vendor/html2canvas.min.js",
+      "sha256": "e87e550794322e574a1fda0c1549a3c70dae5a93d9113417a429016838eab8cb",
+      "source": "npm",
+      "url": "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js",
+      "version": "1.4.1"
+    },
+    {
+      "bytes": 364463,
+      "id": "jspdf",
+      "package": "jspdf",
+      "path": "assets/vendor/jspdf.umd.min.js",
+      "sha256": "98ccf17aa10c20bb1301762618fcc9b6ab3a4e7f26b6071d64d0b41154df3875",
+      "source": "npm",
+      "url": "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js",
+      "version": "2.5.1"
+    },
+    {
+      "bytes": 46859,
+      "id": "pako",
+      "package": "pako",
+      "path": "assets/vendor/pako.min.js",
+      "sha256": "ede2693a4a6a5126b9d35669062b358ecab6ae7b9b86a1cf302feb45a8514907",
+      "source": "npm",
+      "url": "https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js",
+      "version": "2.1.0"
+    },
+    {
+      "bytes": 10755,
+      "id": "gifjs",
+      "package": "gif.js.optimized",
+      "path": "assets/vendor/gif.js",
+      "sha256": "e40d81879b7de14dea24f1f7e0915d022b4ede2ef54db9c7e2e5a067fe49f132",
+      "source": "npm",
+      "url": "https://cdn.jsdelivr.net/npm/gif.js.optimized@1.0.1/dist/gif.js",
+      "version": "1.0.1"
+    },
+    {
+      "bytes": 32665,
+      "id": "fflate",
+      "package": "fflate",
+      "path": "assets/vendor/fflate.min.js",
+      "sha256": "c3b34f2e9f5e74d4d7d64e01cac7a0c01954c6c406414d42185c7b53d6875ddf",
+      "source": "local",
+      "url": null,
+      "version": "UNKNOWN"
+    },
+    {
+      "bytes": 10817,
+      "id": "gif_worker",
+      "package": "gif.worker.js",
+      "path": "assets/vendor/gif.worker.js",
+      "sha256": "cba3bd1cc3c9bd3f2c93b5bced357169d904fec011c0c87bd74c38b1b0b46c15",
+      "source": "local",
+      "url": null,
+      "version": "UNKNOWN"
+    }
+  ],
+  "generatedBy": "scripts/vendor",
+  "schema": 1
+}

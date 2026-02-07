@@ -20,13 +20,121 @@
   }
 
   function initializeDashboard() {
-    const HIGH_RES_PIXEL_RATIO = Math.max(window.devicePixelRatio || 1, 2.5);
+    const ASSET_VERSION = "20260207a";
+
+          function withAssetVersion(path) {
+            if (!ASSET_VERSION || typeof path !== "string" || !path.length) {
+              return path;
+            }
+            // Avoid double-appending when callers include their own cache busting.
+            if (/[?&]v=/.test(path)) {
+              return path;
+            }
+            const separator = path.includes("?") ? "&" : "?";
+            return `${path}${separator}v=${encodeURIComponent(ASSET_VERSION)}`;
+          }
+
+          const HIGH_RES_PIXEL_RATIO = Math.max(window.devicePixelRatio || 1, 2.5);
           Chart.defaults.devicePixelRatio = HIGH_RES_PIXEL_RATIO;
-          const GIF_WORKER_SOURCE_URL = "assets/vendor/gif.worker.js";
-          const GIFJS_SCRIPT_URL = "assets/vendor/gif.js";
+
+          const GIF_WORKER_SOURCE_URL = withAssetVersion("assets/vendor/gif.worker.js");
+          const GIFJS_SCRIPT_URL = withAssetVersion("assets/vendor/gif.js");
+          const XLSX_SCRIPT_URL = withAssetVersion("assets/vendor/xlsx.full.min.js");
+          const HTML2CANVAS_SCRIPT_URL = withAssetVersion("assets/vendor/html2canvas.min.js");
+          const JSPDF_SCRIPT_URL = withAssetVersion("assets/vendor/jspdf.umd.min.js");
           const GIFJS_SCRIPT_INTEGRITY = "";
           let gifWorkerUrlPromise = null;
           let gifLibraryPromise = null;
+          const scriptLoadPromises = new Map();
+
+          function resolveAssetUrl(path) {
+            try {
+              return new URL(path, document.baseURI).href;
+            } catch (error) {
+              return String(path || "");
+            }
+          }
+
+          function loadScriptOnce({ src, name, isReady }) {
+            try {
+              if (typeof isReady === "function" && isReady()) {
+                return Promise.resolve(true);
+              }
+            } catch (error) {
+              // ignore readiness errors; we'll attempt loading below
+            }
+
+            const absoluteSrc = resolveAssetUrl(src);
+            const existingPromise = scriptLoadPromises.get(absoluteSrc);
+            if (existingPromise) {
+              return existingPromise;
+            }
+
+            const promise = new Promise((resolve, reject) => {
+              const existing = Array.from(document.scripts || []).find(script => {
+                try {
+                  return script && script.src === absoluteSrc;
+                } catch (error) {
+                  return false;
+                }
+              });
+
+              const finalize = () => {
+                try {
+                  resolve(typeof isReady === "function" ? Boolean(isReady()) : true);
+                } catch (error) {
+                  resolve(true);
+                }
+              };
+
+              if (existing) {
+                // Script tag exists but might still be loading.
+                existing.addEventListener("load", finalize, { once: true });
+                existing.addEventListener("error", () => reject(new Error(`${name || "Script"} failed to load.`)), { once: true });
+                // If it already loaded, resolve on next tick.
+                queueMicrotask(finalize);
+                return;
+              }
+
+              const script = document.createElement("script");
+              script.src = absoluteSrc;
+              script.async = true;
+              script.crossOrigin = "anonymous";
+              script.addEventListener("load", finalize, { once: true });
+              script.addEventListener("error", () => reject(new Error(`${name || "Script"} failed to load.`)), { once: true });
+              document.head.appendChild(script);
+            }).catch(error => {
+              // Allow retries after a failure.
+              scriptLoadPromises.delete(absoluteSrc);
+              throw error;
+            });
+
+            scriptLoadPromises.set(absoluteSrc, promise);
+            return promise;
+          }
+
+          function ensureXlsxLoaded() {
+            return loadScriptOnce({
+              src: XLSX_SCRIPT_URL,
+              name: "Excel export library",
+              isReady: () => typeof XLSX !== "undefined" && XLSX.utils && (XLSX.writeFile || XLSX.write)
+            });
+          }
+
+          function ensurePdfExportLibrariesLoaded() {
+            return Promise.all([
+              loadScriptOnce({
+                src: JSPDF_SCRIPT_URL,
+                name: "PDF export library",
+                isReady: () => Boolean(window.jspdf && window.jspdf.jsPDF)
+              }),
+              loadScriptOnce({
+                src: HTML2CANVAS_SCRIPT_URL,
+                name: "Screenshot export library",
+                isReady: () => typeof html2canvas === "function"
+              })
+            ]).then(results => results.every(Boolean));
+          }
           let activeParseController = null;
           let bufferedSampleCsv = null;
           let bufferedCsvText = null;
@@ -12150,14 +12258,15 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               return gifLibraryPromise;
             }
             gifLibraryPromise = new Promise((resolve, reject) => {
-              const existing = Array.from(document.scripts || []).find(script => script && script.src === GIFJS_SCRIPT_URL);
+              const absoluteGifUrl = resolveAssetUrl(GIFJS_SCRIPT_URL);
+              const existing = Array.from(document.scripts || []).find(script => script && script.src === absoluteGifUrl);
               if (existing) {
                 existing.addEventListener("load", () => resolve(typeof GIF !== "undefined"), { once: true });
                 existing.addEventListener("error", () => reject(new Error("Failed to load GIF export library.")), { once: true });
                 return;
               }
               const script = document.createElement("script");
-              script.src = GIFJS_SCRIPT_URL;
+              script.src = absoluteGifUrl;
               script.async = true;
               script.crossOrigin = "anonymous";
               if (GIFJS_SCRIPT_INTEGRITY) {
@@ -12249,15 +12358,19 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               }
             });
           }
-      
+	      
           async function exportTrendTotalsToExcel() {
-            if (typeof XLSX === "undefined" || !XLSX.utils || (!XLSX.writeFile && !XLSX.write)) {
-              showExportHint("Excel export library not available.", true);
-              return;
-            }
             const periods = Array.isArray(state.latestTrendPeriods) ? state.latestTrendPeriods : [];
             if (!periods.length) {
               showExportHint("Load data to export totals.", true);
+              return;
+            }
+            const hasXlsx = await ensureXlsxLoaded().catch(error => {
+              logWarn("Unable to load Excel export library", error);
+              return false;
+            });
+            if (!hasXlsx) {
+              showExportHint("Excel export library not available.", true);
               return;
             }
             const rows = buildTrendTotalsRows(periods);
@@ -12380,10 +12493,6 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
           }
 
           async function exportFullReportToExcel() {
-            if (typeof XLSX === "undefined" || !XLSX.utils || (!XLSX.writeFile && !XLSX.write)) {
-              showExportHint("Excel export library not available.", true);
-              return;
-            }
             if (!Array.isArray(state.rows) || !state.rows.length) {
               showExportHint("Load data to export a full report.", true);
               return;
@@ -12395,6 +12504,14 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }
             if (!filtered.length) {
               showExportHint("No data matches the current filters.", true);
+              return;
+            }
+            const hasXlsx = await ensureXlsxLoaded().catch(error => {
+              logWarn("Unable to load Excel export library", error);
+              return false;
+            });
+            if (!hasXlsx) {
+              showExportHint("Excel export library not available.", true);
               return;
             }
             try {
@@ -12634,13 +12751,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               showExportHint("Unable to export full report in this browser.", true);
             }
           }
-      
+	      
           async function exportDashboardToPDF() {
             closeExportMenu();
-            if (!window.jspdf || !window.jspdf.jsPDF) {
-              showExportHint("PDF export libraries are not available.", true);
-              return;
-            }
             if (!Array.isArray(state.rows) || !state.rows.length) {
               showExportHint("Load data before exporting a PDF report.", true);
               return;
@@ -12652,6 +12765,14 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }
             if (!filtered.length) {
               showExportHint("No data matches the current filters.", true);
+              return;
+            }
+            const hasPdfExportLibraries = await ensurePdfExportLibrariesLoaded().catch(error => {
+              logWarn("Unable to load PDF export libraries", error);
+              return false;
+            });
+            if (!hasPdfExportLibraries) {
+              showExportHint("PDF export libraries are not available.", true);
               return;
             }
             try {

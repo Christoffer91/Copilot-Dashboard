@@ -1,0 +1,22 @@
+# Copilot Dashboard caching (scoped to /copilot-dashboard/)
+#
+# The HTML shell can change frequently, while referenced assets are cache-busted
+# via `?v=...` query parameters.
+
+<IfModule mod_headers.c>
+  # Avoid caching the HTML shell so users pick up new versions quickly.
+  <FilesMatch "^(copilot-dashboard\\.html|index\\.html)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+
+  # Cache assets aggressively; URLs include `?v=` for safe busting.
+  <FilesMatch "\\.(css|js)$">
+    Header set Cache-Control "public, max-age=604800, immutable"
+  </FilesMatch>
+
+  # Keep sample data fresh by default (and avoid surprising stale examples).
+  <FilesMatch "\\.csv$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
+

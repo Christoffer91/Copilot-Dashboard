@@ -29,7 +29,7 @@
   />
   <link rel="stylesheet" href="../assets/chansen-ui.css?v=20260123a" />
   <script src="../assets/chansen-ui-theme.js?v=20260123a"></script>
-  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20260123a" />
+  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20260213b" />
   <script
     src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
     crossorigin="anonymous"
@@ -81,7 +81,7 @@
               <label for="fileInput" class="upload-button">Select CSV file</label>
               <div class="upload-button-group">
                 <button type="button" class="upload-button upload-button--ghost" data-load-central hidden>Load central dataset</button>
-                <button type="button" class="upload-button upload-button--ghost" data-load-sample>Load sample dataset</button>
+                <select id="sampleDatasetSelect" class="upload-sample-select" data-sample-dataset-select aria-label="Sample dataset"></select>
                 <label for="centralFileInput" class="upload-button upload-button--ghost" data-upload-central hidden>Upload central dataset</label>
                 <button type="button" class="storage-button storage-button--inline" data-clear-storage hidden>Clear saved dataset</button>
               </div>
@@ -1275,6 +1275,6 @@
   ></script>
   <script defer src="assets/sharepoint-static-assets.js"></script>
   <script defer src="assets/vendor/fflate.min.js"></script>
-  <script defer src="assets/copilot-dashboard.js?v=20260123a"></script>
+  <script defer src="assets/copilot-dashboard.js?v=20260213b"></script>
 </body>
 </html>

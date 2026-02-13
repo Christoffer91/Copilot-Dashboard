@@ -459,6 +459,20 @@ body.is-custom-theme {
       color: var(--text-body);
     }
 
+    body.is-dark .upload-sample-select {
+      border-color: rgba(132, 142, 155, 0.32);
+      color: var(--text-body);
+      background-color: rgba(28, 34, 44, 0.92);
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(183, 209, 200, 0.9) 50%),
+        linear-gradient(135deg, rgba(183, 209, 200, 0.9) 50%, transparent 50%);
+    }
+
+    body.is-dark .upload-sample-select:hover {
+      background-color: rgba(72, 148, 124, 0.18);
+      border-color: rgba(72, 148, 124, 0.36);
+    }
+
     body.is-dark .intro-card {
       background: linear-gradient(180deg, rgba(34, 38, 46, 0.96) 0%, rgba(29, 32, 38, 0.94) 100%);
       border-color: rgba(96, 108, 124, 0.34);
@@ -886,6 +900,32 @@ body.is-custom-theme {
         gap: 6px;
         flex-wrap: wrap;
       }
+
+    .upload-sample-select {
+      border: 1px solid rgba(0, 110, 0, 0.22);
+      border-radius: 999px;
+      background: #ffffff;
+      color: var(--green-600);
+      padding: 6px 34px 6px 12px;
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      min-width: 210px;
+      max-width: 280px;
+      appearance: none;
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--green-600) 50%),
+        linear-gradient(135deg, var(--green-600) 50%, transparent 50%);
+      background-position:
+        calc(100% - 17px) calc(50% - 2px),
+        calc(100% - 12px) calc(50% - 2px);
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+    }
+
+    .upload-sample-select:hover {
+      background-color: rgba(0, 110, 0, 0.04);
+      border-color: rgba(0, 110, 0, 0.3);
+    }
 
     .upload-hint {
       font-size: var(--font-size-sm);
@@ -4622,6 +4662,12 @@ body.is-custom-theme {
         flex-direction: column;
       }
 
+      .upload-sample-select {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+      }
+
       .intro-card,
       .dataset-card,
       .trend-card,
@@ -5005,6 +5051,7 @@ body.is-custom-theme {
 
     /* Focus-visible states for all interactive elements */
     .upload-button:focus-visible,
+    .upload-sample-select:focus-visible,
     .storage-button:focus-visible,
     .reset-button:focus-visible,
     .upload-cancel:focus-visible,
@@ -5024,6 +5071,7 @@ body.is-custom-theme {
     }
 
     body.is-dark .upload-button:focus-visible,
+    body.is-dark .upload-sample-select:focus-visible,
     body.is-dark .storage-button:focus-visible,
     body.is-dark .reset-button:focus-visible,
     body.is-dark .upload-cancel:focus-visible,

@@ -243,7 +243,14 @@
               ]
             },
             assistedHours: {
-              primary: ["Copilot assisted hours"]
+              primary: ["Copilot assisted hours"],
+              alternate: [
+                "Total Meeting hours summarized or recapped by Copilot",
+                "Meeting hours recapped by Copilot",
+                "Meeting hours summarized by Copilot",
+                "Meeting hours summarized by Copilot in Teams"
+              ],
+              preferMax: true
             },
             copilotEnabledUser: {
               primary: ["Copilot Enabled User"]
@@ -663,7 +670,7 @@
               label: DATASET_SCHEMA_LABELS.copilot_dashboard_export_89,
               expectedColumnCount: 89,
               minColumnCount: 87,
-              maxColumnCount: 92,
+              maxColumnCount: 104,
               identityIndexMap: {
                 personId: 0,
                 metricDate: 1,
@@ -786,7 +793,8 @@
                 identityIndexFallbacks: 0,
                 metricAliasResolutions: 0,
                 identityAliasResolutions: 0
-              }
+              },
+              metricResolution: {}
             };
           }
 
@@ -834,6 +842,340 @@
               }
             }
             return null;
+          }
+
+          function collectSampleValuesForIndex(fields, sampleRows, index, limit = 32) {
+            if (!Array.isArray(fields) || !Number.isFinite(index) || index < 0) {
+              return [];
+            }
+            const field = fields[index];
+            if (!field) {
+              return [];
+            }
+            const rows = toSampleRowArray(sampleRows);
+            const values = [];
+            for (let rowIndex = 0; rowIndex < rows.length && values.length < limit; rowIndex += 1) {
+              const row = rows[rowIndex];
+              if (!row || typeof row !== "object" || !(field in row)) {
+                continue;
+              }
+              const value = row[field];
+              if (value == null) {
+                continue;
+              }
+              const text = String(value).trim();
+              if (!text) {
+                continue;
+              }
+              values.push(text);
+            }
+            return values;
+          }
+
+          function ratioMatching(values, predicate) {
+            if (!Array.isArray(values) || !values.length || typeof predicate !== "function") {
+              return 0;
+            }
+            let matches = 0;
+            for (let index = 0; index < values.length; index += 1) {
+              if (predicate(values[index])) {
+                matches += 1;
+              }
+            }
+            return matches / values.length;
+          }
+
+          function looksLikePersonId(value) {
+            if (value == null) {
+              return false;
+            }
+            const text = String(value).trim();
+            if (!text || /\s/.test(text)) {
+              return false;
+            }
+            if (/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(text)) {
+              return true;
+            }
+            if (/^(syn|anon)[-_]/i.test(text)) {
+              return true;
+            }
+            return /^[A-Za-z0-9_-]{8,}$/.test(text);
+          }
+
+          function looksLikeDateValue(value) {
+            if (value == null) {
+              return false;
+            }
+            const text = String(value).trim();
+            if (!text) {
+              return false;
+            }
+            if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+              return true;
+            }
+            if (/^\d{1,2}[\/.]\d{1,2}[\/.]\d{2,4}$/.test(text)) {
+              return true;
+            }
+            return false;
+          }
+
+          function looksLikeNumericValue(value) {
+            if (value == null) {
+              return false;
+            }
+            const text = String(value).trim();
+            if (!text || !/\d/.test(text)) {
+              return false;
+            }
+            const parsed = parseNumber(text, DEFAULT_NUMBER_DIALECT);
+            if (!Number.isFinite(parsed)) {
+              return false;
+            }
+            if (parsed !== 0) {
+              return true;
+            }
+            return /^[-+]?0+(?:[.,]0+)?$/.test(text.replace(/\s+/g, ""));
+          }
+
+          function looksLikeTextCategory(value) {
+            if (value == null) {
+              return false;
+            }
+            const text = String(value).trim();
+            if (!text) {
+              return false;
+            }
+            if (looksLikeDateValue(text) || looksLikeNumericValue(text)) {
+              return false;
+            }
+            return /[A-Za-zÆØÅæøåÀ-ÿ]/.test(text);
+          }
+
+          function evaluateSchemaStructuralScore(schema, fields, sampleRows) {
+            if (!schema || !Array.isArray(fields) || !fields.length) {
+              return 0;
+            }
+            let score = 0;
+            const expected = Number.isFinite(schema.expectedColumnCount) ? schema.expectedColumnCount : null;
+            if (expected != null) {
+              const distance = Math.abs(fields.length - expected);
+              if (distance === 0) {
+                score += 3;
+              } else if (distance <= 4) {
+                score += 2;
+              } else if (distance <= 10) {
+                score += 1;
+              }
+            }
+
+            const identity = schema.identityIndexMap || {};
+            const personRatio = ratioMatching(
+              collectSampleValuesForIndex(fields, sampleRows, identity.personId),
+              looksLikePersonId
+            );
+            if (personRatio >= 0.7) {
+              score += 3;
+            } else if (personRatio >= 0.4) {
+              score += 1;
+            }
+            const dateRatio = ratioMatching(
+              collectSampleValuesForIndex(fields, sampleRows, identity.metricDate),
+              looksLikeDateValue
+            );
+            if (dateRatio >= 0.7) {
+              score += 3;
+            } else if (dateRatio >= 0.4) {
+              score += 1;
+            }
+            const orgRatio = ratioMatching(
+              collectSampleValuesForIndex(fields, sampleRows, identity.organization),
+              looksLikeTextCategory
+            );
+            if (orgRatio >= 0.6) {
+              score += 2;
+            } else if (orgRatio >= 0.35) {
+              score += 1;
+            }
+            const countryRatio = ratioMatching(
+              collectSampleValuesForIndex(fields, sampleRows, identity.country),
+              looksLikeTextCategory
+            );
+            if (Number.isFinite(identity.country)) {
+              if (countryRatio >= 0.6) {
+                score += 1;
+              } else if (countryRatio >= 0.35) {
+                score += 0.5;
+              }
+            }
+            const domainRatio = ratioMatching(
+              collectSampleValuesForIndex(fields, sampleRows, identity.domain),
+              value => typeof value === "string" && /[A-Za-z]/.test(value) && /\./.test(value)
+            );
+            if (Number.isFinite(identity.domain)) {
+              if (domainRatio >= 0.5) {
+                score += 1;
+              } else if (domainRatio >= 0.25) {
+                score += 0.5;
+              }
+            }
+
+            const metricIndexMap = schema.metricIndexMap || {};
+            ["totalActions", "totalActiveDays", "totalEnabledDays"].forEach(metricKey => {
+              const ratio = ratioMatching(
+                collectSampleValuesForIndex(fields, sampleRows, metricIndexMap[metricKey]),
+                looksLikeNumericValue
+              );
+              if (ratio >= 0.65) {
+                score += 1;
+              }
+            });
+
+            return score;
+          }
+
+          function findSchemaByStructure(fields, sampleRows) {
+            const candidates = Object.values(SCHEMA_DEFINITIONS);
+            let best = null;
+            candidates.forEach(schema => {
+              const score = evaluateSchemaStructuralScore(schema, fields, sampleRows);
+              if (!best || score > best.score) {
+                best = { schema, score };
+              }
+            });
+            if (!best || best.score < 6) {
+              return null;
+            }
+            const confidence = Math.min(0.9, 0.5 + (best.score - 6) * 0.06);
+            return {
+              schemaId: best.schema.id,
+              confidence
+            };
+          }
+
+          function getFieldIndex(fields, field) {
+            if (!Array.isArray(fields) || !field) {
+              return -1;
+            }
+            return fields.indexOf(field);
+          }
+
+          function getIndexCandidates(baseIndex, shift, fields) {
+            const candidates = [];
+            const add = index => {
+              if (!Number.isFinite(index) || index < 0 || !Array.isArray(fields) || !fields[index]) {
+                return;
+              }
+              if (!candidates.includes(index)) {
+                candidates.push(index);
+              }
+            };
+            add(baseIndex);
+            if (Number.isFinite(shift) && shift !== 0) {
+              add(baseIndex + shift);
+            }
+            return candidates;
+          }
+
+          function collectNumericSamplesForIndex(fields, sampleRows, index, limit = 64) {
+            const values = collectSampleValuesForIndex(fields, sampleRows, index, limit);
+            const numericValues = [];
+            for (let valueIndex = 0; valueIndex < values.length; valueIndex += 1) {
+              const parsed = parseNumber(values[valueIndex], DEFAULT_NUMBER_DIALECT);
+              if (Number.isFinite(parsed)) {
+                numericValues.push(parsed);
+              }
+            }
+            return numericValues;
+          }
+
+          function scoreMetricFallbackColumn(fields, sampleRows, index) {
+            const rawValues = collectSampleValuesForIndex(fields, sampleRows, index, 64);
+            if (!rawValues.length) {
+              return -1;
+            }
+            const numericValues = collectNumericSamplesForIndex(fields, sampleRows, index, 64);
+            if (!numericValues.length) {
+              return -1;
+            }
+            const numericRatio = numericValues.length / rawValues.length;
+            let nonZeroCount = 0;
+            const distinct = new Set();
+            for (let valueIndex = 0; valueIndex < numericValues.length; valueIndex += 1) {
+              const value = numericValues[valueIndex];
+              if (Math.abs(value) > 0) {
+                nonZeroCount += 1;
+              }
+              distinct.add(value);
+            }
+            const nonZeroRatio = numericValues.length ? (nonZeroCount / numericValues.length) : 0;
+            const distinctRatio = Math.min(distinct.size / 12, 1);
+            return (numericRatio * 0.55) + (nonZeroRatio * 0.3) + (distinctRatio * 0.15);
+          }
+
+          function scoreIdentityFallbackColumn(identityKey, fields, sampleRows, index) {
+            const values = collectSampleValuesForIndex(fields, sampleRows, index, 64);
+            if (!values.length) {
+              return -1;
+            }
+            if (identityKey === "personId") {
+              const ratio = ratioMatching(values, looksLikePersonId);
+              const distinctRatio = Math.min(new Set(values).size / values.length, 1);
+              return (ratio * 0.85) + (distinctRatio * 0.15);
+            }
+            if (identityKey === "metricDate") {
+              return ratioMatching(values, looksLikeDateValue);
+            }
+            if (identityKey === "organization") {
+              const textRatio = ratioMatching(values, value => looksLikeTextCategory(value) && !/\./.test(String(value)));
+              const distinctRatio = Math.min(new Set(values).size / values.length, 1);
+              return (textRatio * 0.8) + (distinctRatio * 0.2);
+            }
+            if (identityKey === "country") {
+              const textRatio = ratioMatching(values, looksLikeTextCategory);
+              const distinctCount = new Set(values).size;
+              const boundedDistinctRatio = distinctCount <= 100 ? Math.min(distinctCount / 30, 1) : 0.35;
+              return (textRatio * 0.8) + (boundedDistinctRatio * 0.2);
+            }
+            if (identityKey === "domain") {
+              return ratioMatching(values, value => typeof value === "string" && /[A-Za-z]/.test(value) && /\./.test(value));
+            }
+            return 0;
+          }
+
+          function getSchemaIndexShift(fields, schema, normalizedLookup) {
+            if (!schema || !Array.isArray(fields) || !(normalizedLookup instanceof Map)) {
+              return 0;
+            }
+            const counts = new Map();
+            const registerShift = shift => {
+              if (!Number.isFinite(shift) || Math.abs(shift) > 24) {
+                return;
+              }
+              counts.set(shift, (counts.get(shift) || 0) + 1);
+            };
+            Object.entries(IDENTITY_FIELD_CANDIDATES).forEach(([identityKey, candidates]) => {
+              const expectedIndex = schema.identityIndexMap ? schema.identityIndexMap[identityKey] : null;
+              if (!Number.isFinite(expectedIndex) || !Array.isArray(candidates) || !candidates.length) {
+                return;
+              }
+              const resolvedField = findFieldFromCandidates(candidates, normalizedLookup);
+              const actualIndex = getFieldIndex(fields, resolvedField);
+              if (actualIndex >= 0) {
+                registerShift(actualIndex - expectedIndex);
+              }
+            });
+            if (!counts.size) {
+              return 0;
+            }
+            let bestShift = 0;
+            let bestCount = -1;
+            counts.forEach((count, shift) => {
+              if (count > bestCount || (count === bestCount && Math.abs(shift) < Math.abs(bestShift))) {
+                bestShift = shift;
+                bestCount = count;
+              }
+            });
+            return Number.isFinite(bestShift) ? bestShift : 0;
           }
 
           function inferNumberDialect(sampleRows) {
@@ -931,6 +1273,12 @@
               if (rangeMatch) {
                 schemaId = rangeMatch.id;
                 confidence = 0.75;
+              } else {
+                const structuralMatch = findSchemaByStructure(list, sampleRows);
+                if (structuralMatch) {
+                  schemaId = structuralMatch.schemaId;
+                  confidence = structuralMatch.confidence;
+                }
               }
             }
             const numberDialect = inferNumberDialect(sampleRows);
@@ -946,7 +1294,7 @@
             };
           }
 
-          function resolveDatasetFieldMapping(fields, schemaInfo) {
+          function resolveDatasetFieldMapping(fields, schemaInfo, sampleRows = []) {
             const context = createDefaultDatasetContext();
             if (schemaInfo && typeof schemaInfo === "object") {
               context.schemaId = schemaInfo.schemaId || context.schemaId;
@@ -962,6 +1310,7 @@
             const schema = SCHEMA_DEFINITIONS[context.schemaId];
             const identityIndexMap = schema && schema.identityIndexMap ? schema.identityIndexMap : {};
             const metricIndexMap = schema && schema.metricIndexMap ? schema.metricIndexMap : {};
+            const schemaIndexShift = getSchemaIndexShift(list, schema, normalizedLookup);
 
             Object.entries(IDENTITY_FIELD_CANDIDATES).forEach(([identityKey, candidates]) => {
               let resolved = findFieldFromCandidates(candidates, normalizedLookup);
@@ -970,8 +1319,17 @@
               }
               if (!resolved) {
                 const fallbackIndex = identityIndexMap[identityKey];
-                if (Number.isFinite(fallbackIndex) && list[fallbackIndex]) {
-                  resolved = list[fallbackIndex];
+                const indexCandidates = getIndexCandidates(fallbackIndex, schemaIndexShift, list);
+                let best = null;
+                for (let candidateIndex = 0; candidateIndex < indexCandidates.length; candidateIndex += 1) {
+                  const index = indexCandidates[candidateIndex];
+                  const score = scoreIdentityFallbackColumn(identityKey, list, sampleRows, index);
+                  if (!best || score > best.score) {
+                    best = { index, score };
+                  }
+                }
+                if (best && list[best.index]) {
+                  resolved = list[best.index];
                   context.fallbackStats.identityIndexFallbacks += 1;
                 }
               }
@@ -991,17 +1349,32 @@
                 return;
               }
               let resolved = findFieldFromCandidates(candidates, normalizedLookup);
+              let resolutionType = "";
               if (resolved) {
+                resolutionType = "alias";
                 context.fallbackStats.metricAliasResolutions += 1;
               }
               if (!resolved) {
                 const fallbackIndex = metricIndexMap[metricKey];
-                if (Number.isFinite(fallbackIndex) && list[fallbackIndex]) {
-                  resolved = list[fallbackIndex];
+                const indexCandidates = getIndexCandidates(fallbackIndex, schemaIndexShift, list);
+                let best = null;
+                for (let candidateIndex = 0; candidateIndex < indexCandidates.length; candidateIndex += 1) {
+                  const index = indexCandidates[candidateIndex];
+                  const score = scoreMetricFallbackColumn(list, sampleRows, index);
+                  if (!best || score > best.score) {
+                    best = { index, score };
+                  }
+                }
+                if (best && list[best.index]) {
+                  resolved = list[best.index];
+                  resolutionType = "index";
                   context.fallbackStats.metricIndexFallbacks += 1;
                 }
               }
               if (resolved) {
+                if (resolutionType) {
+                  context.metricResolution[metricKey] = resolutionType;
+                }
                 candidates.forEach(candidate => {
                   const normalized = normalizeHeaderKey(candidate);
                   if (normalized && !combinedLookup.has(normalized)) {
@@ -1028,7 +1401,9 @@
             const numberDialect = context.numberDialect && context.numberDialect.decimalSeparator === "," ? "comma decimals" : "dot decimals";
             const dateDialect = context.dateDialect && context.dateDialect.slashOrder === "dmy" ? "day-first dates" : "month-first dates";
             const fallbacks = context.fallbackStats || {};
-            return `${schemaLabel} (${confidenceValue}, ${numberDialect}, ${dateDialect}; index fallbacks: ${Number(fallbacks.identityIndexFallbacks || 0) + Number(fallbacks.metricIndexFallbacks || 0)})`;
+            const fallbackCount = Number(fallbacks.identityIndexFallbacks || 0) + Number(fallbacks.metricIndexFallbacks || 0);
+            const fallbackWarning = fallbackCount >= 25 ? "; verify localized headers (high fallback mapping)" : "";
+            return `${schemaLabel} (${confidenceValue}, ${numberDialect}, ${dateDialect}; index fallbacks: ${fallbackCount}${fallbackWarning})`;
           }
 
           function getRawColumnValue(raw, column) {
@@ -1091,6 +1466,87 @@
               || (metrics.chatPromptsWork || 0) > 0;
             if ((metrics.copilotChatEnabledUser || 0) <= 0 && chatEnabled) {
               metrics.copilotChatEnabledUser = 1;
+            }
+          }
+
+          function sumPositiveMetricValues(metrics, keys) {
+            if (!metrics || typeof metrics !== "object" || !Array.isArray(keys) || !keys.length) {
+              return 0;
+            }
+            let total = 0;
+            for (let index = 0; index < keys.length; index += 1) {
+              const value = Number(metrics[keys[index]] || 0);
+              if (Number.isFinite(value) && value > 0) {
+                total += value;
+              }
+            }
+            return total;
+          }
+
+          function applyDerivedMetricFallbacks(metrics) {
+            if (!metrics || typeof metrics !== "object") {
+              return;
+            }
+            const actionComponentKeys = [
+              "teamsActions",
+              "wordActions",
+              "outlookActions",
+              "powerpointActions",
+              "excelActions",
+              "chatWorkActions",
+              "meetingRecap",
+              "meetingSummariesActions",
+              "meetingSummariesTotal",
+              "chatCompose",
+              "chatSummaries",
+              "chatConversations",
+              "emailDrafts",
+              "emailSummaries",
+              "emailCoaching",
+              "presentationCreated",
+              "addContentPresentation",
+              "organizePresentation",
+              "summarizePresentation",
+              "draftWord",
+              "rewriteTextWord",
+              "excelFormula",
+              "excelAnalysis",
+              "excelFormatting",
+              "visualizeTableWord"
+            ];
+            const actionSum = sumPositiveMetricValues(metrics, actionComponentKeys);
+            const currentActions = Number(metrics.totalActions || 0);
+            const totalActionsResolution = currentDatasetContext
+              && currentDatasetContext.metricResolution
+              ? currentDatasetContext.metricResolution.totalActions
+              : "";
+            const metricFallbackCount = currentDatasetContext
+              && currentDatasetContext.fallbackStats
+              ? Number(currentDatasetContext.fallbackStats.metricIndexFallbacks || 0)
+              : 0;
+            if (currentActions <= 0 && actionSum > 0) {
+              metrics.totalActions = actionSum;
+            } else if (
+              metricFallbackCount >= 20
+              && totalActionsResolution !== "alias"
+              && currentActions > 0
+              && currentActions <= 1
+              && actionSum >= 5
+            ) {
+              // Under heavy fallback mapping, a tiny totalActions value usually means a shifted column.
+              metrics.totalActions = actionSum;
+            }
+
+            const hoursCandidates = [
+              Number(metrics.meetingHours || 0),
+              Number(metrics.meetingHoursTotal || 0),
+              Number(metrics.meetingHoursUninterrupted || 0),
+              Number(metrics.meetingHoursSmall || 0),
+              Number(metrics.meetingHoursMultitasking || 0),
+              Number(metrics.meetingHoursConflicting || 0)
+            ].filter(value => Number.isFinite(value) && value > 0);
+            if ((metrics.assistedHours || 0) <= 0 && hoursCandidates.length) {
+              metrics.assistedHours = Math.max(...hoursCandidates);
             }
           }
       
@@ -2414,7 +2870,7 @@
             snapshotExportHtml: document.querySelector("[data-snapshot-export-html]"),
             clearStoredDataset: document.querySelector("[data-clear-storage]"),
             persistConsent: document.querySelector("[data-consent-persist]"),
-            loadSampleButton: document.querySelector("[data-load-sample]"),
+            sampleDatasetSelect: document.querySelector("[data-sample-dataset-select]"),
             dimensionCard: document.querySelector("[data-dimension-card]"),
             dimensionCaption: document.querySelector("[data-dimension-caption]"),
             dimensionSelect: document.querySelector("[data-dimension-select]"),
@@ -3961,10 +4417,14 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               cancelActiveParse({ silent: false });
             });
           }
-      
-          if (dom.loadSampleButton) {
-            dom.loadSampleButton.addEventListener("click", event => {
-              event.preventDefault();
+
+          populateSampleDatasetSelect();
+
+          if (dom.sampleDatasetSelect) {
+            dom.sampleDatasetSelect.addEventListener("change", () => {
+              if (!dom.sampleDatasetSelect.value) {
+                return;
+              }
               loadSampleDataset();
             });
           }
@@ -7959,40 +8419,46 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             detectDelimiterForFile(file).then(beginParsing).catch(() => beginParsing(""));
           }
 
+          function populateSampleDatasetSelect() {
+            if (!dom.sampleDatasetSelect) {
+              return;
+            }
+            const currentValue = dom.sampleDatasetSelect.value;
+            dom.sampleDatasetSelect.innerHTML = "";
+            const placeholder = document.createElement("option");
+            placeholder.value = "";
+            placeholder.textContent = "Load sample dataset...";
+            dom.sampleDatasetSelect.append(placeholder);
+            SAMPLE_DATASETS.forEach(sample => {
+              const option = document.createElement("option");
+              option.value = sample.id;
+              option.textContent = sample.label;
+              dom.sampleDatasetSelect.append(option);
+            });
+            if (!SAMPLE_DATASETS.length) {
+              dom.sampleDatasetSelect.disabled = true;
+              return;
+            }
+            dom.sampleDatasetSelect.disabled = false;
+            const currentExists = Boolean(currentValue && SAMPLE_DATASET_BY_ID[currentValue]);
+            dom.sampleDatasetSelect.value = currentExists ? currentValue : "";
+          }
+
           function chooseSampleDataset() {
-            const first = SAMPLE_DATASET_BY_ID["viva-impact"] || SAMPLE_DATASETS[0];
-            const second = SAMPLE_DATASET_BY_ID["copilot-dashboard-export"] || SAMPLE_DATASETS[1] || first;
-            if (!first) {
-              return null;
+            if (dom.sampleDatasetSelect) {
+              const selectedId = dom.sampleDatasetSelect.value;
+              if (selectedId && SAMPLE_DATASET_BY_ID[selectedId]) {
+                return SAMPLE_DATASET_BY_ID[selectedId];
+              }
             }
-            if (typeof window === "undefined" || typeof window.prompt !== "function") {
-              return first;
-            }
-            const promptText = [
-              "Choose sample dataset:",
-              `1) ${first.label}`,
-              `2) ${second.label}`,
-              "Reply with 1 or 2 (default: 1)"
-            ].join("\n");
-            const response = window.prompt(promptText, "1");
-            if (response == null) {
-              return null;
-            }
-            const normalized = String(response).trim().toLowerCase();
-            if (normalized === "2" || normalized.includes("dashboard") || normalized.includes("export")) {
-              return second;
-            }
-            if (normalized === "1" || normalized.includes("viva") || normalized.includes("impact") || normalized.length === 0) {
-              return first;
-            }
-            return first;
+            return null;
           }
 
           function loadSampleDataset() {
             const selectedSample = chooseSampleDataset();
             if (!selectedSample) {
               if (dom.uploadStatus) {
-                dom.uploadStatus.textContent = "Sample load canceled.";
+                dom.uploadStatus.textContent = "Choose a sample dataset to load.";
               }
               return;
             }
@@ -8252,6 +8718,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               const value = extractMetricValue(raw, mapping);
               metrics[key] = Number.isFinite(value) ? value : 0;
             }
+            applyDerivedMetricFallbacks(metrics);
             applyDerivedEnablementMetrics(metrics);
             return {
               personId: sanitizeLabel(getIdentityValue(raw, "personId")) || "Unknown",
@@ -14422,7 +14889,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               return;
             }
             const schemaInfo = resolveDatasetSchema(fieldList, sampleRowList);
-            const mapping = resolveDatasetFieldMapping(fieldList, schemaInfo);
+            const mapping = resolveDatasetFieldMapping(fieldList, schemaInfo, sampleRowList);
             currentDatasetContext = mapping && mapping.context ? mapping.context : createDefaultDatasetContext();
             currentCsvFieldLookup = mapping && mapping.fieldLookup ? mapping.fieldLookup : buildFieldLookup(fieldList);
           }

@@ -108,9 +108,7 @@ Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 - Documented OneDrive revert mitigation and cache-bust workflow.
 
 ### 2026-02-13
-- Added dual-schema ingestion support for both Viva Analytics Copilot Impact and Copilot Dashboard export CSV families.
-- Added schema detection diagnostics in upload status, plus locale-aware number/date parsing for localized exports.
-- Added two synthetic public demo datasets:
-  - `samples/viva-analytics-copilot-impact.csv` (10,000 rows)
-  - `samples/copilot-dashboard-export.csv` (10,000 rows)
-- Updated sample loading flow to prompt for dataset choice when using **Load sample dataset**.
+- Added support for dual CSV families (Viva Analytics Copilot Impact and Copilot Dashboard export) with automatic schema detection.
+- Improved localized CSV parsing with alias/index fallback mapping plus locale-aware number/date handling.
+- Added two synthetic public sample datasets (10,000 rows each) and switched **Load sample dataset** to a dataset chooser.
+- Added sample regeneration script: `node tools/generate-public-samples.mjs`.

@@ -28,7 +28,7 @@
           let gifWorkerUrlPromise = null;
           let gifLibraryPromise = null;
           let activeParseController = null;
-          let bufferedSampleCsv = null;
+          const bufferedSampleCsvById = new Map();
           let bufferedCsvText = null;
           let filterPreferencesApplied = false;
           
@@ -231,6 +231,8 @@
           let lastParsedAgentCsvText = null;
           let lastParsedAgentMeta = null;
           let currentCsvFieldLookup = null;
+          let currentDatasetContext = null;
+          let lastDatasetDetectionSummary = "";
           const MAX_DIMENSION_SERIES = 6;
       
           const csvFieldMap = {
@@ -506,6 +508,591 @@
           };
           const csvFieldEntries = Object.entries(csvFieldMap);
           const CSV_FIELD_ENTRIES_COUNT = csvFieldEntries.length;
+          const DATASET_SCHEMA_LABELS = {
+            legacy_minimal: "Legacy minimal",
+            viva_impact_83: "Viva Analytics Copilot Impact",
+            copilot_dashboard_export_89: "Copilot Dashboard export",
+            unknown: "Unrecognized CSV format"
+          };
+          const IDENTITY_FIELD_CANDIDATES = {
+            personId: [
+              "PersonId",
+              "Person ID",
+              "Person identifier",
+              "Anonymized person ID",
+              "Anonymisert person-id",
+              "Bruker-ID"
+            ],
+            metricDate: [
+              "MetricDate",
+              "Metric Date",
+              "Method date",
+              "Måledato",
+              "Maledato",
+              "Dato"
+            ],
+            organization: [
+              "Organization",
+              "Organisation",
+              "Organisasjon",
+              "Office",
+              "Kontor"
+            ],
+            country: [
+              "CountryOrRegion",
+              "Country or region",
+              "Country",
+              "Land",
+              "Land/region"
+            ],
+            domain: [
+              "Domain",
+              "Domene"
+            ]
+          };
+          const SCHEMA_DEFINITIONS = {
+            legacy_minimal: {
+              id: "legacy_minimal",
+              label: DATASET_SCHEMA_LABELS.legacy_minimal,
+              expectedColumnCount: 12,
+              minColumnCount: 10,
+              maxColumnCount: 24,
+              identityIndexMap: {
+                personId: 0,
+                metricDate: 4,
+                organization: 1,
+                country: 2,
+                domain: 3
+              },
+              metricIndexMap: {
+                assistedHours: 6,
+                copilotEnabledUser: 11,
+                emailDrafts: 8,
+                meetingHours: 10,
+                meetingRecap: 7,
+                totalActions: 5
+              }
+            },
+            viva_impact_83: {
+              id: "viva_impact_83",
+              label: DATASET_SCHEMA_LABELS.viva_impact_83,
+              expectedColumnCount: 83,
+              minColumnCount: 80,
+              maxColumnCount: 86,
+              identityIndexMap: {
+                personId: 0,
+                metricDate: 1,
+                organization: 78,
+                country: 79,
+                domain: 80
+              },
+              metricIndexMap: {
+                addContentPresentation: 43,
+                assistedHours: 32,
+                attendedMeetings: 56,
+                chatCompose: 54,
+                chatConversations: 55,
+                chatPromptsTeams: 29,
+                chatPromptsWeb: 40,
+                chatPromptsWebOutlook: 10,
+                chatPromptsWebTeams: 11,
+                chatPromptsWork: 77,
+                chatPromptsWorkOutlook: 30,
+                chatPromptsWorkTeams: 29,
+                chatSummaries: 53,
+                chatWorkActions: 38,
+                chatWorkEnabledDays: 31,
+                chatsSent: 63,
+                copilotChatEnabledUser: 15,
+                copilotEnabledUser: 12,
+                copilotProductivityEnabledUser: 14,
+                copilotTeamsEnabledUser: 13,
+                daysActiveChatWeb: 24,
+                daysActiveChatWork: 23,
+                daysActiveExcel: 22,
+                daysActiveLoop: 21,
+                daysActiveOneNote: 20,
+                daysActiveOutlook: 19,
+                daysActivePowerPoint: 18,
+                daysActiveTeams: 17,
+                daysActiveWord: 16,
+                documentSummaries: 69,
+                draftWord: 73,
+                emailCoaching: 66,
+                emailDrafts: 67,
+                emailSummaries: 65,
+                emailTotalWithCopilot: 64,
+                emailsSent: 68,
+                enabledDaysIntelligentSearch: 28,
+                enabledDaysPowerPlatform: 27,
+                enabledDaysProductivity: 26,
+                enabledDaysTeams: 25,
+                excelActions: 36,
+                excelAnalysis: 74,
+                excelChatPrompts: 46,
+                excelFormatting: 76,
+                excelFormula: 75,
+                meetingHours: 9,
+                meetingHoursConflicting: 62,
+                meetingHoursMultitasking: 61,
+                meetingHoursSmall: 60,
+                meetingHoursTotal: 58,
+                meetingHoursUninterrupted: 59,
+                meetingRecap: 8,
+                meetingSummariesActions: 50,
+                meetingSummariesTotal: 51,
+                meetingsTotal: 57,
+                organizePresentation: 44,
+                outlookActions: 37,
+                powerpointActions: 35,
+                powerpointChatPrompts: 45,
+                presentationCreated: 71,
+                rewriteTextWord: 72,
+                summarizePresentation: 70,
+                teamsActions: 34,
+                totalActions: 47,
+                totalActiveDays: 48,
+                totalEnabledDays: 49,
+                visualizeTableWord: 41,
+                wordActions: 33,
+                wordChatPrompts: 42
+              }
+            },
+            copilot_dashboard_export_89: {
+              id: "copilot_dashboard_export_89",
+              label: DATASET_SCHEMA_LABELS.copilot_dashboard_export_89,
+              expectedColumnCount: 89,
+              minColumnCount: 87,
+              maxColumnCount: 92,
+              identityIndexMap: {
+                personId: 0,
+                metricDate: 1,
+                organization: 87,
+                country: null,
+                domain: null
+              },
+              metricIndexMap: {
+                addContentPresentation: 2,
+                chatCompose: 6,
+                chatConversations: 78,
+                chatPromptsTeams: 25,
+                chatPromptsWeb: 16,
+                chatPromptsWebOutlook: 17,
+                chatPromptsWebTeams: 18,
+                chatPromptsWork: 23,
+                chatPromptsWorkOutlook: 24,
+                chatPromptsWorkTeams: 25,
+                chatSummaries: 73,
+                chatWorkActions: 7,
+                chatWorkEnabledDays: 19,
+                daysActiveChatWeb: 40,
+                daysActiveChatWork: 41,
+                daysActiveExcel: 50,
+                daysActiveLoop: 51,
+                daysActiveOneNote: 52,
+                daysActiveOutlook: 53,
+                daysActivePowerPoint: 54,
+                daysActiveTeams: 55,
+                daysActiveWord: 56,
+                documentSummaries: 77,
+                draftWord: 57,
+                emailCoaching: 58,
+                emailDrafts: 61,
+                emailSummaries: 74,
+                emailTotalWithCopilot: 82,
+                enabledDaysIntelligentSearch: 34,
+                enabledDaysPowerPlatform: 35,
+                enabledDaysProductivity: 36,
+                enabledDaysTeams: 37,
+                excelActions: 8,
+                excelAnalysis: 59,
+                excelChatPrompts: 3,
+                excelFormatting: 60,
+                excelFormula: 38,
+                meetingHours: 63,
+                meetingRecap: 65,
+                meetingSummariesActions: 75,
+                meetingSummariesTotal: 84,
+                outlookActions: 9,
+                powerpointActions: 10,
+                powerpointChatPrompts: 4,
+                presentationCreated: 39,
+                rewriteTextWord: 72,
+                summarizePresentation: 76,
+                teamsActions: 11,
+                totalActions: 79,
+                totalActiveDays: 80,
+                totalEnabledDays: 81,
+                visualizeTableWord: 86,
+                wordActions: 12,
+                wordChatPrompts: 5
+              }
+            }
+          };
+          const DEFAULT_NUMBER_DIALECT = {
+            decimalSeparator: ".",
+            thousandsSeparator: ","
+          };
+          const DEFAULT_DATE_DIALECT = {
+            slashOrder: "mdy"
+          };
+          const METRIC_FIELD_CANDIDATES = csvFieldEntries.reduce((accumulator, [metricKey, mapping]) => {
+            accumulator[metricKey] = collectMetricCandidates(mapping);
+            return accumulator;
+          }, {});
+
+          function collectMetricCandidates(mapping) {
+            const candidates = [];
+            const pushValue = value => {
+              if (Array.isArray(value)) {
+                value.forEach(pushValue);
+                return;
+              }
+              if (typeof value === "string" && value.trim()) {
+                candidates.push(value.trim());
+              }
+            };
+            if (typeof mapping === "string" || Array.isArray(mapping)) {
+              pushValue(mapping);
+            } else if (mapping && typeof mapping === "object") {
+              pushValue(mapping.primary);
+              pushValue(mapping.columns);
+              pushValue(mapping.alternate);
+              pushValue(mapping.synonyms);
+              pushValue(mapping.legacy);
+              pushValue(mapping.fallbackSum);
+              pushValue(mapping.sum);
+            }
+            return Array.from(new Set(candidates));
+          }
+
+          function createDefaultDatasetContext() {
+            return {
+              schemaId: "unknown",
+              schemaLabel: DATASET_SCHEMA_LABELS.unknown,
+              confidence: 0,
+              localeHint: "en-US",
+              numberDialect: { ...DEFAULT_NUMBER_DIALECT },
+              dateDialect: { ...DEFAULT_DATE_DIALECT },
+              identityFields: {
+                personId: "PersonId",
+                metricDate: "MetricDate",
+                organization: "Organization",
+                country: "CountryOrRegion",
+                domain: "Domain"
+              },
+              fallbackStats: {
+                metricIndexFallbacks: 0,
+                identityIndexFallbacks: 0,
+                metricAliasResolutions: 0,
+                identityAliasResolutions: 0
+              }
+            };
+          }
+
+          function toSampleRowArray(sampleRows) {
+            if (Array.isArray(sampleRows)) {
+              return sampleRows.filter(row => row && typeof row === "object");
+            }
+            if (sampleRows && typeof sampleRows === "object") {
+              return [sampleRows];
+            }
+            return [];
+          }
+
+          function buildNormalizedFieldLookup(fields) {
+            const lookup = new Map();
+            if (!Array.isArray(fields)) {
+              return lookup;
+            }
+            for (let index = 0; index < fields.length; index += 1) {
+              const field = fields[index];
+              if (typeof field !== "string") {
+                continue;
+              }
+              const normalized = normalizeHeaderKey(field);
+              if (normalized && !lookup.has(normalized)) {
+                lookup.set(normalized, field);
+              }
+            }
+            return lookup;
+          }
+
+          function findFieldFromCandidates(candidates, fieldLookup) {
+            if (!(fieldLookup instanceof Map) || !Array.isArray(candidates)) {
+              return null;
+            }
+            for (let index = 0; index < candidates.length; index += 1) {
+              const candidate = candidates[index];
+              const normalized = normalizeHeaderKey(candidate);
+              if (!normalized) {
+                continue;
+              }
+              const actual = fieldLookup.get(normalized);
+              if (actual) {
+                return actual;
+              }
+            }
+            return null;
+          }
+
+          function inferNumberDialect(sampleRows) {
+            const rows = toSampleRowArray(sampleRows);
+            let commaDecimalCount = 0;
+            let dotDecimalCount = 0;
+            rows.forEach(row => {
+              Object.values(row).forEach(value => {
+                if (typeof value !== "string") {
+                  return;
+                }
+                const compact = value.replace(/\s+/g, "").trim();
+                if (!compact) {
+                  return;
+                }
+                if (/^-?\d{1,3}(?:\.\d{3})+,\d+$/.test(compact) || /^-?\d+,\d+$/.test(compact)) {
+                  commaDecimalCount += 1;
+                }
+                if (/^-?\d{1,3}(?:,\d{3})+\.\d+$/.test(compact) || /^-?\d+\.\d+$/.test(compact)) {
+                  dotDecimalCount += 1;
+                }
+              });
+            });
+            if (commaDecimalCount > dotDecimalCount) {
+              return {
+                decimalSeparator: ",",
+                thousandsSeparator: "."
+              };
+            }
+            return {
+              decimalSeparator: ".",
+              thousandsSeparator: ","
+            };
+          }
+
+          function inferDateDialect(sampleRows, numberDialect) {
+            const rows = toSampleRowArray(sampleRows);
+            let likelyDmy = 0;
+            let likelyMdy = 0;
+            rows.forEach(row => {
+              Object.values(row).forEach(value => {
+                if (typeof value !== "string") {
+                  return;
+                }
+                const match = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+                if (!match) {
+                  return;
+                }
+                const first = Number(match[1]);
+                const second = Number(match[2]);
+                if (!Number.isFinite(first) || !Number.isFinite(second)) {
+                  return;
+                }
+                if (first > 12 && second <= 12) {
+                  likelyDmy += 1;
+                } else if (second > 12 && first <= 12) {
+                  likelyMdy += 1;
+                }
+              });
+            });
+            if (likelyDmy > likelyMdy) {
+              return { slashOrder: "dmy" };
+            }
+            if (likelyMdy > likelyDmy) {
+              return { slashOrder: "mdy" };
+            }
+            return {
+              slashOrder: numberDialect.decimalSeparator === "," ? "dmy" : "mdy"
+            };
+          }
+
+          function inferLocaleHint(numberDialect, dateDialect) {
+            if (dateDialect.slashOrder === "dmy" || numberDialect.decimalSeparator === ",") {
+              return "nb-NO";
+            }
+            return "en-US";
+          }
+
+          function resolveDatasetSchema(fields, sampleRows) {
+            const list = Array.isArray(fields) ? fields : [];
+            const count = list.length;
+            let schemaId = "unknown";
+            let confidence = 0.3;
+            const schemaCandidates = Object.values(SCHEMA_DEFINITIONS);
+            const exactMatch = schemaCandidates.find(schema => schema.expectedColumnCount === count);
+            if (exactMatch) {
+              schemaId = exactMatch.id;
+              confidence = 0.98;
+            } else {
+              const rangeMatch = schemaCandidates.find(schema => {
+                const min = Number.isFinite(schema.minColumnCount) ? schema.minColumnCount : schema.expectedColumnCount;
+                const max = Number.isFinite(schema.maxColumnCount) ? schema.maxColumnCount : schema.expectedColumnCount;
+                return Number.isFinite(min) && Number.isFinite(max) && count >= min && count <= max;
+              });
+              if (rangeMatch) {
+                schemaId = rangeMatch.id;
+                confidence = 0.75;
+              }
+            }
+            const numberDialect = inferNumberDialect(sampleRows);
+            const dateDialect = inferDateDialect(sampleRows, numberDialect);
+            const localeHint = inferLocaleHint(numberDialect, dateDialect);
+            return {
+              schemaId,
+              schemaLabel: DATASET_SCHEMA_LABELS[schemaId] || DATASET_SCHEMA_LABELS.unknown,
+              confidence,
+              numberDialect,
+              dateDialect,
+              localeHint
+            };
+          }
+
+          function resolveDatasetFieldMapping(fields, schemaInfo) {
+            const context = createDefaultDatasetContext();
+            if (schemaInfo && typeof schemaInfo === "object") {
+              context.schemaId = schemaInfo.schemaId || context.schemaId;
+              context.schemaLabel = schemaInfo.schemaLabel || context.schemaLabel;
+              context.confidence = Number.isFinite(schemaInfo.confidence) ? schemaInfo.confidence : context.confidence;
+              context.localeHint = schemaInfo.localeHint || context.localeHint;
+              context.numberDialect = schemaInfo.numberDialect || context.numberDialect;
+              context.dateDialect = schemaInfo.dateDialect || context.dateDialect;
+            }
+            const list = Array.isArray(fields) ? fields : [];
+            const normalizedLookup = buildNormalizedFieldLookup(list);
+            const combinedLookup = buildFieldLookup(list) || new Map();
+            const schema = SCHEMA_DEFINITIONS[context.schemaId];
+            const identityIndexMap = schema && schema.identityIndexMap ? schema.identityIndexMap : {};
+            const metricIndexMap = schema && schema.metricIndexMap ? schema.metricIndexMap : {};
+
+            Object.entries(IDENTITY_FIELD_CANDIDATES).forEach(([identityKey, candidates]) => {
+              let resolved = findFieldFromCandidates(candidates, normalizedLookup);
+              if (resolved) {
+                context.fallbackStats.identityAliasResolutions += 1;
+              }
+              if (!resolved) {
+                const fallbackIndex = identityIndexMap[identityKey];
+                if (Number.isFinite(fallbackIndex) && list[fallbackIndex]) {
+                  resolved = list[fallbackIndex];
+                  context.fallbackStats.identityIndexFallbacks += 1;
+                }
+              }
+              if (resolved) {
+                context.identityFields[identityKey] = resolved;
+                candidates.forEach(candidate => {
+                  const normalized = normalizeHeaderKey(candidate);
+                  if (normalized && !combinedLookup.has(normalized)) {
+                    combinedLookup.set(normalized, resolved);
+                  }
+                });
+              }
+            });
+
+            Object.entries(METRIC_FIELD_CANDIDATES).forEach(([metricKey, candidates]) => {
+              if (!Array.isArray(candidates) || !candidates.length) {
+                return;
+              }
+              let resolved = findFieldFromCandidates(candidates, normalizedLookup);
+              if (resolved) {
+                context.fallbackStats.metricAliasResolutions += 1;
+              }
+              if (!resolved) {
+                const fallbackIndex = metricIndexMap[metricKey];
+                if (Number.isFinite(fallbackIndex) && list[fallbackIndex]) {
+                  resolved = list[fallbackIndex];
+                  context.fallbackStats.metricIndexFallbacks += 1;
+                }
+              }
+              if (resolved) {
+                candidates.forEach(candidate => {
+                  const normalized = normalizeHeaderKey(candidate);
+                  if (normalized && !combinedLookup.has(normalized)) {
+                    combinedLookup.set(normalized, resolved);
+                  }
+                });
+              }
+            });
+
+            return {
+              context,
+              fieldLookup: combinedLookup
+            };
+          }
+
+          function describeDatasetContext(context) {
+            if (!context || typeof context !== "object") {
+              return "";
+            }
+            const schemaLabel = context.schemaLabel || DATASET_SCHEMA_LABELS.unknown;
+            const confidenceValue = Number.isFinite(context.confidence)
+              ? `${Math.round(Math.max(0, Math.min(1, context.confidence)) * 100)}%`
+              : "n/a";
+            const numberDialect = context.numberDialect && context.numberDialect.decimalSeparator === "," ? "comma decimals" : "dot decimals";
+            const dateDialect = context.dateDialect && context.dateDialect.slashOrder === "dmy" ? "day-first dates" : "month-first dates";
+            const fallbacks = context.fallbackStats || {};
+            return `${schemaLabel} (${confidenceValue}, ${numberDialect}, ${dateDialect}; index fallbacks: ${Number(fallbacks.identityIndexFallbacks || 0) + Number(fallbacks.metricIndexFallbacks || 0)})`;
+          }
+
+          function getRawColumnValue(raw, column) {
+            if (!raw || !column) {
+              return null;
+            }
+            if (column in raw) {
+              return raw[column];
+            }
+            const normalized = normalizeHeaderKey(column);
+            if (normalized && currentCsvFieldLookup instanceof Map) {
+              const resolved = currentCsvFieldLookup.get(normalized);
+              if (resolved && resolved in raw) {
+                return raw[resolved];
+              }
+            }
+            return null;
+          }
+
+          function getIdentityValue(raw, key) {
+            const context = currentDatasetContext && currentDatasetContext.identityFields
+              ? currentDatasetContext.identityFields
+              : null;
+            const mappedColumn = context ? context[key] : null;
+            const mappedValue = getRawColumnValue(raw, mappedColumn);
+            if (mappedValue != null && String(mappedValue).trim()) {
+              return mappedValue;
+            }
+            const candidates = IDENTITY_FIELD_CANDIDATES[key] || [];
+            for (let index = 0; index < candidates.length; index += 1) {
+              const value = getRawColumnValue(raw, candidates[index]);
+              if (value != null && String(value).trim()) {
+                return value;
+              }
+            }
+            return null;
+          }
+
+          function applyDerivedEnablementMetrics(metrics) {
+            if (!metrics || typeof metrics !== "object") {
+              return;
+            }
+            const hasEnabledDays = (metrics.totalEnabledDays || 0) > 0
+              || (metrics.enabledDaysTeams || 0) > 0
+              || (metrics.enabledDaysProductivity || 0) > 0
+              || (metrics.enabledDaysPowerPlatform || 0) > 0
+              || (metrics.enabledDaysIntelligentSearch || 0) > 0
+              || (metrics.chatWorkEnabledDays || 0) > 0;
+            if ((metrics.copilotEnabledUser || 0) <= 0 && hasEnabledDays) {
+              metrics.copilotEnabledUser = 1;
+            }
+            if ((metrics.copilotTeamsEnabledUser || 0) <= 0 && (metrics.enabledDaysTeams || 0) > 0) {
+              metrics.copilotTeamsEnabledUser = 1;
+            }
+            if ((metrics.copilotProductivityEnabledUser || 0) <= 0 && (metrics.enabledDaysProductivity || 0) > 0) {
+              metrics.copilotProductivityEnabledUser = 1;
+            }
+            const chatEnabled = (metrics.chatWorkEnabledDays || 0) > 0
+              || (metrics.daysActiveChatWork || 0) > 0
+              || (metrics.chatPromptsWork || 0) > 0;
+            if ((metrics.copilotChatEnabledUser || 0) <= 0 && chatEnabled) {
+              metrics.copilotChatEnabledUser = 1;
+            }
+          }
       
           function getColumnValue(raw, column) {
             if (!raw || !column) {
@@ -538,7 +1125,7 @@
             if (typeof rawValue === "string" && !rawValue.trim()) {
               return null;
             }
-            const parsed = parseNumber(rawValue);
+            const parsed = parseNumber(rawValue, currentDatasetContext && currentDatasetContext.numberDialect);
             return Number.isFinite(parsed) ? parsed : null;
           }
       
@@ -2167,16 +2754,29 @@
           const MAX_DATASET_FILE_SIZE = Infinity;
           const DATASET_CACHE_LIMIT_BYTES = 80 * 1024 * 1024; // Keep cache limit lower than upload limit to avoid repeated storage failures.
           const CSV_ACCEPTED_MIME_TYPES = new Set(["text/csv", "application/vnd.ms-excel"]);
-          const SAMPLE_DATASET_URL = "samples/copilot-sample.csv";
-          const SAMPLE_DATASET_INLINE = `PersonId,Organization,CountryOrRegion,Domain,MetricDate,Total Active Copilot Actions Taken,Copilot assisted hours,Meetings recapped by Copilot,Generate email draft actions taken using Copilot,Compose chat actions taken using Copilot in Teams,Meeting hours recapped by Copilot,Copilot Enabled User
-USR-001,Contoso Sales,Denmark,sales.contoso,2024-10-06,180,42.5,18,45,52,68,1
-USR-002,Contoso Sales,Denmark,sales.contoso,2024-11-03,220,51.1,24,58,64,72,1
-USR-003,Fabrikam Finance,Norway,finance.fabrikam,2024-11-10,305,63.8,32,70,88,94,1
-USR-004,Fabrikam Finance,Norway,finance.fabrikam,2024-12-08,276,54.2,28,64,79,90,1
-USR-005,Woodgrove Retail,Sweden,retail.woodgrove,2024-12-15,148,38.7,12,41,55,48,1
-USR-006,Woodgrove Retail,Sweden,retail.woodgrove,2025-01-05,312,72.4,36,82,94,110,1
-USR-007,Northwind Ops,Finland,ops.northwind,2025-01-19,196,47.3,20,53,61,66,1
-USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
+          const SAMPLE_DATASETS = [
+            {
+              id: "viva-impact",
+              label: "Viva Analytics Copilot Impact",
+              url: "samples/viva-analytics-copilot-impact.csv",
+              inline: `PersonId,MetricDate,Copilot Enabled User,Copilot assisted hours,Total Copilot actions taken,Organization,CountryOrRegion,Domain
+SYN-000001,1/5/25,1,4.8,35,Nordic Advisory Hub,Sweden,nordic.advisory
+SYN-000002,1/12/25,1,2.2,19,Cloud Delivery Studio,Norway,cloud.delivery
+SYN-000003,1/19/25,1,6.4,52,Data Operations Center,Denmark,data.ops`
+            },
+            {
+              id: "copilot-dashboard-export",
+              label: "Copilot Dashboard export",
+              url: "samples/copilot-dashboard-export.csv",
+              inline: `PersonId,MetricDate,Add content to presentation actions taken,Copilot actions taken in Copilot chat (work),Copilot actions taken in Teams,Copilot actions taken in Word,Days of active Copilot usage in Teams,Days of active Copilot usage in Word,Meeting hours recapped by Copilot,Meetings recapped by Copilot,Total Copilot actions taken,Total Copilot active days,Total Copilot enabled days,Organization,FunctionType
+SYN-EXP-00001,11/2/25,1,6,4,2,2,1,1.4,2,18,4,7,AI Productivity Lab,Consulting
+SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
+            }
+          ];
+          const SAMPLE_DATASET_BY_ID = SAMPLE_DATASETS.reduce((accumulator, sample) => {
+            accumulator[sample.id] = sample;
+            return accumulator;
+          }, {});
           const CSV_DELIMITER_CANDIDATES = [";", ",", "\t", "|"];
           const THEME_STORAGE_KEY = 'copilotDashboardTheme';
           const LAST_LIGHT_THEME_STORAGE_KEY = 'copilotDashboardThemeLastLight';
@@ -6236,7 +6836,9 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             if (!state.persistDatasets) {
               updateStoredDatasetControls(null);
               if (dom.uploadStatus) {
-                dom.uploadStatus.textContent = "Dataset loaded. Opt in above to save it on this device.";
+                dom.uploadStatus.textContent = lastDatasetDetectionSummary
+                  ? `Dataset loaded. Detected ${lastDatasetDetectionSummary}. Opt in above to save it on this device.`
+                  : "Dataset loaded. Opt in above to save it on this device.";
               }
               return;
             }
@@ -6686,7 +7288,11 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
           }
       
           function finalizeParsedDataset(context, meta = {}) {
+            const datasetContext = meta.datasetContext || currentDatasetContext;
+            const datasetContextDescription = describeDatasetContext(datasetContext);
+            lastDatasetDetectionSummary = datasetContextDescription || "";
             currentCsvFieldLookup = null;
+            currentDatasetContext = null;
             filterPreferencesApplied = false;
             const {
               parsedRows,
@@ -6743,15 +7349,21 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }
       
             if (dom.uploadStatus) {
-              dom.uploadStatus.textContent = meta.loadedFromStorage
+              const baseStatus = meta.loadedFromStorage
                 ? "Saved dataset loaded."
                 : `Loaded ${rowCountText} rows${notesText}.`;
+              dom.uploadStatus.textContent = datasetContextDescription
+                ? `${baseStatus} Detected ${datasetContextDescription}.`
+                : baseStatus;
             }
       
             if (dom.datasetMessage) {
-              dom.datasetMessage.textContent = meta.loadedFromStorage
+              const baseMessage = meta.loadedFromStorage
                 ? 'Dataset restored. Filters reflect detected segments.'
                 : 'Dataset ready. Filters reflect detected segments.';
+              dom.datasetMessage.textContent = datasetContextDescription
+                ? `${baseMessage} ${datasetContextDescription}.`
+                : baseMessage;
             }
       
             if (dom.datasetMetaWrapper) {
@@ -6803,6 +7415,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
       
           function parseCsvTextContent(csvText, meta = {}) {
             currentCsvFieldLookup = null;
+            currentDatasetContext = null;
             const parsedRows = [];
             const uniquePersons = new Set();
             const organizations = new Set();
@@ -6825,7 +7438,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               chunkSize: 256 * 1024,
               step: results => {
                 const raw = results.data;
-                ensureDatasetFieldLookup(results?.meta?.fields, raw);
+                ensureDatasetFieldLookup(results?.meta?.fields, raw ? [raw] : []);
                 if (results.errors && results.errors.length) {
                   rowErrors += results.errors.length;
                 }
@@ -6860,6 +7473,8 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               },
               error: error => {
                 const message = error && error.message ? error.message : String(error);
+                currentCsvFieldLookup = null;
+                currentDatasetContext = null;
                 dom.uploadStatus.textContent = `Saved dataset could not be loaded (${message}).`;
                 dom.datasetMessage.textContent = "Stored dataset was cleared. Load a CSV to continue.";
                 dom.datasetMetaWrapper.hidden = true;
@@ -6867,6 +7482,8 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               },
               complete: () => {
                 if (!parsedRows.length) {
+                  currentCsvFieldLookup = null;
+                  currentDatasetContext = null;
                   dom.uploadStatus.textContent = "Saved dataset was empty or unreadable.";
                   dom.datasetMessage.textContent = "Stored dataset was cleared. Load a CSV to continue.";
                   dom.datasetMetaWrapper.hidden = true;
@@ -6881,6 +7498,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                   lastModified: meta.savedMeta?.lastModified || meta.lastModified || null,
                   savedAt: meta.savedMeta?.savedAt || null
                 };
+                const datasetContext = currentDatasetContext;
                 state.datasetSizeBytes = runtimeMeta.size;
                 state.datasetCachingDisabled = datasetExceedsCacheLimit(runtimeMeta.size);
                 rememberLastDataset(csvText, runtimeMeta);
@@ -6903,7 +7521,8 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                   sourceName: runtimeMeta.name,
                   sourceSize: runtimeMeta.size,
                   loadedFromStorage,
-                  savedMeta: savedMetaPayload || undefined
+                  savedMeta: savedMetaPayload || undefined,
+                  datasetContext
                 });
 
                 if (state.datasetCachingDisabled) {
@@ -6911,7 +7530,8 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                   clearRememberedDataset();
                   updateStoredDatasetControls(null);
                   if (dom.uploadStatus) {
-                    dom.uploadStatus.textContent = `Dataset loaded (${formatFileSize(runtimeMeta.size)}). ${getDatasetCacheLimitMessage()}`;
+                    const detected = describeDatasetContext(datasetContext);
+                    dom.uploadStatus.textContent = `Dataset loaded (${formatFileSize(runtimeMeta.size)}). ${getDatasetCacheLimitMessage()}${detected ? ` Detected ${detected}.` : ""}`;
                   }
                   updateSnapshotControlsAvailability();
                   return;
@@ -7078,6 +7698,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             startUploadProgress(file);
 
             currentCsvFieldLookup = null;
+            currentDatasetContext = null;
             const controller = {
               file,
               fileSize: Number.isFinite(file.size) ? file.size : 0,
@@ -7118,7 +7739,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                 accumulators.skippedRows += 1;
                 return;
               }
-              ensureDatasetFieldLookup(null, raw);
+              ensureDatasetFieldLookup(null, raw ? [raw] : []);
               const parsed = transformRow(raw);
               if (!parsed) {
                 accumulators.skippedRows += 1;
@@ -7158,6 +7779,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               lastModified: file.lastModified,
               rows: accumulators.parsedRows.length
             };
+            const datasetContext = currentDatasetContext;
             finalizeParsedDataset({
               parsedRows: accumulators.parsedRows,
               uniquePersons: accumulators.uniquePersons,
@@ -7171,14 +7793,16 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             }, {
               sourceName: file.name,
               sourceSize: controller.fileSize,
-              rows: accumulators.parsedRows.length
+              rows: accumulators.parsedRows.length,
+              datasetContext
             });
             state.datasetSizeBytes = runtimeMeta.size;
             state.datasetCachingDisabled = datasetExceedsCacheLimit(runtimeMeta.size);
             if (state.datasetCachingDisabled) {
               bufferedCsvText = null;
               if (dom.uploadStatus) {
-                dom.uploadStatus.textContent = `Dataset loaded (${formatFileSize(runtimeMeta.size)}). ${getDatasetCacheLimitMessage()}`;
+                const detected = describeDatasetContext(datasetContext);
+                dom.uploadStatus.textContent = `Dataset loaded (${formatFileSize(runtimeMeta.size)}). ${getDatasetCacheLimitMessage()}${detected ? ` Detected ${detected}.` : ""}`;
               }
                 updateStoredDatasetControls(null);
                 updateSnapshotControlsAvailability();
@@ -7222,6 +7846,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             const finishWithError = message => {
               setActiveParseController(null);
               currentCsvFieldLookup = null;
+              currentDatasetContext = null;
               if (message) {
                 showUploadError(message);
               } else {
@@ -7279,7 +7904,7 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
                     accumulators.rowErrors += results.errors.length;
                   }
                   const rows = Array.isArray(results.data) ? results.data : [results.data];
-                  ensureDatasetFieldLookup(results?.meta?.fields, rows[0]);
+                  ensureDatasetFieldLookup(results?.meta?.fields, rows);
                   for (let index = 0; index < rows.length; index += 1) {
                     processRow(rows[index]);
                   }
@@ -7334,40 +7959,77 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             detectDelimiterForFile(file).then(beginParsing).catch(() => beginParsing(""));
           }
 
+          function chooseSampleDataset() {
+            const first = SAMPLE_DATASET_BY_ID["viva-impact"] || SAMPLE_DATASETS[0];
+            const second = SAMPLE_DATASET_BY_ID["copilot-dashboard-export"] || SAMPLE_DATASETS[1] || first;
+            if (!first) {
+              return null;
+            }
+            if (typeof window === "undefined" || typeof window.prompt !== "function") {
+              return first;
+            }
+            const promptText = [
+              "Choose sample dataset:",
+              `1) ${first.label}`,
+              `2) ${second.label}`,
+              "Reply with 1 or 2 (default: 1)"
+            ].join("\n");
+            const response = window.prompt(promptText, "1");
+            if (response == null) {
+              return null;
+            }
+            const normalized = String(response).trim().toLowerCase();
+            if (normalized === "2" || normalized.includes("dashboard") || normalized.includes("export")) {
+              return second;
+            }
+            if (normalized === "1" || normalized.includes("viva") || normalized.includes("impact") || normalized.length === 0) {
+              return first;
+            }
+            return first;
+          }
+
           function loadSampleDataset() {
+            const selectedSample = chooseSampleDataset();
+            if (!selectedSample) {
+              if (dom.uploadStatus) {
+                dom.uploadStatus.textContent = "Sample load canceled.";
+              }
+              return;
+            }
             clearUploadError();
             cancelActiveParse({ silent: true });
             if (dom.uploadMeta) {
-              dom.uploadMeta.textContent = "Sample dataset";
+              dom.uploadMeta.textContent = selectedSample.label;
             }
             if (dom.uploadStatus) {
-              dom.uploadStatus.textContent = "Loading sample dataset...";
+              dom.uploadStatus.textContent = `Loading sample dataset: ${selectedSample.label}...`;
             }
-          const parseSample = (csvText, label = "Sample dataset") => {
-            if (!csvText) {
-              showUploadError("Sample dataset is unavailable.");
-              return;
-            }
-            finishUploadProgress(null);
-            parseCsvTextContent(csvText, {
-              sourceName: label,
-              sourceSize: csvText.length,
-              skipPersistence: true
-            });
-          };
+            const parseSample = (csvText, label) => {
+              if (!csvText) {
+                showUploadError("Sample dataset is unavailable.");
+                return;
+              }
+              finishUploadProgress(null);
+              parseCsvTextContent(csvText, {
+                sourceName: label,
+                sourceSize: csvText.length,
+                skipPersistence: true
+              });
+            };
             const useInlineSample = () => {
-              if (typeof SAMPLE_DATASET_INLINE === "string" && SAMPLE_DATASET_INLINE.trim().length) {
-                bufferedSampleCsv = SAMPLE_DATASET_INLINE;
-                parseSample(SAMPLE_DATASET_INLINE, "Built-in sample dataset");
+              if (typeof selectedSample.inline === "string" && selectedSample.inline.trim().length) {
+                bufferedSampleCsvById.set(selectedSample.id, selectedSample.inline);
+                parseSample(selectedSample.inline, selectedSample.label);
                 return true;
               }
               return false;
             };
-            if (bufferedSampleCsv) {
-              parseSample(bufferedSampleCsv);
+            const cached = bufferedSampleCsvById.get(selectedSample.id);
+            if (cached) {
+              parseSample(cached, selectedSample.label);
               return;
             }
-            startUploadProgress({ name: "Sample dataset" });
+            startUploadProgress({ name: selectedSample.label });
             if (window.location && window.location.protocol === "file:") {
               if (!useInlineSample()) {
                 finishUploadProgress(null);
@@ -7375,14 +8037,14 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               }
               return;
             }
-            fetch(SAMPLE_DATASET_URL, { cache: "no-store" }).then(response => {
+            fetch(selectedSample.url, { cache: "no-store" }).then(response => {
               if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
               }
               return response.text();
             }).then(csvText => {
-              bufferedSampleCsv = csvText;
-              parseSample(csvText);
+              bufferedSampleCsvById.set(selectedSample.id, csvText);
+              parseSample(csvText, selectedSample.label);
             }).catch(error => {
               finishUploadProgress(null);
               if (!useInlineSample()) {
@@ -7574,7 +8236,8 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
           }
       
           function transformRow(raw) {
-            const date = parseMetricDate(raw.MetricDate);
+            const metricDateValue = getIdentityValue(raw, "metricDate");
+            const date = parseMetricDate(metricDateValue, currentDatasetContext && currentDatasetContext.dateDialect);
             if (!date) {
               return null;
             }
@@ -7589,11 +8252,12 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
               const value = extractMetricValue(raw, mapping);
               metrics[key] = Number.isFinite(value) ? value : 0;
             }
+            applyDerivedEnablementMetrics(metrics);
             return {
-              personId: raw.PersonId || "Unknown",
-              organization: sanitizeLabel(raw.Organization) || "Unspecified",
-              country: sanitizeLabel(raw.CountryOrRegion) || "Unspecified",
-              domain: sanitizeLabel(raw.Domain) || "Unspecified",
+              personId: sanitizeLabel(getIdentityValue(raw, "personId")) || "Unknown",
+              organization: sanitizeLabel(getIdentityValue(raw, "organization")) || "Unspecified",
+              country: sanitizeLabel(getIdentityValue(raw, "country")) || "Unspecified",
+              domain: sanitizeLabel(getIdentityValue(raw, "domain")) || "Unspecified",
               date,
               weekEndDate,
               isoWeek: isoInfo.week,
@@ -13489,22 +14153,57 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             return numberFormatter.format(Math.round(value));
           }
       
-          function parseNumber(value) {
+          function parseNumber(value, dialect = null) {
             if (value == null || value === "") {
               return 0;
             }
             if (typeof value === "number") {
               return Number.isFinite(value) ? value : 0;
             }
-            const normalized = String(value).replace(/,/g, "").trim();
+            let normalized = String(value).trim();
             if (!normalized) {
+              return 0;
+            }
+            normalized = normalized.replace(/\u00A0/g, " ").replace(/\s+/g, "");
+            const numberDialect = dialect && typeof dialect === "object"
+              ? dialect
+              : DEFAULT_NUMBER_DIALECT;
+            const hasComma = normalized.includes(",");
+            const hasDot = normalized.includes(".");
+            if (hasComma && hasDot) {
+              if (normalized.lastIndexOf(",") > normalized.lastIndexOf(".")) {
+                normalized = normalized.replace(/\./g, "").replace(/,/g, ".");
+              } else {
+                normalized = normalized.replace(/,/g, "");
+              }
+            } else if (hasComma) {
+              const commaCount = (normalized.match(/,/g) || []).length;
+              const tail = normalized.split(",").pop() || "";
+              const treatAsDecimal = numberDialect.decimalSeparator === ","
+                || (/^-?\d+,\d+$/.test(normalized) && tail.length !== 3)
+                || (commaCount === 1 && tail.length <= 2);
+              normalized = treatAsDecimal
+                ? normalized.replace(/,/g, ".")
+                : normalized.replace(/,/g, "");
+            } else if (hasDot) {
+              const dotCount = (normalized.match(/\./g) || []).length;
+              const tail = normalized.split(".").pop() || "";
+              const treatAsThousands = numberDialect.decimalSeparator === ","
+                && dotCount >= 1
+                && tail.length === 3;
+              if (treatAsThousands) {
+                normalized = normalized.replace(/\./g, "");
+              }
+            }
+            normalized = normalized.replace(/[^0-9eE.+\-]/g, "");
+            if (!normalized || normalized === "-" || normalized === ".") {
               return 0;
             }
             const parsed = Number(normalized);
             return Number.isFinite(parsed) ? parsed : 0;
           }
       
-          function parseMetricDate(value) {
+          function parseMetricDate(value, dialect = null) {
             if (!value) {
               return null;
             }
@@ -13526,14 +14225,30 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
       
             const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
             if (slashMatch) {
-              let month = Number(slashMatch[1]);
-              let day = Number(slashMatch[2]);
+              let first = Number(slashMatch[1]);
+              let second = Number(slashMatch[2]);
               let year = Number(slashMatch[3]);
               if (year < 100) {
                 year += 2000;
               }
-              if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+              if (!Number.isFinite(year) || !Number.isFinite(first) || !Number.isFinite(second)) {
                 return null;
+              }
+              const dateDialect = dialect && typeof dialect === "object"
+                ? dialect
+                : DEFAULT_DATE_DIALECT;
+              const slashOrder = dateDialect.slashOrder === "dmy" ? "dmy" : "mdy";
+              let month = first;
+              let day = second;
+              if (first > 12 && second <= 12) {
+                day = first;
+                month = second;
+              } else if (second > 12 && first <= 12) {
+                month = first;
+                day = second;
+              } else if (slashOrder === "dmy") {
+                day = first;
+                month = second;
               }
               return new Date(Date.UTC(year, month - 1, day));
             }
@@ -13695,21 +14410,21 @@ USR-008,Northwind Ops,Finland,ops.northwind,2025-02-02,254,58.9,27,69,83,92,1`;
             return String(value).replace(/[.*+\-?^${}()|[\]\\]/g, "\\$&");
           }
 
-          function ensureDatasetFieldLookup(fields, sampleRow) {
+          function ensureDatasetFieldLookup(fields, sampleRows) {
             if (currentCsvFieldLookup && currentCsvFieldLookup.size) {
               return;
             }
-            const fromFields = buildFieldLookup(fields);
-            if (fromFields) {
-              currentCsvFieldLookup = fromFields;
+            const sampleRowList = toSampleRowArray(sampleRows);
+            const fieldList = Array.isArray(fields) && fields.length
+              ? fields
+              : (sampleRowList[0] ? Object.keys(sampleRowList[0]) : []);
+            if (!fieldList || !fieldList.length) {
               return;
             }
-            if (sampleRow && typeof sampleRow === "object" && sampleRow !== null) {
-              const lookup = buildFieldLookup(Object.keys(sampleRow));
-              if (lookup) {
-                currentCsvFieldLookup = lookup;
-              }
-            }
+            const schemaInfo = resolveDatasetSchema(fieldList, sampleRowList);
+            const mapping = resolveDatasetFieldMapping(fieldList, schemaInfo);
+            currentDatasetContext = mapping && mapping.context ? mapping.context : createDefaultDatasetContext();
+            currentCsvFieldLookup = mapping && mapping.fieldLookup ? mapping.fieldLookup : buildFieldLookup(fieldList);
           }
 
           function buildFieldLookup(fields) {

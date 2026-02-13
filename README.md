@@ -6,7 +6,10 @@ License: AGPL-3.0
 A client-only dashboard for exploring Viva Insights Copilot CSV exports: filter by org/region, compare metrics, export charts, and ship password-protected snapshots or a SharePoint-ready bundle.
 
 ## Features
-- Upload Viva Insights Copilot CSVs (sample included at `samples/copilot-sample.csv`).
+- Upload Viva Insights Copilot CSVs across multiple schema families, including localized header exports.
+- Built-in sample chooser from **Load sample dataset**:
+  - `samples/viva-analytics-copilot-impact.csv` (Viva Analytics Copilot Impact shape, 83 columns)
+  - `samples/copilot-dashboard-export.csv` (Copilot Dashboard export shape, 89 columns)
 - Rich filters, multi-metric charts, agent hub tables, theme toggles, and per-capability insights.
 - **Theme system**: 7 built-in themes (Light, Cool Light, Midnight Dark, Carbon Black, Cyberpunk, Neon, Sunset) + custom color picker.
 - Exports: PNG/PDF/CSV, Excel summaries, encrypted snapshots, and SharePoint bundle generator.
@@ -36,10 +39,20 @@ A client-only dashboard for exploring Viva Insights Copilot CSV exports: filter 
 Optional: serve locally for stricter CSP behavior, e.g. `python3 -m http.server 8000` then visit `http://localhost:8000/copilot-dashboard.html`.
 
 ## Data expectations
-Minimum headers to unlock the main views (see `samples/copilot-sample.csv` for shape):
-- Identity & grouping: `PersonId`, `Organization`, `CountryOrRegion`, `Domain`, `MetricDate` (ISO date)
-- Activity metrics: `Total Active Copilot Actions Taken`, `Copilot assisted hours`
-- App-specific metrics (used when present): meeting recaps/summaries, email/chat/powerpoint/word/excel actions, Copilot enabled flags, etc.
+Supported primary CSV families:
+- **Viva Analytics Copilot Impact** style (for example 83 columns): includes `PersonId`, `MetricDate`, `Organization`, `CountryOrRegion`, `Domain`, and broad Copilot metrics.
+- **Copilot Dashboard export** style (for example 89 columns): includes `PersonId`, `MetricDate`, `Organization`, and extended Copilot action metrics.
+- Regenerate public synthetic samples with: `node tools/generate-public-samples.mjs`
+
+Localization and dialect handling:
+- Header matching supports alias resolution plus schema index fallback, so translated headers can still be mapped when column layout matches a supported schema.
+- Number parsing handles both dot and comma decimals.
+- Slash dates (`x/x/yy`) are inferred as month-first or day-first from dataset evidence.
+
+Minimum data to unlock core views:
+- Identity: `PersonId`, `MetricDate`
+- Grouping: `Organization` (country/domain are optional and can be missing in some exports)
+- Activity: at least one of the total/action metrics (for example `Total Active Copilot Actions Taken` or `Total Copilot actions taken`)
 
 How to export the CSV from Viva Insights:
 - You need admin access to Viva Insights.
@@ -93,3 +106,11 @@ Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 - Export menu: added helper subtitles for trend CSV vs pivot CSV.
 - Sticky filter dropdown: avoids duplicate `id`/`for` in cloned controls (a11y/robustness).
 - Documented OneDrive revert mitigation and cache-bust workflow.
+
+### 2026-02-13
+- Added dual-schema ingestion support for both Viva Analytics Copilot Impact and Copilot Dashboard export CSV families.
+- Added schema detection diagnostics in upload status, plus locale-aware number/date parsing for localized exports.
+- Added two synthetic public demo datasets:
+  - `samples/viva-analytics-copilot-impact.csv` (10,000 rows)
+  - `samples/copilot-dashboard-export.csv` (10,000 rows)
+- Updated sample loading flow to prompt for dataset choice when using **Load sample dataset**.

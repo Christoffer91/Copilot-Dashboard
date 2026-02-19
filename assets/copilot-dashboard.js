@@ -2880,6 +2880,7 @@
             dimensionEmpty: document.querySelector("[data-dimension-empty]"),
             dimensionSummaryBody: document.querySelector("[data-dimension-summary]"),
             groupCaption: document.querySelector("[data-group-caption]"),
+            groupValueHeader: document.querySelector("[data-group-value-header]"),
             groupBody: document.querySelector("[data-group-body]"),
             viewMoreButton: document.querySelector("[data-view-more]"),
             topUsers: document.querySelector("[data-top-users]"),
@@ -11289,6 +11290,12 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           function updateGroupTable(groups, totalMetricValue) {
             if (!dom.groupBody || !dom.groupCaption || !dom.viewMoreButton) {
               return;
+            }
+            if (dom.groupValueHeader) {
+              const metricHeaderLabel = state.filters.metric === "hours"
+                ? "Assisted hours"
+                : (state.filters.metric === "adoption" ? "Active users (%)" : "Total Actions");
+              dom.groupValueHeader.textContent = metricHeaderLabel;
             }
             dom.groupBody.innerHTML = "";
             if (!groups.length) {

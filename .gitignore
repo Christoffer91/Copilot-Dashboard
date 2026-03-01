@@ -20,3 +20,7 @@ coverage/
 
 # cPanel deployment config (contains server paths)
 .cpanel.yml
+
+# Private AI memory (never commit)
+.ai/
+**/.ai/

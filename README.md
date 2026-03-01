@@ -49,6 +49,24 @@ Localization and dialect handling:
 - Number parsing handles both dot and comma decimals.
 - Slash dates (`x/x/yy`) are inferred as month-first or day-first from dataset evidence.
 
+Usage intensity and returning users behavior:
+- Usage intensity thresholds default to `25` (middle) and `50` (high).
+- All months found in the CSV are shown as clickable month chips.
+- If more than 12 months exist, the latest 12 are preselected by default for readability/performance.
+- Returning users are calculated as the number of people active in both the current period and the immediately previous period (weekly or monthly view).
+- Regression check script: `node tools/verify-returning-users.mjs`
+
+Goals tracker behavior:
+- Goal 1 uses CSV-only scope and is measured weekly:
+  - Denominator: unique enabled users in scope (`copilotEnabledUser > 0`).
+  - Numerator: enabled users with `>=1` Copilot activity/week (`totalActions`) and `>=1` active Copilot day/week.
+  - Card headline shows compliant reach for the selected goal month.
+  - Use the month arrows in Goals tracker to move month by month across available months in the filtered dataset.
+  - A monthly Goal 1 trend chart shows compliant reach across all available months and highlights the selected month.
+  - Weekly strip shows strict per-week attainment for the selected month.
+  - Sustained status: PASS only when the selected month has 4/4 most recent weeks at 100%.
+- Goal 1 metrics can be exported from the Goals tracker via **Download goals CSV**.
+
 Minimum data to unlock core views:
 - Identity: `PersonId`, `MetricDate`
 - Grouping: `Organization` (country/domain are optional and can be missing in some exports)
@@ -112,3 +130,16 @@ Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 - Improved localized CSV parsing with alias/index fallback mapping plus locale-aware number/date handling.
 - Added two synthetic public sample datasets (10,000 rows each) and switched **Load sample dataset** to a dataset chooser.
 - Added sample regeneration script: `node tools/generate-public-samples.mjs`.
+
+### 2026-02-19
+- Updated Usage intensity defaults to `25/50` (middle/high).
+- Usage intensity now surfaces all CSV months as selectable chips; when more than 12 months exist, the latest 12 are preselected.
+- Added legacy snapshot threshold migration (`17/35` -> `25/50`) when loading older snapshots without threshold version metadata.
+- Added deterministic returning-users verifier: `node tools/verify-returning-users.mjs`.
+
+### 2026-02-27
+- Added a Goals tracker section with CSV-only KPI measurement for Goal 1 (weekly attainment + sustained 4/4 status).
+- Added goals CSV export for governance reporting (`copilot-goals-tracker.csv`).
+
+### 2026-03-01
+- Fixed Agent Hub KPI cards and tab badges to refresh immediately after Users/Agents/Users&Agents CSV uploads.

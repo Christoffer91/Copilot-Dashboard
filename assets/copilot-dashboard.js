@@ -4201,12 +4201,12 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                     pointBorderColor: lineColor,
                     borderWidth: 2,
                     tension: 0.25,
-                    fill: false
+                    fill: "origin"
                   },
                   {
                     label: "Target (100%)",
                     data: [],
-                    borderColor: "rgba(17, 24, 39, 0.5)",
+                    borderColor: hexToRgba(colorStringToHex(getCssVariableValue("--grey-400", "#71797d")) || "#71797d", 0.6),
                     borderWidth: 1.5,
                     borderDash: [6, 6],
                     pointRadius: 0,
@@ -4286,18 +4286,18 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                     data: [],
                     borderColor: lineColor,
                     backgroundColor: lineFill,
-                    pointRadius: 3,
+                    pointRadius: 2.5,
                     pointHoverRadius: 6,
                     pointBackgroundColor: "#ffffff",
                     pointBorderColor: lineColor,
-                    borderWidth: 2,
+                    borderWidth: 2.5,
                     tension: 0.25,
-                    fill: false
+                    fill: "origin"
                   },
                   {
                     label: "Target (100%)",
                     data: [],
-                    borderColor: "rgba(17, 24, 39, 0.5)",
+                    borderColor: hexToRgba(colorStringToHex(getCssVariableValue("--grey-400", "#71797d")) || "#71797d", 0.6),
                     borderWidth: 1.5,
                     borderDash: [6, 6],
                     pointRadius: 0,
@@ -9332,6 +9332,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               }
             });
             updateAgentHubResetVisibility();
+            AGENT_HUB_TYPES.forEach(type => updateAgentHubMetrics(type));
           }
 
           function handleAgentHubInputChange(event, type) {
@@ -9661,6 +9662,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             updateAgentHubMeta(type, dataset.meta);
             toggleAgentHubFilterBar(type, dataset.rows.length > 0);
             renderAgentHubTable(type);
+            updateAgentHubMetrics(type);
             updateAgentHubResetVisibility();
             if (settings.persist) {
               persistAgentHubSnapshot();
@@ -9753,6 +9755,146 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             }
             if (section.empty) {
               section.empty.hidden = true;
+            }
+          }
+
+          function setAgentHubTabBadge(type, count) {
+            const badge = document.querySelector(`[data-agent-tab-badge="${type}"]`);
+            if (!badge) {
+              return;
+            }
+            const safeCount = Number.isFinite(count) ? Math.max(0, Math.round(count)) : 0;
+            badge.textContent = numberFormatter.format(safeCount);
+          }
+
+          function setAgentHubKpiValue(key, value) {
+            const node = document.querySelector(`[data-agent-kpi="${key}"]`);
+            if (!node) {
+              return;
+            }
+            node.textContent = value;
+          }
+
+          function formatAgentHubAverage(value) {
+            if (!Number.isFinite(value)) {
+              return "-";
+            }
+            const rounded = Number(value.toFixed(1));
+            if (Math.abs(rounded - Math.round(rounded)) < 1e-9) {
+              return numberFormatter.format(Math.round(rounded));
+            }
+            return rounded.toFixed(1);
+          }
+
+          function updateAgentHubMetrics(type) {
+            const dataset = state.agentHub?.datasets?.[type];
+            const rows = dataset && Array.isArray(dataset.rows) ? dataset.rows : [];
+            setAgentHubTabBadge(type, rows.length);
+
+            if (type === "users") {
+              if (!rows.length) {
+                setAgentHubKpiValue("users-total", "-");
+                setAgentHubKpiValue("users-avg", "-");
+                setAgentHubKpiValue("users-top", "-");
+                setAgentHubKpiValue("users-responses", "-");
+                return;
+              }
+              let totalAgentCount = 0;
+              let totalResponses = 0;
+              let topRow = null;
+              rows.forEach(row => {
+                const agentCount = Number.isFinite(row.agentCount) ? row.agentCount : 0;
+                const responses = Number.isFinite(row.responses) ? row.responses : 0;
+                totalAgentCount += agentCount;
+                totalResponses += responses;
+                if (!topRow) {
+                  topRow = row;
+                  return;
+                }
+                const topResponses = Number.isFinite(topRow.responses) ? topRow.responses : 0;
+                const topAgentCount = Number.isFinite(topRow.agentCount) ? topRow.agentCount : 0;
+                if (responses > topResponses || (responses === topResponses && agentCount > topAgentCount)) {
+                  topRow = row;
+                }
+              });
+              const topUser = topRow ? (sanitizeLabel(topRow.displayName) || sanitizeLabel(topRow.username) || "-") : "-";
+              setAgentHubKpiValue("users-total", numberFormatter.format(rows.length));
+              setAgentHubKpiValue("users-avg", formatAgentHubAverage(totalAgentCount / rows.length));
+              setAgentHubKpiValue("users-top", topUser);
+              setAgentHubKpiValue("users-responses", numberFormatter.format(Math.round(totalResponses)));
+              return;
+            }
+
+            if (type === "agents") {
+              if (!rows.length) {
+                setAgentHubKpiValue("agents-total", "-");
+                setAgentHubKpiValue("agents-avg", "-");
+                setAgentHubKpiValue("agents-top", "-");
+                setAgentHubKpiValue("agents-responses", "-");
+                return;
+              }
+              let totalResponses = 0;
+              let totalActive = 0;
+              let topRow = null;
+              const uniqueAgents = new Set();
+              rows.forEach(row => {
+                const activeLicensed = Number.isFinite(row.activeLicensed) ? row.activeLicensed : 0;
+                const activeUnlicensed = Number.isFinite(row.activeUnlicensed) ? row.activeUnlicensed : 0;
+                const responses = Number.isFinite(row.responses) ? row.responses : 0;
+                const active = activeLicensed + activeUnlicensed;
+                totalActive += active;
+                totalResponses += responses;
+                const agentKey = sanitizeLabel(row.agentId) || sanitizeLabel(row.agentName);
+                if (agentKey) {
+                  uniqueAgents.add(agentKey);
+                }
+                if (!topRow) {
+                  topRow = row;
+                  return;
+                }
+                const topResponses = Number.isFinite(topRow.responses) ? topRow.responses : 0;
+                const topActive = (Number.isFinite(topRow.activeLicensed) ? topRow.activeLicensed : 0)
+                  + (Number.isFinite(topRow.activeUnlicensed) ? topRow.activeUnlicensed : 0);
+                if (responses > topResponses || (responses === topResponses && active > topActive)) {
+                  topRow = row;
+                }
+              });
+              const topAgent = topRow ? (sanitizeLabel(topRow.agentName) || sanitizeLabel(topRow.agentId) || "-") : "-";
+              const totalAgents = uniqueAgents.size || rows.length;
+              setAgentHubKpiValue("agents-total", numberFormatter.format(totalAgents));
+              setAgentHubKpiValue("agents-avg", formatAgentHubAverage(totalActive / rows.length));
+              setAgentHubKpiValue("agents-top", topAgent);
+              setAgentHubKpiValue("agents-responses", numberFormatter.format(Math.round(totalResponses)));
+              return;
+            }
+
+            if (type === "combined") {
+              if (!rows.length) {
+                setAgentHubKpiValue("combined-total", "-");
+                setAgentHubKpiValue("combined-agents", "-");
+                setAgentHubKpiValue("combined-users", "-");
+                setAgentHubKpiValue("combined-responses", "-");
+                return;
+              }
+              let totalResponses = 0;
+              const uniqueAgents = new Set();
+              const uniqueUsers = new Set();
+              rows.forEach(row => {
+                const responses = Number.isFinite(row.responses) ? row.responses : 0;
+                totalResponses += responses;
+                const agentKey = sanitizeLabel(row.agentId) || sanitizeLabel(row.agentName);
+                if (agentKey) {
+                  uniqueAgents.add(agentKey);
+                }
+                const userKey = sanitizeLabel(row.username);
+                if (userKey) {
+                  uniqueUsers.add(userKey);
+                }
+              });
+              setAgentHubKpiValue("combined-total", numberFormatter.format(rows.length));
+              setAgentHubKpiValue("combined-agents", numberFormatter.format(uniqueAgents.size));
+              setAgentHubKpiValue("combined-users", numberFormatter.format(uniqueUsers.size));
+              setAgentHubKpiValue("combined-responses", numberFormatter.format(Math.round(totalResponses)));
             }
           }
 
@@ -9887,6 +10029,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             updateAgentHubFilterControls(type);
             toggleAgentHubFilterBar(type, false);
             updateAgentHubSortIndicators(type);
+            updateAgentHubMetrics(type);
             if (!options.skipPersist) {
               persistAgentHubSnapshot();
             }
@@ -13508,7 +13651,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           const placeholdersNeeded = Math.max(0, GOAL_REQUIRED_WEEKS - entries.length);
           for (let index = 0; index < placeholdersNeeded; index += 1) {
             const placeholder = document.createElement("div");
-            placeholder.className = "goal-trend__item";
+            placeholder.className = "goal-trend__item goal-trend__item--empty";
             const labelNode = document.createElement("span");
             labelNode.className = "goal-trend__item-label";
             labelNode.textContent = "Week";
@@ -13566,10 +13709,10 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               : 0
           ));
           const targetValues = months.map(() => 100);
-          const pointRadii = months.map(month => (selectedKey && month.key === selectedKey ? 5 : 3));
-          const pointHoverRadii = months.map(month => (selectedKey && month.key === selectedKey ? 7 : 5));
+          const pointRadii = months.map(month => (selectedKey && month.key === selectedKey ? 6 : 2.5));
+          const pointHoverRadii = months.map(month => (selectedKey && month.key === selectedKey ? 8 : 5));
           const pointBackground = months.map(month => (selectedKey && month.key === selectedKey ? getCssVariableValue("--green-600", "#008A00") : "#ffffff"));
-          const pointBorderWidths = months.map(month => (selectedKey && month.key === selectedKey ? 2 : 1));
+          const pointBorderWidths = months.map(month => (selectedKey && month.key === selectedKey ? 2.5 : 1.5));
           chart.data.labels = labels;
           if (chart.data.datasets && chart.data.datasets[0]) {
             chart.data.datasets[0].data = values;
@@ -13580,6 +13723,14 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           }
           if (chart.data.datasets && chart.data.datasets[1]) {
             chart.data.datasets[1].data = targetValues;
+          }
+          const monthlyCtx = chart.ctx;
+          if (monthlyCtx && chart.chartArea) {
+            const grad = monthlyCtx.createLinearGradient(0, chart.chartArea.top, 0, chart.chartArea.bottom);
+            const gLineColor = getCssVariableValue("--green-600", "#008A00");
+            grad.addColorStop(0, hexToRgba(colorStringToHex(gLineColor) || "#008A00", 0.18));
+            grad.addColorStop(1, hexToRgba(colorStringToHex(gLineColor) || "#008A00", 0.02));
+            chart.data.datasets[0].backgroundColor = grad;
           }
           chart.update("none");
           if (dom.goal1MonthlyChartNote) {
@@ -13623,10 +13774,10 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               : 0
           ));
           const targetValues = weekly.map(() => 100);
-          const pointRadii = weekly.map(week => (selectedKey && week.weekKey === selectedKey ? 5 : 3));
-          const pointHoverRadii = weekly.map(week => (selectedKey && week.weekKey === selectedKey ? 7 : 5));
+          const pointRadii = weekly.map(week => (selectedKey && week.weekKey === selectedKey ? 6 : 2.5));
+          const pointHoverRadii = weekly.map(week => (selectedKey && week.weekKey === selectedKey ? 8 : 5));
           const pointBackground = weekly.map(week => (selectedKey && week.weekKey === selectedKey ? getCssVariableValue("--green-600", "#008A00") : "#ffffff"));
-          const pointBorderWidths = weekly.map(week => (selectedKey && week.weekKey === selectedKey ? 2 : 1));
+          const pointBorderWidths = weekly.map(week => (selectedKey && week.weekKey === selectedKey ? 2.5 : 1.5));
           chart.data.labels = labels;
           if (chart.data.datasets && chart.data.datasets[0]) {
             chart.data.datasets[0].data = values;
@@ -13637,6 +13788,14 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           }
           if (chart.data.datasets && chart.data.datasets[1]) {
             chart.data.datasets[1].data = targetValues;
+          }
+          const weeklyCtx = chart.ctx;
+          if (weeklyCtx && chart.chartArea) {
+            const grad = weeklyCtx.createLinearGradient(0, chart.chartArea.top, 0, chart.chartArea.bottom);
+            const gLineColor = getCssVariableValue("--green-600", "#008A00");
+            grad.addColorStop(0, hexToRgba(colorStringToHex(gLineColor) || "#008A00", 0.22));
+            grad.addColorStop(1, hexToRgba(colorStringToHex(gLineColor) || "#008A00", 0.02));
+            chart.data.datasets[0].backgroundColor = grad;
           }
           chart.update("none");
           if (dom.goal1WeeklyChartNote) {

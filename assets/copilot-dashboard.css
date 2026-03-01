@@ -2594,6 +2594,272 @@ body.is-custom-theme {
       gap: 24px;
     }
 
+    .goals-card {
+      gap: 18px;
+    }
+
+    .goal-month-nav {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-right: 8px;
+    }
+
+    .goal-month-nav[hidden] {
+      display: none;
+    }
+
+    .goal-month-nav__button {
+      border: 1px solid rgba(53, 120, 80, 0.24);
+      background: transparent;
+      color: var(--green-600);
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .goal-month-nav__button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .goal-month-nav__label {
+      min-width: 92px;
+      text-align: center;
+      color: var(--text-body);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .goals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .goal-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--surface-subtle);
+      border-radius: 18px;
+      padding: 18px 20px;
+      border: 1px solid rgba(17, 24, 39, 0.08);
+    }
+
+    .goal-panel--blocked {
+      border-color: rgba(77, 87, 93, 0.2);
+    }
+
+    .goal-panel__title {
+      margin: 0;
+      font-size: var(--font-size-md);
+      font-weight: 600;
+      color: var(--grey-900);
+    }
+
+    .goal-panel__description {
+      margin: 0;
+      font-size: var(--font-size-sm);
+      color: var(--text-muted);
+    }
+
+    .goal-panel__subheader {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 28px;
+    }
+
+    .goal-month-nav--inline {
+      margin-right: 0;
+    }
+
+    .goal-panel__value {
+      font-size: var(--font-size-2xl);
+      font-weight: 700;
+      color: var(--green-600);
+      font-variant-numeric: tabular-nums;
+      line-height: var(--line-height-tight);
+    }
+
+    .goal-panel__meta {
+      margin: 0;
+      font-size: var(--font-size-sm);
+      color: var(--text-muted);
+    }
+
+    .goal-panel__meta--chart {
+      margin-top: 0;
+    }
+
+    .goal-panel__badge {
+      width: fit-content;
+      margin-top: 2px;
+    }
+
+    .goal-panel__badge.goal-status-pass {
+      border-color: rgba(0, 138, 0, 0.38);
+      background: rgba(0, 138, 0, 0.14);
+      color: var(--green-700);
+    }
+
+    .goal-panel__badge.goal-status-fail {
+      border-color: rgba(185, 56, 56, 0.38);
+      background: rgba(185, 56, 56, 0.12);
+      color: #8f1f1f;
+    }
+
+    .goal-panel__badge.goal-status-neutral {
+      border-color: rgba(189, 197, 200, 0.6);
+      background: rgba(189, 197, 200, 0.18);
+      color: var(--grey-500);
+    }
+
+    .goal-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .goal-kpi-tile {
+      border: 1px solid rgba(17, 24, 39, 0.08);
+      border-radius: 12px;
+      background: var(--surface-card);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-height: 70px;
+      justify-content: center;
+    }
+
+    .goal-kpi-tile__label {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      line-height: 1.2;
+    }
+
+    .goal-kpi-tile__value {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--text-body);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.2;
+    }
+
+    .goal-kpi-tile__hint {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      line-height: 1.2;
+    }
+
+    .goal-kpi-tile__value.is-positive {
+      color: var(--green-600);
+    }
+
+    .goal-kpi-tile__value.is-negative {
+      color: #B93838;
+    }
+
+    .goal-panel__status {
+      display: inline-flex;
+      width: fit-content;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(77, 87, 93, 0.28);
+      background: rgba(77, 87, 93, 0.1);
+      color: var(--text-body);
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .goal-panel__requirements {
+      margin: 2px 0 0;
+      padding-left: 18px;
+      color: var(--text-muted);
+      font-size: var(--font-size-sm);
+      display: grid;
+      gap: 4px;
+    }
+
+    .goal-trend {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .goal-trend__item {
+      border: 1px solid rgba(17, 24, 39, 0.08);
+      border-radius: 12px;
+      padding: 8px 10px;
+      background: var(--surface-card);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-height: 66px;
+      justify-content: center;
+    }
+
+    .goal-trend__item-label {
+      font-size: var(--font-size-xs);
+      color: var(--text-muted);
+      line-height: 1.2;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .goal-trend__item-value {
+      font-size: var(--font-size-sm);
+      font-weight: 700;
+      color: var(--text-body);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .goal-trend__item.is-pass .goal-trend__item-value {
+      color: var(--green-600);
+    }
+
+    .goal-monthly-chart {
+      position: relative;
+      width: 100%;
+      min-height: 180px;
+      margin-top: 2px;
+      border: 1px solid rgba(17, 24, 39, 0.08);
+      border-radius: 14px;
+      background: var(--surface-card);
+      padding: 8px 8px 4px;
+    }
+
+    .goal-weekly-sparkline {
+      min-height: 110px;
+      padding: 6px 8px 0;
+      margin-top: 0;
+    }
+
+    .goal-monthly-chart[hidden] {
+      display: none;
+    }
+
+    @media (max-width: 640px) {
+      .goal-kpi-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .goal-trend {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
     .insight-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));

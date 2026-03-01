@@ -67,6 +67,21 @@
           const MAX_VISIBLE_GROUP_ROWS = 5;
           const MAX_VISIBLE_TOP_USERS = 5;
           const DEFAULT_RETURNING_INTERVAL = "weekly";
+          const GOAL_REQUIRED_WEEKS = 4;
+          const GOAL_MIN_WEEKLY_ACTIVITY_EVENTS = 1;
+          const GOAL_MIN_WEEKLY_ACTIVE_DAYS = 1;
+          const GOAL_STATUS = {
+            PASS: "PASS",
+            FAIL: "FAIL",
+            INSUFFICIENT_DATA: "INSUFFICIENT_DATA"
+          };
+          const GOAL_DEFINITIONS = {
+            goal1: {
+              id: "goal1",
+              label: "Daily Copilot usage (targeted users)",
+              statement: "100% of targeted employees use Copilot in daily work."
+            }
+          };
           const FILTER_FIELD_LABELS = {
             organization: "Organization",
             country: "Country or region",
@@ -138,6 +153,8 @@
             usageTrend: null,
             returningUsers: null,
             enabledLicenses: null,
+            goal1Monthly: null,
+            goal1Weekly: null,
             dimensionComparison: null
           },
           latestTrendPeriods: [],
@@ -150,6 +167,9 @@
             latestReturningAggregates: null,
             latestAdoption: null,
             latestActiveDays: null,
+            latestGoalMetrics: null,
+            goalMonthSelection: null,
+            goalWeekSelection: null,
             latestDimensionTotals: {
               country: [],
               organization: []
@@ -175,8 +195,8 @@
             topUsersExpanded: false,
             activeDaysView: "users",
             usageThresholds: {
-              middle: 17,
-              high: 35
+              middle: 25,
+              high: 50
             },
             usageMonthSelection: [],
             usageTrendMode: "number",
@@ -2746,6 +2766,20 @@
             high = Math.max(middle + 1, Math.round(high));
             return { middle, high };
           }
+
+          function getDefaultUsageMonthSelection(monthKeys, currentSelection) {
+            const availableKeys = Array.isArray(monthKeys) ? monthKeys : [];
+            if (!availableKeys.length) {
+              return [];
+            }
+            const selectedKeys = Array.isArray(currentSelection)
+              ? availableKeys.filter(key => currentSelection.includes(key))
+              : [];
+            if (selectedKeys.length) {
+              return selectedKeys;
+            }
+            return availableKeys.length <= 12 ? availableKeys.slice() : availableKeys.slice(-12);
+          }
       
       
           const seriesToggleButtons = new Map();
@@ -2883,6 +2917,40 @@
             groupValueHeader: document.querySelector("[data-group-value-header]"),
             groupBody: document.querySelector("[data-group-body]"),
             viewMoreButton: document.querySelector("[data-view-more]"),
+            goalsCard: document.querySelector("[data-goals-card]"),
+            goalsCaption: document.querySelector("[data-goals-caption]"),
+            goalsExportCsv: document.querySelector("[data-goals-export-csv]"),
+            goalMonthNav: document.querySelector("[data-goal-month-nav]"),
+            goalMonthPrev: document.querySelector("[data-goal-month-prev]"),
+            goalMonthNext: document.querySelector("[data-goal-month-next]"),
+            goalMonthLabel: document.querySelector("[data-goal-month-label]"),
+            goal1Attainment: document.querySelector("[data-goal1-attainment]"),
+            goal1Ratio: document.querySelector("[data-goal1-ratio]"),
+            goal1Sustained: document.querySelector("[data-goal1-sustained]"),
+            goal1Trend: document.querySelector("[data-goal1-trend]"),
+            goal1KpiCompliant: document.querySelector("[data-goal1-kpi-compliant]"),
+            goal1KpiTargeted: document.querySelector("[data-goal1-kpi-targeted]"),
+            goal1KpiGapUsers: document.querySelector("[data-goal1-kpi-gap-users]"),
+            goal1KpiGapPct: document.querySelector("[data-goal1-kpi-gap-pct]"),
+            goal1KpiDelta: document.querySelector("[data-goal1-kpi-delta]"),
+            goal1MonthlyChartWrap: document.querySelector("[data-goal1-monthly-chart-wrap]"),
+            goal1MonthlyChartCanvas: document.querySelector("[data-goal1-monthly-chart]"),
+            goal1MonthlyChartNote: document.querySelector("[data-goal1-monthly-chart-note]"),
+            goalWeekNav: document.querySelector("[data-goal-week-nav]"),
+            goalWeekPrev: document.querySelector("[data-goal-week-prev]"),
+            goalWeekNext: document.querySelector("[data-goal-week-next]"),
+            goalWeekLabel: document.querySelector("[data-goal-week-label]"),
+            goal1WeeklyAttainment: document.querySelector("[data-goal1-weekly-attainment]"),
+            goal1WeeklyRatio: document.querySelector("[data-goal1-weekly-ratio]"),
+            goal1WeeklyKpiCompliant: document.querySelector("[data-goal1-weekly-kpi-compliant]"),
+            goal1WeeklyKpiTargeted: document.querySelector("[data-goal1-weekly-kpi-targeted]"),
+            goal1WeeklyKpiGapUsers: document.querySelector("[data-goal1-weekly-kpi-gap-users]"),
+            goal1WeeklyKpiGapPct: document.querySelector("[data-goal1-weekly-kpi-gap-pct]"),
+            goal1WeeklyKpiDelta: document.querySelector("[data-goal1-weekly-kpi-delta]"),
+            goal1WeeklyStatus: document.querySelector("[data-goal1-weekly-status]"),
+            goal1WeeklyChartWrap: document.querySelector("[data-goal1-weekly-chart-wrap]"),
+            goal1WeeklyChartCanvas: document.querySelector("[data-goal1-weekly-chart]"),
+            goal1WeeklyChartNote: document.querySelector("[data-goal1-weekly-chart-note]"),
             topUsers: document.querySelector("[data-top-users]"),
             topUsersToggle: document.querySelector("[data-top-users-toggle]"),
             topUsersPanel: document.querySelector("[data-top-users-panel]"),
@@ -3027,6 +3095,7 @@
         setButtonEnabled(dom.usageTrendExportCsv, false);
         setButtonEnabled(dom.usageIntensityExportCsv, false);
         setButtonEnabled(dom.adoptionExportCsv, false);
+        setButtonEnabled(dom.goalsExportCsv, false);
         setButtonEnabled(dom.snapshotExportHtml, false);
 
         const filterToggleUpdaters = [
@@ -3196,8 +3265,9 @@
           });
           const DEFAULT_TREND_START_COLOR = sanitizeHexColor(defaultTrendPalette[0]) || '#006E00';
           const DEFAULT_TREND_END_COLOR = sanitizeHexColor(defaultTrendPalette[defaultTrendPalette.length - 1]) || '#14AA24';
-          const DEFAULT_USAGE_THRESHOLD_MIDDLE = 17;
-          const DEFAULT_USAGE_THRESHOLD_HIGH = 35;
+          const DEFAULT_USAGE_THRESHOLD_MIDDLE = 25;
+          const DEFAULT_USAGE_THRESHOLD_HIGH = 50;
+          const USAGE_THRESHOLD_VERSION = 2;
           const TREND_COLOR_STORAGE_KEY = 'copilotTrendGradient';
           const DATA_STORAGE_KEY = 'copilotDashboardDataset';
           const DATA_STORAGE_META_KEY = 'copilotDashboardDatasetMeta';
@@ -3208,8 +3278,8 @@
           const DATA_CONSENT_KEY = 'copilotPersistConsent';
           const FILTER_PREFERENCES_KEY = 'copilotFilterPrefs';
           const PDF_EXPORT_PREFERENCES_KEY = 'copilotPdfExportPrefs';
-          const MAX_DATASET_FILE_SIZE = Infinity;
-          const DATASET_CACHE_LIMIT_BYTES = 80 * 1024 * 1024; // Keep cache limit lower than upload limit to avoid repeated storage failures.
+          const MAX_DATASET_FILE_SIZE = 100 * 1024 * 1024;
+          const DATASET_CACHE_LIMIT_BYTES = 100 * 1024 * 1024;
           const CSV_ACCEPTED_MIME_TYPES = new Set(["text/csv", "application/vnd.ms-excel"]);
           const SAMPLE_DATASETS = [
             {
@@ -4108,6 +4178,177 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               }
             });
           }
+
+          const goal1MonthlyChartCtx = dom.goal1MonthlyChartCanvas?.getContext("2d");
+          if (goal1MonthlyChartCtx) {
+            const axisTickColor = getCssVariableValue("--text-muted", "#4D575D");
+            const axisGridColor = getCssVariableValue("--grid-color", "rgba(153, 208, 153, 0.18)");
+            const lineColor = getCssVariableValue("--green-600", "#008A00");
+            const lineFill = hexToRgba(colorStringToHex(lineColor) || "#008A00", 0.14) || "rgba(0,138,0,0.14)";
+            state.charts.goal1Monthly = new Chart(goal1MonthlyChartCtx, {
+              type: "line",
+              data: {
+                labels: [],
+                datasets: [
+                  {
+                    label: "Goal 1 attainment",
+                    data: [],
+                    borderColor: lineColor,
+                    backgroundColor: lineFill,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: "#ffffff",
+                    pointBorderColor: lineColor,
+                    borderWidth: 2,
+                    tension: 0.25,
+                    fill: false
+                  },
+                  {
+                    label: "Target (100%)",
+                    data: [],
+                    borderColor: "rgba(17, 24, 39, 0.5)",
+                    borderWidth: 1.5,
+                    borderDash: [6, 6],
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    fill: false
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: {
+                    grid: { display: false },
+                    ticks: { color: axisTickColor }
+                  },
+                  y: {
+                    beginAtZero: true,
+                    suggestedMax: 100,
+                    max: 100,
+                    grid: {
+                      color: axisGridColor,
+                      drawBorder: false
+                    },
+                    ticks: {
+                      color: axisTickColor,
+                      callback: value => `${Number(value).toFixed(0)}%`
+                    }
+                  }
+                },
+                plugins: {
+                  legend: {
+                    display: true,
+                    position: "top",
+                    labels: {
+                      usePointStyle: true,
+                      pointStyle: "line"
+                    }
+                  },
+                  tooltip: {
+                    backgroundColor: "rgba(31, 35, 37, 0.92)",
+                    titleColor: "#ffffff",
+                    bodyColor: "#ffffff",
+                    padding: 10,
+                    cornerRadius: 10,
+                    displayColors: true,
+                    callbacks: {
+                      label: context => {
+                        const value = Number.isFinite(context.parsed.y) ? context.parsed.y : 0;
+                        if (context.datasetIndex === 1) {
+                          return "Target: 100%";
+                        }
+                        return `${value.toFixed(1)}% compliant reach`;
+                      }
+                    }
+                  }
+                },
+                interaction: {
+                  mode: "index",
+                  intersect: false
+                }
+              }
+            });
+          }
+
+          const goal1WeeklyChartCtx = dom.goal1WeeklyChartCanvas?.getContext("2d");
+          if (goal1WeeklyChartCtx) {
+            const lineColor = getCssVariableValue("--green-600", "#008A00");
+            const lineFill = hexToRgba(colorStringToHex(lineColor) || "#008A00", 0.14) || "rgba(0,138,0,0.14)";
+            state.charts.goal1Weekly = new Chart(goal1WeeklyChartCtx, {
+              type: "line",
+              data: {
+                labels: [],
+                datasets: [
+                  {
+                    label: "Goal 1 attainment",
+                    data: [],
+                    borderColor: lineColor,
+                    backgroundColor: lineFill,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: "#ffffff",
+                    pointBorderColor: lineColor,
+                    borderWidth: 2,
+                    tension: 0.25,
+                    fill: false
+                  },
+                  {
+                    label: "Target (100%)",
+                    data: [],
+                    borderColor: "rgba(17, 24, 39, 0.5)",
+                    borderWidth: 1.5,
+                    borderDash: [6, 6],
+                    pointRadius: 0,
+                    pointHoverRadius: 0,
+                    fill: false
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: {
+                    display: false
+                  },
+                  y: {
+                    beginAtZero: true,
+                    suggestedMax: 100,
+                    max: 100,
+                    display: false
+                  }
+                },
+                plugins: {
+                  legend: {
+                    display: false
+                  },
+                  tooltip: {
+                    backgroundColor: "rgba(31, 35, 37, 0.92)",
+                    titleColor: "#ffffff",
+                    bodyColor: "#ffffff",
+                    padding: 10,
+                    cornerRadius: 10,
+                    displayColors: true,
+                    callbacks: {
+                      label: context => {
+                        const value = Number.isFinite(context.parsed.y) ? context.parsed.y : 0;
+                        if (context.datasetIndex === 1) {
+                          return "Target: 100%";
+                        }
+                        return `${value.toFixed(1)}% compliant reach`;
+                      }
+                    }
+                  }
+                },
+                interaction: {
+                  mode: "index",
+                  intersect: false
+                }
+              }
+            });
+          }
       
           applyChartThemeStyles();
       
@@ -4121,7 +4362,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               ...state.charts.usageConsistency.values(),
               state.charts.usageTrend,
               state.charts.returningUsers,
-              state.charts.enabledLicenses
+              state.charts.enabledLicenses,
+              state.charts.goal1Monthly,
+              state.charts.goal1Weekly
             ];
             charts.forEach(chart => {
               if (!chart || !chart.options || !chart.options.scales) {
@@ -5827,6 +6070,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               usageTrendRegion: state.usageTrendRegion,
               usageMonthSelection: Array.isArray(state.usageMonthSelection) ? state.usageMonthSelection.map(String) : [],
               returningRegion: state.returningRegion,
+              usageThresholdVersion: USAGE_THRESHOLD_VERSION,
               usageThresholds: {
                 middle: Number(state.usageThresholds?.middle) || 0,
                 high: Number(state.usageThresholds?.high) || 0
@@ -6943,6 +7187,12 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               if (Number.isFinite(high)) {
                 state.usageThresholds.high = high;
               }
+            }
+            const snapshotUsageThresholdVersion = Number(snapshot.usageThresholdVersion);
+            const hasUsageThresholdVersion = Number.isFinite(snapshotUsageThresholdVersion) && snapshotUsageThresholdVersion >= 1;
+            if (!hasUsageThresholdVersion && state.usageThresholds.middle === 17 && state.usageThresholds.high === 35) {
+              state.usageThresholds.middle = DEFAULT_USAGE_THRESHOLD_MIDDLE;
+              state.usageThresholds.high = DEFAULT_USAGE_THRESHOLD_HIGH;
             }
             if (snapshot.exportPreferences && typeof snapshot.exportPreferences === "object") {
               state.exportPreferences = {
@@ -9938,6 +10188,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               updateEnabledLicensesChart(null);
               updateReturningUsers(null);
               updateActiveDaysCard(null);
+              renderGoalCards(null);
               updateAgentUsageCard(state.agentUsageRows);
               state.latestTrendPeriods = [];
               state.latestGroupData = null;
@@ -9945,6 +10196,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               state.latestReturningAggregates = null;
               state.latestAdoption = null;
               state.latestActiveDays = null;
+              state.latestGoalMetrics = null;
+              state.goalMonthSelection = null;
+              state.goalWeekSelection = null;
               state.latestEnabledTimeline = [];
               state.latestPerAppActions = [];
               state.groupsExpanded = false;
@@ -9990,12 +10244,16 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               updateEnabledLicensesChart(null);
               updateReturningUsers(null);
               updateActiveDaysCard(null);
+              renderGoalCards(null);
               state.latestTrendPeriods = [];
               state.latestGroupData = null;
               state.latestTopUsers = [];
               state.latestReturningAggregates = null;
               state.latestAdoption = null;
               state.latestActiveDays = null;
+              state.latestGoalMetrics = null;
+              state.goalMonthSelection = null;
+              state.goalWeekSelection = null;
               state.latestEnabledTimeline = [];
               state.groupsExpanded = false;
               state.topUsersExpanded = false;
@@ -10070,6 +10328,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             };
             state.latestAdoption = aggregates.adoption;
             state.latestActiveDays = aggregates.activeDaysLast30;
+            state.latestGoalMetrics = computeGoalMetrics(filtered, state.filters);
             updateGroupTable(state.latestGroupData.groups, state.latestGroupData.totalMetricValue);
             buildTopUsersList(state.latestTopUsers);
             updateCategoryCards(aggregates.categoryTotals);
@@ -10078,6 +10337,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             updateEnabledLicensesChart(state.latestEnabledTimeline);
             updateReturningUsers(state.latestReturningAggregates);
             updateActiveDaysCard(state.latestActiveDays);
+            renderGoalCards(state.latestGoalMetrics);
             updateAgentUsageCard(state.agentUsageRows);
             if (dom.seriesModeToggle) {
               dom.seriesModeToggle.disabled = false;
@@ -10235,7 +10495,11 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             updateUsageIntensity(null);
             updateReturningUsers(null);
             updateActiveDaysCard(null);
+            renderGoalCards(null);
             state.latestTrendPeriods = [];
+            state.latestGoalMetrics = null;
+            state.goalMonthSelection = null;
+            state.goalWeekSelection = null;
             updateExportDetailOption();
             setTrendColorControlsVisibility(false);
             if (dom.seriesModeToggle) {
@@ -10991,7 +11255,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               };
             }).filter(entry => entry.monthDate instanceof Date);
             monthlyUsageArray.sort((a, b) => a.monthDate - b.monthDate);
-            const monthlyUsageIntensity = monthlyUsageArray.slice(-12).map(entry => entry.data);
+            const monthlyUsageIntensity = monthlyUsageArray.map(entry => entry.data);
             const weeksByMonth = new Map();
             weekMap.forEach(weekEntry => {
               if (!weekEntry || !(weekEntry.date instanceof Date)) {
@@ -11689,10 +11953,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             if (!Array.isArray(state.usageMonthSelection)) {
               state.usageMonthSelection = [];
             }
-            let selection = state.usageMonthSelection.filter(key => monthKeys.includes(key));
-            if (!selection.length) {
-              selection = monthKeys.slice();
-            }
+            const selection = getDefaultUsageMonthSelection(monthKeys, state.usageMonthSelection);
             state.usageMonthSelection = selection;
       
             if (emptyState) {
@@ -11957,6 +12218,29 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           }
           if (dom.adoptionExportCsv) {
             dom.adoptionExportCsv.addEventListener("click", exportAdoptionCsv);
+          }
+          if (dom.goalsExportCsv) {
+            dom.goalsExportCsv.addEventListener("click", exportGoalMetricsCsv);
+          }
+          if (dom.goalMonthPrev) {
+            dom.goalMonthPrev.addEventListener("click", () => {
+              shiftGoalMonth(-1);
+            });
+          }
+          if (dom.goalMonthNext) {
+            dom.goalMonthNext.addEventListener("click", () => {
+              shiftGoalMonth(1);
+            });
+          }
+          if (dom.goalWeekPrev) {
+            dom.goalWeekPrev.addEventListener("click", () => {
+              shiftGoalWeek(-1);
+            });
+          }
+          if (dom.goalWeekNext) {
+            dom.goalWeekNext.addEventListener("click", () => {
+              shiftGoalWeek(1);
+            });
           }
 
           function updateTrendViewToggleState() {
@@ -12837,6 +13121,811 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           }
           const interval = state.returningInterval || DEFAULT_RETURNING_INTERVAL;
           downloadChartImage(chart, `copilot-returning-${interval}.png`);
+        }
+
+        function resolveGoalPromptMetric(metrics, primaryKey, fallbackKeys) {
+          if (!metrics || typeof metrics !== "object") {
+            return 0;
+          }
+          const primaryValue = Number(metrics[primaryKey] || 0);
+          if (Number.isFinite(primaryValue) && primaryValue > 0) {
+            return primaryValue;
+          }
+          if (!Array.isArray(fallbackKeys) || !fallbackKeys.length) {
+            return 0;
+          }
+          let fallbackTotal = 0;
+          fallbackKeys.forEach(key => {
+            const value = Number(metrics[key] || 0);
+            if (Number.isFinite(value) && value > 0) {
+              fallbackTotal += value;
+            }
+          });
+          return fallbackTotal;
+        }
+
+        function buildGoalActivitySignal(row) {
+          const metrics = row && row.metrics ? row.metrics : {};
+          const totalActions = Number(row && row.totalActions ? row.totalActions : metrics.totalActions || 0);
+          if (Number.isFinite(totalActions) && totalActions > 0) {
+            return totalActions;
+          }
+          const workPrompts = resolveGoalPromptMetric(metrics, "chatPromptsWork", ["chatPromptsWorkTeams", "chatPromptsWorkOutlook"]);
+          const webPrompts = resolveGoalPromptMetric(metrics, "chatPromptsWeb", ["chatPromptsWebTeams", "chatPromptsWebOutlook"]);
+          const teamsPrompts = Number(metrics.chatPromptsTeams || 0);
+          const normalizedTeamsPrompts = Number.isFinite(teamsPrompts) && teamsPrompts > 0 ? teamsPrompts : 0;
+          return workPrompts + webPrompts + normalizedTeamsPrompts;
+        }
+
+        function resolveGoalActiveDays(metrics) {
+          if (!metrics || typeof metrics !== "object") {
+            return 0;
+          }
+          const totalActiveDays = Number(metrics.totalActiveDays || 0);
+          if (Number.isFinite(totalActiveDays) && totalActiveDays > 0) {
+            return totalActiveDays;
+          }
+          const fallbackKeys = [
+            "daysActiveWord",
+            "daysActiveTeams",
+            "daysActiveOutlook",
+            "daysActivePowerPoint",
+            "daysActiveExcel",
+            "daysActiveOneNote",
+            "daysActiveLoop",
+            "daysActiveChatWork",
+            "daysActiveChatWeb"
+          ];
+          let bestFallback = 0;
+          fallbackKeys.forEach(key => {
+            const value = Number(metrics[key] || 0);
+            if (Number.isFinite(value) && value > bestFallback) {
+              bestFallback = value;
+            }
+          });
+          return bestFallback;
+        }
+
+        function createDefaultGoalMetrics() {
+          return {
+            goal1: {
+              weekly: [],
+              months: [],
+              latest: null,
+              periodSummary: {
+                targetedUsers: 0,
+                compliantUsers: 0,
+                attainmentPct: 0
+              },
+              sustained4of4: {
+                status: GOAL_STATUS.INSUFFICIENT_DATA,
+                windowWeeks: []
+              }
+            }
+          };
+        }
+
+        function computeGoalMetrics(rows, filters) {
+          void filters;
+          const metrics = createDefaultGoalMetrics();
+          if (!Array.isArray(rows) || !rows.length) {
+            return metrics;
+          }
+          const weekMap = new Map();
+          const monthMap = new Map();
+          const periodTargetedUsers = new Set();
+          const periodCompliantUsers = new Set();
+          rows.forEach(row => {
+            if (!row || !row.metrics) {
+              return;
+            }
+            const weekKey = `${row.isoYear}-W${pad(row.isoWeek)}`;
+            if (!weekKey) {
+              return;
+            }
+            const effectiveDate = row.weekEndDate instanceof Date ? row.weekEndDate : row.date;
+            let weekBucket = weekMap.get(weekKey);
+            if (!weekBucket) {
+              weekBucket = {
+                key: weekKey,
+                date: effectiveDate instanceof Date ? effectiveDate : null,
+                users: new Map()
+              };
+              weekMap.set(weekKey, weekBucket);
+            }
+            if (effectiveDate instanceof Date && (!weekBucket.date || effectiveDate > weekBucket.date)) {
+              weekBucket.date = effectiveDate;
+            }
+            const personId = sanitizeLabel(row.personId) || "Unknown";
+            let userBucket = weekBucket.users.get(personId);
+            if (!userBucket) {
+              userBucket = {
+                enabled: false,
+                activitySignal: 0,
+                activeDays: 0
+              };
+              weekBucket.users.set(personId, userBucket);
+            }
+            const rowMetrics = row.metrics || {};
+            if ((rowMetrics.copilotEnabledUser || 0) > 0) {
+              userBucket.enabled = true;
+            }
+            userBucket.activitySignal += buildGoalActivitySignal(row);
+            const activeDays = resolveGoalActiveDays(rowMetrics);
+            if (activeDays > userBucket.activeDays) {
+              userBucket.activeDays = activeDays;
+            }
+          });
+          const weekly = Array.from(weekMap.values())
+            .sort((a, b) => {
+              const aDate = a.date instanceof Date ? a.date.getTime() : 0;
+              const bDate = b.date instanceof Date ? b.date.getTime() : 0;
+              return aDate - bDate;
+            })
+            .map(weekBucket => {
+              let targetedUsers = 0;
+              let compliantUsers = 0;
+              weekBucket.users.forEach((userBucket, userId) => {
+                if (!userBucket.enabled) {
+                  return;
+                }
+                const isCompliant =
+                  userBucket.activitySignal >= GOAL_MIN_WEEKLY_ACTIVITY_EVENTS
+                  && userBucket.activeDays >= GOAL_MIN_WEEKLY_ACTIVE_DAYS;
+                targetedUsers += 1;
+                periodTargetedUsers.add(userId);
+                if (isCompliant) {
+                  compliantUsers += 1;
+                  periodCompliantUsers.add(userId);
+                }
+                const bucketDate = weekBucket.date instanceof Date ? weekBucket.date : null;
+                if (bucketDate instanceof Date) {
+                  const monthKey = `${bucketDate.getUTCFullYear()}-${pad(bucketDate.getUTCMonth() + 1)}`;
+                  let monthBucket = monthMap.get(monthKey);
+                  if (!monthBucket) {
+                    const monthDate = new Date(Date.UTC(bucketDate.getUTCFullYear(), bucketDate.getUTCMonth(), 1));
+                    monthBucket = {
+                      key: monthKey,
+                      label: formatMonthYear(monthDate),
+                      date: monthDate,
+                      targetedUsers: new Set(),
+                      compliantUsers: new Set(),
+                      weekly: []
+                    };
+                    monthMap.set(monthKey, monthBucket);
+                  }
+                  monthBucket.targetedUsers.add(userId);
+                  if (isCompliant) {
+                    monthBucket.compliantUsers.add(userId);
+                  }
+                }
+              });
+              const attainmentPct = targetedUsers ? (compliantUsers / targetedUsers) * 100 : 0;
+              return {
+                weekKey: weekBucket.key,
+                label: weekBucket.key,
+                date: weekBucket.date,
+                targetedUsers,
+                compliantUsers,
+                attainmentPct,
+                metTarget: targetedUsers > 0 && compliantUsers === targetedUsers
+              };
+            });
+          weekly.forEach(entry => {
+            if (!(entry.date instanceof Date)) {
+              return;
+            }
+            const monthKey = `${entry.date.getUTCFullYear()}-${pad(entry.date.getUTCMonth() + 1)}`;
+            const monthBucket = monthMap.get(monthKey);
+            if (!monthBucket) {
+              return;
+            }
+            monthBucket.weekly.push(entry);
+          });
+
+          const months = Array.from(monthMap.values())
+            .sort((a, b) => a.date - b.date)
+            .map(monthBucket => {
+              const monthlyWeekly = Array.isArray(monthBucket.weekly)
+                ? monthBucket.weekly.slice().sort((a, b) => {
+                    const aDate = a.date instanceof Date ? a.date.getTime() : 0;
+                    const bDate = b.date instanceof Date ? b.date.getTime() : 0;
+                    return aDate - bDate;
+                  })
+                : [];
+              const targetedUsers = monthBucket.targetedUsers.size;
+              const compliantUsers = monthBucket.compliantUsers.size;
+              const sustainedWindow = monthlyWeekly.slice(-GOAL_REQUIRED_WEEKS);
+              let sustainedStatus = GOAL_STATUS.INSUFFICIENT_DATA;
+              if (sustainedWindow.length >= GOAL_REQUIRED_WEEKS) {
+                sustainedStatus = sustainedWindow.every(entry => entry.metTarget) ? GOAL_STATUS.PASS : GOAL_STATUS.FAIL;
+              }
+              return {
+                key: monthBucket.key,
+                label: monthBucket.label,
+                date: monthBucket.date,
+                targetedUsers,
+                compliantUsers,
+                attainmentPct: targetedUsers ? (compliantUsers / targetedUsers) * 100 : 0,
+                weekly: monthlyWeekly,
+                latest: monthlyWeekly.length ? monthlyWeekly[monthlyWeekly.length - 1] : null,
+                sustained4of4: {
+                  status: sustainedStatus,
+                  windowWeeks: sustainedWindow
+                }
+              };
+            });
+
+          const latest = weekly.length ? weekly[weekly.length - 1] : null;
+          const sustainedWindow = weekly.slice(-GOAL_REQUIRED_WEEKS);
+          let sustainedStatus = GOAL_STATUS.INSUFFICIENT_DATA;
+          if (sustainedWindow.length >= GOAL_REQUIRED_WEEKS) {
+            sustainedStatus = sustainedWindow.every(entry => entry.metTarget) ? GOAL_STATUS.PASS : GOAL_STATUS.FAIL;
+          }
+          metrics.goal1 = {
+            weekly,
+            months,
+            latest,
+            periodSummary: {
+              targetedUsers: periodTargetedUsers.size,
+              compliantUsers: periodCompliantUsers.size,
+              attainmentPct: periodTargetedUsers.size ? (periodCompliantUsers.size / periodTargetedUsers.size) * 100 : 0
+            },
+            sustained4of4: {
+              status: sustainedStatus,
+              windowWeeks: sustainedWindow
+            }
+          };
+          return metrics;
+        }
+
+        function getSelectedGoalMonth(goal1) {
+          const months = goal1 && Array.isArray(goal1.months) ? goal1.months : [];
+          if (!months.length) {
+            state.goalMonthSelection = null;
+            return null;
+          }
+          const existingIndex = months.findIndex(month => month.key === state.goalMonthSelection);
+          if (existingIndex >= 0) {
+            return months[existingIndex];
+          }
+          const fallback = months[months.length - 1];
+          state.goalMonthSelection = fallback ? fallback.key : null;
+          return fallback || null;
+        }
+
+        function updateGoalMonthNavigation(goal1, selectedMonth) {
+          if (!dom.goalMonthNav || !dom.goalMonthPrev || !dom.goalMonthNext || !dom.goalMonthLabel) {
+            return;
+          }
+          const months = goal1 && Array.isArray(goal1.months) ? goal1.months : [];
+          if (!months.length || !selectedMonth) {
+            dom.goalMonthNav.hidden = true;
+            dom.goalMonthLabel.textContent = "Latest month";
+            dom.goalMonthPrev.disabled = true;
+            dom.goalMonthNext.disabled = true;
+            return;
+          }
+          const currentIndex = months.findIndex(month => month.key === selectedMonth.key);
+          const safeIndex = currentIndex >= 0 ? currentIndex : months.length - 1;
+          dom.goalMonthNav.hidden = false;
+          dom.goalMonthLabel.textContent = selectedMonth.label || selectedMonth.key || "Month";
+          dom.goalMonthPrev.disabled = safeIndex <= 0;
+          dom.goalMonthNext.disabled = safeIndex >= months.length - 1;
+        }
+
+        function shiftGoalMonth(step) {
+          const goalMetrics = state.latestGoalMetrics;
+          const goal1 = goalMetrics && goalMetrics.goal1 ? goalMetrics.goal1 : null;
+          const months = goal1 && Array.isArray(goal1.months) ? goal1.months : [];
+          if (!months.length) {
+            return;
+          }
+          const currentIndex = months.findIndex(month => month.key === state.goalMonthSelection);
+          const safeIndex = currentIndex >= 0 ? currentIndex : months.length - 1;
+          const nextIndex = Math.max(0, Math.min(months.length - 1, safeIndex + step));
+          if (nextIndex === safeIndex) {
+            return;
+          }
+          state.goalMonthSelection = months[nextIndex].key;
+          renderGoalCards(goalMetrics);
+        }
+
+        function formatGoalWeekLabel(weekKey, fallbackDate) {
+          if (typeof weekKey === "string") {
+            const match = weekKey.match(/^(\d{4})-W(\d{2})$/);
+            if (match) {
+              return `W${match[2]} ${match[1]}`;
+            }
+            return weekKey;
+          }
+          if (fallbackDate instanceof Date) {
+            const iso = toIsoWeek(fallbackDate);
+            return `W${pad(iso.week)} ${iso.year}`;
+          }
+          return "Week";
+        }
+
+        function getSelectedGoalWeek(goal1) {
+          const weekly = goal1 && Array.isArray(goal1.weekly) ? goal1.weekly : [];
+          if (!weekly.length) {
+            state.goalWeekSelection = null;
+            return null;
+          }
+          const existingIndex = weekly.findIndex(week => week.weekKey === state.goalWeekSelection);
+          if (existingIndex >= 0) {
+            return weekly[existingIndex];
+          }
+          const fallback = weekly[weekly.length - 1];
+          state.goalWeekSelection = fallback ? fallback.weekKey : null;
+          return fallback || null;
+        }
+
+        function updateGoalWeekNavigation(goal1, selectedWeek) {
+          if (!dom.goalWeekNav || !dom.goalWeekPrev || !dom.goalWeekNext || !dom.goalWeekLabel) {
+            return;
+          }
+          const weekly = goal1 && Array.isArray(goal1.weekly) ? goal1.weekly : [];
+          if (!weekly.length || !selectedWeek) {
+            dom.goalWeekNav.hidden = true;
+            dom.goalWeekLabel.textContent = "Latest week";
+            dom.goalWeekPrev.disabled = true;
+            dom.goalWeekNext.disabled = true;
+            return;
+          }
+          const currentIndex = weekly.findIndex(week => week.weekKey === selectedWeek.weekKey);
+          const safeIndex = currentIndex >= 0 ? currentIndex : weekly.length - 1;
+          dom.goalWeekNav.hidden = false;
+          dom.goalWeekLabel.textContent = formatGoalWeekLabel(selectedWeek.weekKey, selectedWeek.date);
+          dom.goalWeekPrev.disabled = safeIndex <= 0;
+          dom.goalWeekNext.disabled = safeIndex >= weekly.length - 1;
+        }
+
+        function shiftGoalWeek(step) {
+          const goalMetrics = state.latestGoalMetrics;
+          const goal1 = goalMetrics && goalMetrics.goal1 ? goalMetrics.goal1 : null;
+          const weekly = goal1 && Array.isArray(goal1.weekly) ? goal1.weekly : [];
+          if (!weekly.length) {
+            return;
+          }
+          const currentIndex = weekly.findIndex(week => week.weekKey === state.goalWeekSelection);
+          const safeIndex = currentIndex >= 0 ? currentIndex : weekly.length - 1;
+          const nextIndex = Math.max(0, Math.min(weekly.length - 1, safeIndex + step));
+          if (nextIndex === safeIndex) {
+            return;
+          }
+          state.goalWeekSelection = weekly[nextIndex].weekKey;
+          renderGoalCards(goalMetrics);
+        }
+
+        function renderGoalTrend(weekly) {
+          if (!dom.goal1Trend) {
+            return;
+          }
+          dom.goal1Trend.innerHTML = "";
+          const entries = Array.isArray(weekly) ? weekly.slice(-GOAL_REQUIRED_WEEKS) : [];
+          const fragment = document.createDocumentFragment();
+          const placeholdersNeeded = Math.max(0, GOAL_REQUIRED_WEEKS - entries.length);
+          for (let index = 0; index < placeholdersNeeded; index += 1) {
+            const placeholder = document.createElement("div");
+            placeholder.className = "goal-trend__item";
+            const labelNode = document.createElement("span");
+            labelNode.className = "goal-trend__item-label";
+            labelNode.textContent = "Week";
+            const valueNode = document.createElement("span");
+            valueNode.className = "goal-trend__item-value";
+            valueNode.textContent = "-";
+            placeholder.append(labelNode, valueNode);
+            fragment.appendChild(placeholder);
+          }
+          entries.forEach(entry => {
+            const item = document.createElement("div");
+            item.className = `goal-trend__item${entry.metTarget ? " is-pass" : ""}`;
+            const weekLabel = formatGoalWeekLabel(entry.weekKey, entry.date);
+            const value = Number.isFinite(entry.attainmentPct) ? `${entry.attainmentPct.toFixed(1)}%` : "-";
+            const labelNode = document.createElement("span");
+            labelNode.className = "goal-trend__item-label";
+            labelNode.textContent = weekLabel;
+            const valueNode = document.createElement("span");
+            valueNode.className = "goal-trend__item-value";
+            valueNode.textContent = value;
+            item.append(labelNode, valueNode);
+            fragment.appendChild(item);
+          });
+          dom.goal1Trend.appendChild(fragment);
+        }
+
+        function updateGoalMonthlyChart(goal1, selectedMonth) {
+          const chart = state.charts.goal1Monthly;
+          if (!chart || !dom.goal1MonthlyChartWrap) {
+            return;
+          }
+          const months = goal1 && Array.isArray(goal1.months) ? goal1.months : [];
+          if (!months.length) {
+            chart.data.labels = [];
+            if (chart.data.datasets && chart.data.datasets[0]) {
+              chart.data.datasets[0].data = [];
+            }
+            if (chart.data.datasets && chart.data.datasets[1]) {
+              chart.data.datasets[1].data = [];
+            }
+            chart.update("none");
+            dom.goal1MonthlyChartWrap.hidden = true;
+            if (dom.goal1MonthlyChartNote) {
+              dom.goal1MonthlyChartNote.hidden = true;
+              dom.goal1MonthlyChartNote.textContent = "";
+            }
+            return;
+          }
+          dom.goal1MonthlyChartWrap.hidden = false;
+          const selectedKey = selectedMonth && selectedMonth.key ? selectedMonth.key : null;
+          const labels = months.map(month => month.label || month.key || "");
+          const values = months.map(month => (
+            Number.isFinite(month.attainmentPct)
+              ? Number(month.attainmentPct.toFixed(1))
+              : 0
+          ));
+          const targetValues = months.map(() => 100);
+          const pointRadii = months.map(month => (selectedKey && month.key === selectedKey ? 5 : 3));
+          const pointHoverRadii = months.map(month => (selectedKey && month.key === selectedKey ? 7 : 5));
+          const pointBackground = months.map(month => (selectedKey && month.key === selectedKey ? getCssVariableValue("--green-600", "#008A00") : "#ffffff"));
+          const pointBorderWidths = months.map(month => (selectedKey && month.key === selectedKey ? 2 : 1));
+          chart.data.labels = labels;
+          if (chart.data.datasets && chart.data.datasets[0]) {
+            chart.data.datasets[0].data = values;
+            chart.data.datasets[0].pointRadius = pointRadii;
+            chart.data.datasets[0].pointHoverRadius = pointHoverRadii;
+            chart.data.datasets[0].pointBackgroundColor = pointBackground;
+            chart.data.datasets[0].pointBorderWidth = pointBorderWidths;
+          }
+          if (chart.data.datasets && chart.data.datasets[1]) {
+            chart.data.datasets[1].data = targetValues;
+          }
+          chart.update("none");
+          if (dom.goal1MonthlyChartNote) {
+            dom.goal1MonthlyChartNote.hidden = false;
+            if (selectedMonth && selectedMonth.label) {
+              dom.goal1MonthlyChartNote.textContent = `Monthly compliant reach trend. Selected month: ${selectedMonth.label}.`;
+            } else {
+              dom.goal1MonthlyChartNote.textContent = "Monthly compliant reach trend.";
+            }
+          }
+        }
+
+        function updateGoalWeeklyChart(goal1, selectedWeek) {
+          const chart = state.charts.goal1Weekly;
+          if (!chart || !dom.goal1WeeklyChartWrap) {
+            return;
+          }
+          const weekly = goal1 && Array.isArray(goal1.weekly) ? goal1.weekly : [];
+          if (!weekly.length) {
+            chart.data.labels = [];
+            if (chart.data.datasets && chart.data.datasets[0]) {
+              chart.data.datasets[0].data = [];
+            }
+            if (chart.data.datasets && chart.data.datasets[1]) {
+              chart.data.datasets[1].data = [];
+            }
+            chart.update("none");
+            dom.goal1WeeklyChartWrap.hidden = true;
+            if (dom.goal1WeeklyChartNote) {
+              dom.goal1WeeklyChartNote.hidden = true;
+              dom.goal1WeeklyChartNote.textContent = "";
+            }
+            return;
+          }
+          dom.goal1WeeklyChartWrap.hidden = false;
+          const selectedKey = selectedWeek && selectedWeek.weekKey ? selectedWeek.weekKey : null;
+          const labels = weekly.map(week => formatGoalWeekLabel(week.weekKey, week.date));
+          const values = weekly.map(week => (
+            Number.isFinite(week.attainmentPct)
+              ? Number(week.attainmentPct.toFixed(1))
+              : 0
+          ));
+          const targetValues = weekly.map(() => 100);
+          const pointRadii = weekly.map(week => (selectedKey && week.weekKey === selectedKey ? 5 : 3));
+          const pointHoverRadii = weekly.map(week => (selectedKey && week.weekKey === selectedKey ? 7 : 5));
+          const pointBackground = weekly.map(week => (selectedKey && week.weekKey === selectedKey ? getCssVariableValue("--green-600", "#008A00") : "#ffffff"));
+          const pointBorderWidths = weekly.map(week => (selectedKey && week.weekKey === selectedKey ? 2 : 1));
+          chart.data.labels = labels;
+          if (chart.data.datasets && chart.data.datasets[0]) {
+            chart.data.datasets[0].data = values;
+            chart.data.datasets[0].pointRadius = pointRadii;
+            chart.data.datasets[0].pointHoverRadius = pointHoverRadii;
+            chart.data.datasets[0].pointBackgroundColor = pointBackground;
+            chart.data.datasets[0].pointBorderWidth = pointBorderWidths;
+          }
+          if (chart.data.datasets && chart.data.datasets[1]) {
+            chart.data.datasets[1].data = targetValues;
+          }
+          chart.update("none");
+          if (dom.goal1WeeklyChartNote) {
+            dom.goal1WeeklyChartNote.hidden = false;
+            if (selectedWeek && selectedWeek.weekKey) {
+              dom.goal1WeeklyChartNote.textContent = `Weekly sparkline (attainment vs 100% target). Selected: ${formatGoalWeekLabel(selectedWeek.weekKey, selectedWeek.date)}.`;
+            } else {
+              dom.goal1WeeklyChartNote.textContent = "Weekly sparkline (attainment vs 100% target).";
+            }
+          }
+        }
+
+        function renderGoalCards(goalMetrics) {
+          if (!dom.goalsCard) {
+            return;
+          }
+          const metrics = goalMetrics && typeof goalMetrics === "object" ? goalMetrics : createDefaultGoalMetrics();
+          const goal1 = metrics.goal1 || createDefaultGoalMetrics().goal1;
+          const hasGoal1 = Array.isArray(goal1.weekly) && goal1.weekly.length > 0;
+          const selectedMonth = hasGoal1 ? getSelectedGoalMonth(goal1) : null;
+          const selectedWeek = hasGoal1 ? getSelectedGoalWeek(goal1) : null;
+          updateGoalMonthNavigation(goal1, selectedMonth);
+          updateGoalWeekNavigation(goal1, selectedWeek);
+          setButtonEnabled(dom.goalsExportCsv, hasGoal1);
+
+          if (dom.goalsCaption) {
+            if (!hasGoal1) {
+              dom.goalsCaption.textContent = "Upload data to compute weekly goal attainment.";
+            } else {
+              const monthLabel = selectedMonth && selectedMonth.label ? selectedMonth.label : "selected month";
+              const weekLabel = selectedWeek ? formatGoalWeekLabel(selectedWeek.weekKey, selectedWeek.date) : "selected week";
+              dom.goalsCaption.textContent = `Monthly panel shows compliant-user reach for ${monthLabel}. Weekly panel shows ${weekLabel}. Weekly attainment is strict (>=1 Copilot activity + >=1 active day).`;
+            }
+          }
+
+          const periodSummary = goal1.periodSummary || { targetedUsers: 0, compliantUsers: 0, attainmentPct: 0 };
+          const weeks = Array.isArray(goal1.weekly) ? goal1.weekly : [];
+          const selectedSummary = selectedMonth
+            ? {
+                targetedUsers: selectedMonth.targetedUsers,
+                compliantUsers: selectedMonth.compliantUsers,
+                attainmentPct: selectedMonth.attainmentPct
+              }
+            : periodSummary;
+          const selectedAttainment = Number.isFinite(selectedSummary.attainmentPct) ? selectedSummary.attainmentPct : 0;
+          const gapUsersRaw = Math.max(0, (selectedSummary.targetedUsers || 0) - (selectedSummary.compliantUsers || 0));
+          const gapPctRaw = Math.max(0, 100 - selectedAttainment);
+          const months = Array.isArray(goal1.months) ? goal1.months : [];
+          const selectedMonthIndex = selectedMonth ? months.findIndex(month => month.key === selectedMonth.key) : -1;
+          const previousMonth = selectedMonthIndex > 0 ? months[selectedMonthIndex - 1] : null;
+          const previousAttainment = previousMonth && Number.isFinite(previousMonth.attainmentPct) ? previousMonth.attainmentPct : null;
+          const monthDelta = previousAttainment == null ? null : selectedAttainment - previousAttainment;
+          const trendSource = selectedMonth && Array.isArray(selectedMonth.weekly) && selectedMonth.weekly.length
+            ? selectedMonth.weekly
+            : goal1.weekly;
+          const selectedWeeklySummary = selectedWeek
+            ? {
+                targetedUsers: selectedWeek.targetedUsers,
+                compliantUsers: selectedWeek.compliantUsers,
+                attainmentPct: selectedWeek.attainmentPct
+              }
+            : periodSummary;
+          const selectedWeekIndex = selectedWeek ? weeks.findIndex(week => week.weekKey === selectedWeek.weekKey) : -1;
+          const previousWeek = selectedWeekIndex > 0 ? weeks[selectedWeekIndex - 1] : null;
+          const previousWeekAttainment = previousWeek && Number.isFinite(previousWeek.attainmentPct) ? previousWeek.attainmentPct : null;
+          const weekDelta = previousWeekAttainment == null
+            ? null
+            : (Number.isFinite(selectedWeeklySummary.attainmentPct) ? selectedWeeklySummary.attainmentPct : 0) - previousWeekAttainment;
+          const selectedWeeklyAttainment = Number.isFinite(selectedWeeklySummary.attainmentPct) ? selectedWeeklySummary.attainmentPct : 0;
+          const weeklyGapUsers = Math.max(0, (selectedWeeklySummary.targetedUsers || 0) - (selectedWeeklySummary.compliantUsers || 0));
+          const weeklyGapPct = Math.max(0, 100 - selectedWeeklyAttainment);
+
+          if (dom.goal1Attainment) {
+            dom.goal1Attainment.textContent = hasGoal1
+              ? `${selectedAttainment.toFixed(1)}%`
+              : "-";
+          }
+          if (dom.goal1Ratio) {
+            const ratioPrefix = selectedMonth && selectedMonth.label
+              ? `Compliant users / targeted users (${selectedMonth.label})`
+              : "Compliant users / targeted users";
+            dom.goal1Ratio.textContent = hasGoal1
+              ? `${ratioPrefix}: ${numberFormatter.format(selectedSummary.compliantUsers)} / ${numberFormatter.format(selectedSummary.targetedUsers)}`
+              : "Compliant users / targeted users: -";
+          }
+          if (dom.goal1KpiCompliant) {
+            dom.goal1KpiCompliant.textContent = hasGoal1
+              ? numberFormatter.format(selectedSummary.compliantUsers || 0)
+              : "-";
+          }
+          if (dom.goal1KpiTargeted) {
+            dom.goal1KpiTargeted.textContent = hasGoal1
+              ? numberFormatter.format(selectedSummary.targetedUsers || 0)
+              : "-";
+          }
+          if (dom.goal1KpiGapUsers) {
+            dom.goal1KpiGapUsers.textContent = hasGoal1
+              ? `${numberFormatter.format(gapUsersRaw)} users`
+              : "-";
+          }
+          if (dom.goal1KpiGapPct) {
+            dom.goal1KpiGapPct.textContent = hasGoal1
+              ? `${gapPctRaw.toFixed(1)} pp to target`
+              : "-";
+          }
+          if (dom.goal1KpiDelta) {
+            if (!hasGoal1) {
+              dom.goal1KpiDelta.textContent = "-";
+              dom.goal1KpiDelta.classList.remove("is-positive", "is-negative");
+            } else if (monthDelta == null) {
+              dom.goal1KpiDelta.textContent = "n/a";
+              dom.goal1KpiDelta.classList.remove("is-positive", "is-negative");
+            } else {
+              const sign = monthDelta > 0 ? "+" : "";
+              dom.goal1KpiDelta.textContent = `${sign}${monthDelta.toFixed(1)} pp`;
+              dom.goal1KpiDelta.classList.toggle("is-positive", monthDelta > 0);
+              dom.goal1KpiDelta.classList.toggle("is-negative", monthDelta < 0);
+            }
+          }
+          if (dom.goal1WeeklyAttainment) {
+            dom.goal1WeeklyAttainment.textContent = hasGoal1 && selectedWeek
+              ? `${selectedWeeklyAttainment.toFixed(1)}%`
+              : "-";
+          }
+          if (dom.goal1WeeklyRatio) {
+            const ratioPrefix = selectedWeek
+              ? `Compliant / targeted (${formatGoalWeekLabel(selectedWeek.weekKey, selectedWeek.date)})`
+              : "Compliant / targeted";
+            dom.goal1WeeklyRatio.textContent = hasGoal1
+              ? `${ratioPrefix}: ${numberFormatter.format(selectedWeeklySummary.compliantUsers || 0)} / ${numberFormatter.format(selectedWeeklySummary.targetedUsers || 0)}`
+              : "Compliant / targeted: -";
+          }
+          if (dom.goal1WeeklyKpiCompliant) {
+            dom.goal1WeeklyKpiCompliant.textContent = hasGoal1
+              ? numberFormatter.format(selectedWeeklySummary.compliantUsers || 0)
+              : "-";
+          }
+          if (dom.goal1WeeklyKpiTargeted) {
+            dom.goal1WeeklyKpiTargeted.textContent = hasGoal1
+              ? numberFormatter.format(selectedWeeklySummary.targetedUsers || 0)
+              : "-";
+          }
+          if (dom.goal1WeeklyKpiGapUsers) {
+            dom.goal1WeeklyKpiGapUsers.textContent = hasGoal1
+              ? `${numberFormatter.format(weeklyGapUsers)} users`
+              : "-";
+          }
+          if (dom.goal1WeeklyKpiGapPct) {
+            dom.goal1WeeklyKpiGapPct.textContent = hasGoal1
+              ? `${weeklyGapPct.toFixed(1)} pp to target`
+              : "-";
+          }
+          if (dom.goal1WeeklyKpiDelta) {
+            if (!hasGoal1) {
+              dom.goal1WeeklyKpiDelta.textContent = "-";
+              dom.goal1WeeklyKpiDelta.classList.remove("is-positive", "is-negative");
+            } else if (weekDelta == null) {
+              dom.goal1WeeklyKpiDelta.textContent = "n/a";
+              dom.goal1WeeklyKpiDelta.classList.remove("is-positive", "is-negative");
+            } else {
+              const sign = weekDelta > 0 ? "+" : "";
+              dom.goal1WeeklyKpiDelta.textContent = `${sign}${weekDelta.toFixed(1)} pp`;
+              dom.goal1WeeklyKpiDelta.classList.toggle("is-positive", weekDelta > 0);
+              dom.goal1WeeklyKpiDelta.classList.toggle("is-negative", weekDelta < 0);
+            }
+          }
+          if (dom.goal1Sustained) {
+            const sustained = selectedMonth && selectedMonth.sustained4of4
+              ? selectedMonth.sustained4of4
+              : (goal1.sustained4of4 || { status: GOAL_STATUS.INSUFFICIENT_DATA, windowWeeks: [] });
+            if (sustained.status === GOAL_STATUS.PASS) {
+              dom.goal1Sustained.textContent = "Sustained 4/4 weeks";
+            } else if (sustained.status === GOAL_STATUS.FAIL) {
+              dom.goal1Sustained.textContent = "Not sustained across last 4 weeks";
+            } else {
+              const availableWeeks = Array.isArray(trendSource) ? trendSource.length : 0;
+              dom.goal1Sustained.textContent = `Need ${GOAL_REQUIRED_WEEKS} weeks (current: ${availableWeeks})`;
+            }
+          }
+          if (dom.goal1WeeklyStatus) {
+            dom.goal1WeeklyStatus.classList.remove("goal-status-pass", "goal-status-fail", "goal-status-neutral", "is-muted");
+            if (!hasGoal1 || !selectedWeek) {
+              dom.goal1WeeklyStatus.textContent = "Awaiting dataset.";
+              dom.goal1WeeklyStatus.classList.add("goal-status-neutral");
+            } else if ((selectedWeek.targetedUsers || 0) === 0) {
+              dom.goal1WeeklyStatus.textContent = "No targeted users in selected week";
+              dom.goal1WeeklyStatus.classList.add("goal-status-neutral");
+            } else if (selectedWeek.metTarget) {
+              dom.goal1WeeklyStatus.textContent = "On target this week";
+              dom.goal1WeeklyStatus.classList.add("goal-status-pass");
+            } else {
+              dom.goal1WeeklyStatus.textContent = `${numberFormatter.format(weeklyGapUsers)} users short of 100% this week`;
+              dom.goal1WeeklyStatus.classList.add("goal-status-fail");
+            }
+          }
+          renderGoalTrend(trendSource);
+          updateGoalMonthlyChart(goal1, selectedMonth);
+          updateGoalWeeklyChart(goal1, selectedWeek);
+        }
+
+        function exportGoalMetricsCsv() {
+          const goalMetrics = state.latestGoalMetrics;
+          const goal1 = goalMetrics && goalMetrics.goal1 ? goalMetrics.goal1 : null;
+          const weekly = goal1 && Array.isArray(goal1.weekly) ? goal1.weekly : [];
+          const focusedWeek = weekly.find(entry => entry.weekKey === state.goalWeekSelection) || null;
+          const focusedMonth = goal1 && Array.isArray(goal1.months)
+            ? goal1.months.find(month => month.key === state.goalMonthSelection) || null
+            : null;
+          if (!weekly.length) {
+            return;
+          }
+          const rows = weekly.map(entry => [
+            GOAL_DEFINITIONS.goal1.id,
+            GOAL_DEFINITIONS.goal1.statement,
+            entry.weekKey || "",
+            Number.isFinite(entry.compliantUsers) ? Math.round(entry.compliantUsers) : 0,
+            Number.isFinite(entry.targetedUsers) ? Math.round(entry.targetedUsers) : 0,
+            Number.isFinite(entry.attainmentPct) ? `${entry.attainmentPct.toFixed(1)}%` : "",
+            entry.metTarget ? "YES" : "NO",
+            String(GOAL_MIN_WEEKLY_ACTIVITY_EVENTS),
+            String(GOAL_MIN_WEEKLY_ACTIVE_DAYS)
+          ]);
+          if (focusedWeek) {
+            rows.push([
+              GOAL_DEFINITIONS.goal1.id,
+              `Selected week compliant reach (${formatGoalWeekLabel(focusedWeek.weekKey, focusedWeek.date)})`,
+              focusedWeek.weekKey || "",
+              Number.isFinite(focusedWeek.compliantUsers) ? Math.round(focusedWeek.compliantUsers) : 0,
+              Number.isFinite(focusedWeek.targetedUsers) ? Math.round(focusedWeek.targetedUsers) : 0,
+              Number.isFinite(focusedWeek.attainmentPct) ? `${focusedWeek.attainmentPct.toFixed(1)}%` : "",
+              focusedWeek.metTarget ? "YES" : "NO",
+              String(GOAL_MIN_WEEKLY_ACTIVITY_EVENTS),
+              String(GOAL_MIN_WEEKLY_ACTIVE_DAYS)
+            ]);
+          }
+          if (focusedMonth) {
+            rows.push([
+              GOAL_DEFINITIONS.goal1.id,
+              `Selected month compliant reach (${focusedMonth.label || focusedMonth.key || "Month"})`,
+              "",
+              Number.isFinite(focusedMonth.compliantUsers) ? Math.round(focusedMonth.compliantUsers) : 0,
+              Number.isFinite(focusedMonth.targetedUsers) ? Math.round(focusedMonth.targetedUsers) : 0,
+              Number.isFinite(focusedMonth.attainmentPct) ? `${focusedMonth.attainmentPct.toFixed(1)}%` : "",
+              "",
+              String(GOAL_MIN_WEEKLY_ACTIVITY_EVENTS),
+              String(GOAL_MIN_WEEKLY_ACTIVE_DAYS)
+            ]);
+          }
+          const periodSummary = goal1.periodSummary || { targetedUsers: 0, compliantUsers: 0, attainmentPct: 0 };
+          rows.push([
+            GOAL_DEFINITIONS.goal1.id,
+            "Selected period compliant reach",
+            "",
+            Number.isFinite(periodSummary.compliantUsers) ? Math.round(periodSummary.compliantUsers) : 0,
+            Number.isFinite(periodSummary.targetedUsers) ? Math.round(periodSummary.targetedUsers) : 0,
+            Number.isFinite(periodSummary.attainmentPct) ? `${periodSummary.attainmentPct.toFixed(1)}%` : "",
+            "",
+            String(GOAL_MIN_WEEKLY_ACTIVITY_EVENTS),
+            String(GOAL_MIN_WEEKLY_ACTIVE_DAYS)
+          ]);
+          const sustainedStatus = goal1.sustained4of4 && goal1.sustained4of4.status
+            ? goal1.sustained4of4.status
+            : GOAL_STATUS.INSUFFICIENT_DATA;
+          rows.push([
+            GOAL_DEFINITIONS.goal1.id,
+            "Sustained 4/4 weeks",
+            "",
+            "",
+            "",
+            sustainedStatus,
+            "",
+            "",
+            ""
+          ]);
+          downloadCsv(
+            "copilot-goals-tracker.csv",
+            [
+              "Goal",
+              "Goal statement",
+              "Week",
+              "Compliant users",
+              "Targeted users",
+              "Attainment",
+              "Status",
+              "Activity threshold (weekly)",
+              "Active days threshold (weekly)"
+            ],
+            rows
+          );
         }
 
         function exportReturningUsersCsv() {

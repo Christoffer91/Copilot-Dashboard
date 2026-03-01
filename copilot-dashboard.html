@@ -29,7 +29,7 @@
   />
   <link rel="stylesheet" href="../assets/chansen-ui.css?v=20260123a" />
   <script src="../assets/chansen-ui-theme.js?v=20260123a"></script>
-  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20260213b" />
+  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20260301a" />
   <script
     src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
     crossorigin="anonymous"
@@ -300,6 +300,93 @@
         </span>
         <span class="summary-note" data-summary-latest-note>Ready after parsing.</span>
       </article>
+    </section>
+
+    <section class="trend-card insight-card goals-card" aria-label="Goals tracker" data-goals-card>
+      <header class="card-header-with-actions">
+        <div>
+          <h2 class="chart-title">Goals tracker</h2>
+          <p class="chart-subtitle" data-goals-caption>Track progress against operational Copilot adoption goals.</p>
+        </div>
+        <div class="card-header-actions">
+          <div class="goal-month-nav" data-goal-month-nav hidden>
+            <button type="button" class="goal-month-nav__button" data-goal-month-prev aria-label="Previous month">&#9664;</button>
+            <span class="goal-month-nav__label" data-goal-month-label>Latest month</span>
+            <button type="button" class="goal-month-nav__button" data-goal-month-next aria-label="Next month">&#9654;</button>
+          </div>
+          <button type="button" class="storage-button storage-button--inline" data-goals-export-csv>Download goals CSV</button>
+        </div>
+      </header>
+      <div class="goals-grid">
+        <article class="goal-panel" data-goal-card="goal1">
+          <h3 class="goal-panel__title">Goal 1: Daily Copilot usage (targeted users)</h3>
+          <p class="goal-panel__description">100% of targeted employees use Copilot in daily work.</p>
+          <div class="goal-panel__value" data-goal1-attainment>-</div>
+          <p class="goal-panel__meta" data-goal1-ratio>Compliant users / targeted users: -</p>
+          <div class="goal-kpi-row" data-goal1-kpi-row>
+            <div class="goal-kpi-tile">
+              <span class="goal-kpi-tile__label">Compliant users</span>
+              <strong class="goal-kpi-tile__value" data-goal1-kpi-compliant>-</strong>
+            </div>
+            <div class="goal-kpi-tile">
+              <span class="goal-kpi-tile__label">Targeted users</span>
+              <strong class="goal-kpi-tile__value" data-goal1-kpi-targeted>-</strong>
+            </div>
+            <div class="goal-kpi-tile">
+              <span class="goal-kpi-tile__label">Gap to 100%</span>
+              <strong class="goal-kpi-tile__value" data-goal1-kpi-gap-users>-</strong>
+              <span class="goal-kpi-tile__hint" data-goal1-kpi-gap-pct>-</span>
+            </div>
+            <div class="goal-kpi-tile">
+              <span class="goal-kpi-tile__label">Vs previous month</span>
+              <strong class="goal-kpi-tile__value" data-goal1-kpi-delta>-</strong>
+            </div>
+          </div>
+          <div class="goal-panel__badge chip is-muted" data-goal1-sustained>Awaiting dataset.</div>
+          <div class="goal-trend" data-goal1-trend></div>
+          <div class="goal-monthly-chart" data-goal1-monthly-chart-wrap hidden>
+            <canvas data-goal1-monthly-chart aria-label="Goal 1 monthly attainment trend"></canvas>
+          </div>
+          <p class="goal-panel__meta goal-panel__meta--chart" data-goal1-monthly-chart-note hidden></p>
+        </article>
+        <article class="goal-panel" data-goal-card="goal1-weekly">
+          <h3 class="goal-panel__title">Goal 1: Weekly compliant reach</h3>
+          <p class="goal-panel__description">Selected week compliant reach against targeted users.</p>
+          <div class="goal-panel__subheader">
+            <div class="goal-month-nav goal-month-nav--inline" data-goal-week-nav hidden>
+              <button type="button" class="goal-month-nav__button" data-goal-week-prev aria-label="Previous week">&#9664;</button>
+              <span class="goal-month-nav__label" data-goal-week-label>Latest week</span>
+              <button type="button" class="goal-month-nav__button" data-goal-week-next aria-label="Next week">&#9654;</button>
+            </div>
+          </div>
+          <div class="goal-panel__value" data-goal1-weekly-attainment>-</div>
+          <p class="goal-panel__meta" data-goal1-weekly-ratio>Compliant / targeted users: -</p>
+          <div class="goal-kpi-row">
+            <div class="goal-kpi-tile">
+              <span class="goal-kpi-tile__label">Compliant</span>
+              <strong class="goal-kpi-tile__value" data-goal1-weekly-kpi-compliant>-</strong>
+            </div>
+            <div class="goal-kpi-tile">
+              <span class="goal-kpi-tile__label">Targeted</span>
+              <strong class="goal-kpi-tile__value" data-goal1-weekly-kpi-targeted>-</strong>
+            </div>
+            <div class="goal-kpi-tile">
+              <span class="goal-kpi-tile__label">Gap</span>
+              <strong class="goal-kpi-tile__value" data-goal1-weekly-kpi-gap-users>-</strong>
+              <span class="goal-kpi-tile__hint" data-goal1-weekly-kpi-gap-pct>-</span>
+            </div>
+            <div class="goal-kpi-tile">
+              <span class="goal-kpi-tile__label">WoW delta</span>
+              <strong class="goal-kpi-tile__value" data-goal1-weekly-kpi-delta>-</strong>
+            </div>
+          </div>
+          <div class="goal-panel__badge chip is-muted" data-goal1-weekly-status>Awaiting dataset.</div>
+          <div class="goal-monthly-chart goal-weekly-sparkline" data-goal1-weekly-chart-wrap hidden>
+            <canvas data-goal1-weekly-chart aria-label="Goal 1 weekly attainment trend"></canvas>
+          </div>
+          <p class="goal-panel__meta goal-panel__meta--chart" data-goal1-weekly-chart-note hidden></p>
+        </article>
+      </div>
     </section>
 
     <section class="trend-card" aria-label="Impact trend">
@@ -1275,6 +1362,6 @@
   ></script>
   <script defer src="assets/sharepoint-static-assets.js"></script>
   <script defer src="assets/vendor/fflate.min.js"></script>
-  <script defer src="assets/copilot-dashboard.js?v=20260219b"></script>
+  <script defer src="assets/copilot-dashboard.js?v=20260301a"></script>
 </body>
 </html>

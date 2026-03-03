@@ -2787,6 +2787,19 @@ body.is-custom-theme {
       padding-left: 21px;
     }
 
+    .goal-panel__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .goal-panel__header .goal-month-nav {
+      margin-right: 0;
+      margin-left: 8px;
+      flex-shrink: 0;
+    }
+
     body[class*="is-dark"] .goal-panel {
       border-color: rgba(96, 108, 124, 0.28);
     }
@@ -2812,13 +2825,6 @@ body.is-custom-theme {
 
     body[class*="is-dark"] .goal-panel__description {
       border-color: rgba(96, 108, 124, 0.15);
-    }
-
-    .goal-panel__subheader {
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 28px;
     }
 
     .goal-month-nav--inline {
@@ -3084,6 +3090,15 @@ body.is-custom-theme {
     }
 
     @media (max-width: 640px) {
+      .goal-panel__header {
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .goal-panel__header .goal-month-nav {
+        margin-left: 0;
+      }
+
       .goal-kpi-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }

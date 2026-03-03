@@ -309,17 +309,19 @@
           <p class="chart-subtitle" data-goals-caption>Track progress against operational Copilot adoption goals.</p>
         </div>
         <div class="card-header-actions">
-          <div class="goal-month-nav" data-goal-month-nav hidden>
-            <button type="button" class="goal-month-nav__button" data-goal-month-prev aria-label="Previous month">&#9664;</button>
-            <span class="goal-month-nav__label" data-goal-month-label>Latest month</span>
-            <button type="button" class="goal-month-nav__button" data-goal-month-next aria-label="Next month">&#9654;</button>
-          </div>
           <button type="button" class="storage-button storage-button--inline" data-goals-export-csv>Download goals CSV</button>
         </div>
       </header>
       <div class="goals-grid">
         <article class="goal-panel" data-goal-card="goal1">
-          <h3 class="goal-panel__title">Goal 1: Daily Copilot usage (targeted users)</h3>
+          <div class="goal-panel__header">
+            <h3 class="goal-panel__title">Goal 1: Daily Copilot usage (targeted users)</h3>
+            <div class="goal-month-nav" data-goal-month-nav hidden>
+              <button type="button" class="goal-month-nav__button" data-goal-month-prev aria-label="Previous month">&#9664;</button>
+              <span class="goal-month-nav__label" data-goal-month-label>Latest month</span>
+              <button type="button" class="goal-month-nav__button" data-goal-month-next aria-label="Next month">&#9654;</button>
+            </div>
+          </div>
           <p class="goal-panel__description">100% of targeted employees use Copilot in daily work.</p>
           <div class="goal-panel__value" data-goal1-attainment>-</div>
           <p class="goal-panel__meta" data-goal1-ratio>Compliant users / targeted users: -</p>
@@ -350,15 +352,15 @@
           <p class="goal-panel__meta goal-panel__meta--chart" data-goal1-monthly-chart-note hidden></p>
         </article>
         <article class="goal-panel" data-goal-card="goal1-weekly">
-          <h3 class="goal-panel__title">Goal 1: Weekly compliant reach</h3>
-          <p class="goal-panel__description">Selected week compliant reach against targeted users.</p>
-          <div class="goal-panel__subheader">
+          <div class="goal-panel__header">
+            <h3 class="goal-panel__title">Goal 1: Weekly compliant reach</h3>
             <div class="goal-month-nav goal-month-nav--inline" data-goal-week-nav hidden>
               <button type="button" class="goal-month-nav__button" data-goal-week-prev aria-label="Previous week">&#9664;</button>
               <span class="goal-month-nav__label" data-goal-week-label>Latest week</span>
               <button type="button" class="goal-month-nav__button" data-goal-week-next aria-label="Next week">&#9654;</button>
             </div>
           </div>
+          <p class="goal-panel__description">Selected week compliant reach against targeted users.</p>
           <div class="goal-panel__value" data-goal1-weekly-attainment>-</div>
           <p class="goal-panel__meta" data-goal1-weekly-ratio>Compliant / targeted users: -</p>
           <div class="goal-kpi-row">

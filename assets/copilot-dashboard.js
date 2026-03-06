@@ -191,6 +191,11 @@
             seriesDetailMode: "respect",
             returningMetric: "total",
             returningInterval: DEFAULT_RETURNING_INTERVAL,
+            returningScaleMode: "smart",
+            returningSelection: {
+              weekly: null,
+              monthly: null
+            },
             groupsExpanded: false,
             topUsersExpanded: false,
             activeDaysView: "users",
@@ -3001,6 +3006,7 @@
             returningCaption: document.querySelector("[data-returning-caption]"),
             returningMetricButtons: document.querySelectorAll("[data-returning-metric-button]"),
             returningIntervalButtons: document.querySelectorAll("[data-returning-interval]"),
+            returningScaleButtons: document.querySelectorAll("[data-returning-scale]"),
             returningEmpty: document.querySelector("[data-returning-empty]"),
             returningSummary: document.querySelector("[data-returning-summary]"),
             returningRegionControls: document.querySelector("[data-returning-region-controls]"),
@@ -4111,8 +4117,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           if (returningUsersCtx) {
             const axisTickColor = getCssVariableValue("--text-muted", "#4D575D");
             const axisGridColor = getCssVariableValue("--grid-color", "rgba(153, 208, 153, 0.18)");
-            const lineColor = getCssVariableValue("--blue-500", "#3A84C1");
-            const fillColor = hexToRgba(colorStringToHex(lineColor) || "#3A84C1", 0.15) || "rgba(58, 132, 193, 0.15)";
+            const lineColor = getCssVariableValue("--green-600", "#008A00");
+            const fillColor = hexToRgba(colorStringToHex(lineColor) || "#008A00", 0.15) || "rgba(0, 138, 0, 0.15)";
             state.charts.returningUsers = new Chart(returningUsersCtx, {
               type: "line",
               data: {
@@ -4169,6 +4175,21 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                         return `${numberFormatter.format(value)} returning users`;
                       }
                     }
+                  }
+                },
+                onClick: (_event, elements, chart) => {
+                  if (!elements || !elements.length) {
+                    return;
+                  }
+                  const selectedIndex = elements[0].index;
+                  const selectedKey = chart?.data?.datasets?.[0]?.keys?.[selectedIndex];
+                  const interval = state.returningInterval === "monthly" ? "monthly" : "weekly";
+                  if (!selectedKey) {
+                    return;
+                  }
+                  state.returningSelection[interval] = selectedKey;
+                  if (state.latestReturningAggregates) {
+                    updateReturningUsers(state.latestReturningAggregates);
                   }
                 },
                 interaction: {
@@ -5035,6 +5056,22 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   updateReturningUsers(state.latestReturningAggregates);
                 } else {
                   updateReturningUsers(null);
+                }
+              });
+            });
+          }
+
+          if (dom.returningScaleButtons && dom.returningScaleButtons.length) {
+            dom.returningScaleButtons.forEach(button => {
+              button.addEventListener("click", () => {
+                const scaleMode = button.dataset.returningScale === "full" ? "full" : "smart";
+                if (state.returningScaleMode === scaleMode) {
+                  return;
+                }
+                state.returningScaleMode = scaleMode;
+                updateReturningScaleToggleState();
+                if (state.latestReturningAggregates) {
+                  updateReturningUsers(state.latestReturningAggregates);
                 }
               });
             });
@@ -10297,6 +10334,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             syncUsageThresholdInputs();
             updateReturningMetricToggleState();
             updateReturningIntervalToggleState();
+            updateReturningScaleToggleState();
             if (state.filters.metric === "adoption" && state.trendView !== "total") {
               state.trendView = "total";
             }
@@ -11842,7 +11880,31 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               card.classList.toggle("is-empty", !hasPositive);
             });
           };
-      
+
+          function createAdoptionMetric(valueText, percent, accentColor) {
+            const wrapper = document.createElement("span");
+            wrapper.className = "adoption-metric";
+
+            const value = document.createElement("span");
+            value.className = "adoption-metric__value";
+            value.textContent = valueText;
+
+            const track = document.createElement("span");
+            track.className = "adoption-metric__track";
+
+            const fill = document.createElement("span");
+            fill.className = "adoption-metric__fill";
+            const safePercent = Math.max(0, Math.min(100, Number(percent) || 0));
+            fill.style.width = `${safePercent}%`;
+            if (accentColor) {
+              fill.style.backgroundColor = accentColor;
+            }
+
+            track.appendChild(fill);
+            wrapper.append(value, track);
+            return wrapper;
+          }
+
           function buildTopUsersList(users) {
             const container = dom.topUsers;
             if (!container) {
@@ -11988,14 +12050,21 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               appRow.dataset.appKey = app.key || "";
               appRow.style.setProperty("--adoption-accent", accentColor);
               const nameCell = document.createElement("td");
+              nameCell.dataset.label = "Apps & capabilities";
               nameCell.textContent = app.label || app.key || "Unnamed app";
               const usersCell = document.createElement("td");
               usersCell.className = "is-numeric";
+              usersCell.dataset.label = "Active users";
               usersCell.textContent = numberFormatter.format(app.users || 0);
               const shareCell = document.createElement("td");
               shareCell.className = "is-numeric";
+              shareCell.dataset.label = "% of active users";
               const appShare = Number.isFinite(app.share) ? app.share : 0;
-              shareCell.textContent = `${Math.max(0, Math.min(100, appShare)).toFixed(1)}%`;
+              shareCell.appendChild(createAdoptionMetric(
+                `${Math.max(0, Math.min(100, appShare)).toFixed(1)}%`,
+                appShare,
+                accentColor
+              ));
               appRow.append(nameCell, usersCell, shareCell);
               fragment.append(appRow);
       
@@ -12008,6 +12077,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   featureRow.style.setProperty("--adoption-accent", accentColor);
                   featureRow.hidden = !showDetails;
                   const featureNameCell = document.createElement("td");
+                  featureNameCell.dataset.label = "Apps & capabilities";
                   const featureLabel = document.createElement("span");
                   featureLabel.className = "adoption-label";
                   const bullet = document.createElement("span");
@@ -12017,16 +12087,22 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   featureText.textContent = feature.label || feature.key || "Capability";
                   featureLabel.append(bullet, featureText);
                   featureNameCell.append(featureLabel);
-      
+
                   const featureUsersCell = document.createElement("td");
                   featureUsersCell.className = "is-numeric";
+                  featureUsersCell.dataset.label = "Active users";
                   featureUsersCell.textContent = numberFormatter.format(Math.round(feature.users || 0));
-      
+
                   const featureShareCell = document.createElement("td");
                   featureShareCell.className = "is-numeric";
+                  featureShareCell.dataset.label = "% of active users";
                   const featureShare = Number.isFinite(feature.share) ? feature.share : 0;
-                  featureShareCell.textContent = `${Math.max(0, Math.min(100, featureShare)).toFixed(1)}%`;
-      
+                  featureShareCell.appendChild(createAdoptionMetric(
+                    `${Math.max(0, Math.min(100, featureShare)).toFixed(1)}%`,
+                    featureShare,
+                    accentColor
+                  ));
+
                   featureRow.append(featureNameCell, featureUsersCell, featureShareCell);
                   fragment.append(featureRow);
                 });
@@ -12341,6 +12417,20 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               const isActive = state.returningMetric === metric;
               button.classList.toggle("is-active", isActive);
               button.setAttribute("aria-pressed", String(isActive));
+            });
+          }
+
+          function updateReturningScaleToggleState() {
+            if (!dom.returningScaleButtons || !dom.returningScaleButtons.length) {
+              return;
+            }
+            const isPercentage = state.returningMetric === "percentage";
+            dom.returningScaleButtons.forEach(button => {
+              const scaleMode = button.dataset.returningScale === "full" ? "full" : "smart";
+              const isActive = state.returningScaleMode === scaleMode;
+              button.classList.toggle("is-active", isActive);
+              button.setAttribute("aria-pressed", String(isActive));
+              button.disabled = !isPercentage;
             });
           }
 
@@ -13072,6 +13162,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             if (!aggregates) {
               return {
                 labels: [],
+                keys: [],
                 totals: [],
                 returningCounts: [],
                 unitLabel: normalizedInterval === "monthly" ? "month" : "week"
@@ -13082,6 +13173,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               if (!timeline.length) {
                 return {
                   labels: [],
+                  keys: [],
                   totals: [],
                   returningCounts: [],
                   unitLabel: "month"
@@ -13106,22 +13198,22 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 const userSet = entry && entry.users instanceof Set ? entry.users : new Set();
                 userSet.forEach(user => accumulator.users.add(user));
               });
-              const months = Array.from(monthMap.values()).sort((a, b) => a.key.localeCompare(b.key));
-              const totals = months.map(month => month.users.size);
-              const returningCounts = months.map((month, index) => {
-                if (index === 0) {
-                  return 0;
-                }
+              const sortedMonths = Array.from(monthMap.values())
+                .sort((a, b) => a.key.localeCompare(b.key));
+              const comparableMonths = sortedMonths.slice(1);
+              const totals = comparableMonths.map(month => month.users.size);
+              const returningCounts = comparableMonths.map((month, index) => {
                 let returning = 0;
                 month.users.forEach(user => {
-                  if (months[index - 1].users.has(user)) {
+                  if (sortedMonths[index].users.has(user)) {
                     returning += 1;
                   }
                 });
                 return returning;
               });
               return {
-                labels: months.map(month => month.label),
+                labels: comparableMonths.map(month => month.label),
+                keys: comparableMonths.map(month => month.key),
                 totals,
                 returningCounts,
                 unitLabel: "month"
@@ -13133,6 +13225,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             if (!timeline.length) {
               return {
                 labels: [],
+                keys: [],
                 totals: [],
                 returningCounts: [],
                 unitLabel: "week"
@@ -13146,47 +13239,124 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               const users = entry && entry.users instanceof Set ? entry.users : new Set();
               return { label, users };
             }).filter(entry => entry.label);
-            const totals = weeks.map(week => week.users.size);
-            const returningCounts = weeks.map((week, index) => {
-              if (index === 0) {
-                return 0;
-              }
+            const comparableWeeks = weeks.slice(1);
+            const totals = comparableWeeks.map(week => week.users.size);
+            const returningCounts = comparableWeeks.map((week, index) => {
               let returning = 0;
               week.users.forEach(user => {
-                if (weeks[index - 1].users.has(user)) {
+                if (weeks[index].users.has(user)) {
                   returning += 1;
                 }
               });
               return returning;
             });
             return {
-              labels: weeks.map(week => week.label),
+              labels: comparableWeeks.map(week => week.label),
+              keys: comparableWeeks.map(week => week.label),
               totals,
               returningCounts,
               unitLabel: "week"
             };
           }
+
+          function resolveReturningPercentageAxisMin(values) {
+            const validValues = Array.isArray(values)
+              ? values.filter(value => Number.isFinite(value))
+              : [];
+            if (!validValues.length) {
+              return 0;
+            }
+            const minValue = Math.min(...validValues);
+            return minValue >= 70 ? 70 : 0;
+          }
+
+          function resolveReturningSelection(series, interval) {
+            const keys = Array.isArray(series?.keys) ? series.keys : [];
+            if (!keys.length) {
+              return { key: null, index: -1 };
+            }
+            const intervalKey = interval === "monthly" ? "monthly" : "weekly";
+            const selectedKey = state.returningSelection[intervalKey];
+            const selectedIndex = selectedKey ? keys.indexOf(selectedKey) : -1;
+            if (selectedIndex >= 0) {
+              return { key: selectedKey, index: selectedIndex };
+            }
+            const fallbackKey = keys[keys.length - 1];
+            state.returningSelection[intervalKey] = fallbackKey;
+            return { key: fallbackKey, index: keys.length - 1 };
+          }
+
+          function renderReturningSummary(details = null) {
+            const container = dom.returningSummary;
+            if (!container) {
+              return;
+            }
+            container.innerHTML = "";
+
+            const summaryCards = Array.isArray(details?.cards) && details.cards.length
+              ? details.cards
+              : [
+                  { label: "Latest metric", value: "-", meta: "Load data to compare recurring cohorts.", isPrimary: true },
+                  { label: "Active base", value: "-", meta: "No periods loaded yet." },
+                  { label: "Return rate", value: "-", meta: "Requires consecutive active periods." },
+                  { label: "Vs previous", value: "-", meta: "Awaiting comparison window.", tone: "neutral" }
+                ];
+
+            summaryCards.forEach((card, index) => {
+              const article = document.createElement("article");
+              article.className = "returning-summary-card";
+              if (card.isPrimary || index === 0) {
+                article.classList.add("is-primary");
+              }
+              if (card.tone) {
+                article.dataset.tone = card.tone;
+              }
+
+              const label = document.createElement("span");
+              label.className = "returning-summary-card__label";
+              label.textContent = card.label || "-";
+
+              const value = document.createElement("strong");
+              value.className = "returning-summary-card__value";
+              value.textContent = card.value || "-";
+
+              const meta = document.createElement("span");
+              meta.className = "returning-summary-card__meta";
+              meta.textContent = card.meta || "";
+
+              article.append(label, value, meta);
+              container.append(article);
+            });
+          }
       
           function updateReturningUsers(aggregates) {
             const returningChart = state.charts.returningUsers;
-          const metric = state.returningMetric || "total";
-          const interval = state.returningInterval || DEFAULT_RETURNING_INTERVAL;
-          const series = generateReturningSeries(aggregates, interval);
-          const hasData = Boolean(series.labels.length);
-          setButtonEnabled(dom.returningExportPng, hasData);
-          setButtonEnabled(dom.returningExportCsv, hasData);
-          if (!hasData) {
+            const metric = state.returningMetric || "total";
+            const interval = state.returningInterval || DEFAULT_RETURNING_INTERVAL;
+            const series = generateReturningSeries(aggregates, interval);
+            const hasData = Boolean(series.labels.length);
+            const sourceTimeline = interval === "monthly"
+              ? (Array.isArray(aggregates?.weeklyTimeline) ? aggregates.weeklyTimeline : [])
+              : (Array.isArray(aggregates?.weeklyTimeline) && aggregates.weeklyTimeline.length
+                ? aggregates.weeklyTimeline
+                : (Array.isArray(aggregates?.periods) ? aggregates.periods : []));
+            const hasSingleUncomparablePeriod = !hasData && sourceTimeline.length === 1;
+            setButtonEnabled(dom.returningExportPng, hasData);
+            setButtonEnabled(dom.returningExportCsv, hasData);
+            if (!hasData) {
               if (dom.returningCaption) {
-                dom.returningCaption.textContent = "Upload data to monitor recurring adoption.";
+                dom.returningCaption.textContent = hasSingleUncomparablePeriod
+                  ? `Need at least two ${interval === "monthly" ? "months" : "weeks"} to compare recurring cohorts.`
+                  : "Upload data to monitor recurring adoption.";
               }
-              if (dom.returningSummary) {
-                dom.returningSummary.textContent = "-";
-              }
+              renderReturningSummary(null);
               if (dom.returningEmpty) {
                 dom.returningEmpty.hidden = false;
-                dom.returningEmpty.textContent = interval === "monthly"
-                  ? "Upload data to view returning users month over month."
-                  : "Upload data to view returning users week over week.";
+                dom.returningEmpty.textContent = hasSingleUncomparablePeriod
+                  ? `Need one earlier ${interval === "monthly" ? "month" : "week"} before returning users can be measured.`
+                  : (interval === "monthly"
+                    ? "Upload data to view returning users month over month."
+                    : "Upload data to view returning users week over week.");
               }
               if (returningChart) {
                 returningChart.data.labels = [];
@@ -13201,26 +13371,47 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
       
             const unitLabel = series.unitLabel || (interval === "monthly" ? "month" : "week");
             const labels = series.labels;
+            const keys = series.keys || [];
             const totals = series.totals;
             const returningCounts = series.returningCounts;
             const percentages = returningCounts.map((value, index) => {
               const total = totals[index] || 0;
               return total ? (value / total) * 100 : 0;
             });
+            const selection = resolveReturningSelection(series, interval);
+            const selectedIndex = selection.index;
             const datasetValues = metric === "percentage" ? percentages : returningCounts;
             const datasetLabel = metric === "percentage" ? "Returning users (%)" : "Returning users";
             const hasReturningValues = datasetValues.some(value => Number.isFinite(value) && value > 0);
             if (returningChart) {
-              const lineColor = getCssVariableValue("--blue-500", "#3A84C1");
-              const fillColor = hexToRgba(colorStringToHex(lineColor) || "#3A84C1", 0.15) || "rgba(58, 132, 193, 0.15)";
+              const lineColor = getCssVariableValue("--green-600", "#008A00");
+              const fillColor = hexToRgba(colorStringToHex(lineColor) || "#008A00", 0.15) || "rgba(0, 138, 0, 0.15)";
               returningChart.data.labels = labels;
               const dataset = returningChart.data.datasets[0];
               if (dataset) {
                 dataset.label = datasetLabel;
                 dataset.data = datasetValues;
+                dataset.keys = keys;
                 dataset.borderColor = lineColor;
                 dataset.backgroundColor = fillColor;
                 dataset.fill = metric === "percentage";
+                dataset.pointRadius = datasetValues.map((_, index) => index === selectedIndex ? 6 : 4);
+                dataset.pointHoverRadius = datasetValues.map((_, index) => index === selectedIndex ? 8 : 6);
+                dataset.pointBackgroundColor = datasetValues.map((_, index) => index === selectedIndex ? lineColor : "#ffffff");
+                dataset.pointBorderColor = datasetValues.map(() => lineColor);
+                dataset.pointBorderWidth = datasetValues.map((_, index) => index === selectedIndex ? 2.5 : 1.5);
+              }
+              const yScale = returningChart.options?.scales?.y;
+              if (yScale) {
+                if (metric === "percentage") {
+                  yScale.min = state.returningScaleMode === "full" ? 0 : resolveReturningPercentageAxisMin(percentages);
+                  yScale.max = 100;
+                  yScale.beginAtZero = yScale.min === 0;
+                } else {
+                  delete yScale.min;
+                  delete yScale.max;
+                  yScale.beginAtZero = true;
+                }
               }
               returningChart.update("none");
             }
@@ -13235,26 +13426,56 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             if (dom.returningCaption) {
               dom.returningCaption.textContent = hasReturningValues
                 ? (interval === "monthly"
-                  ? "Which cohorts return to Copilot month over month?"
-                  : "Which cohorts return to Copilot week over week?")
+                  ? "Which cohorts return to Copilot month over month? Click a point to inspect that month."
+                  : "Which cohorts return to Copilot week over week? Click a point to inspect that week.")
                 : `Returning users appear once the same people are active in consecutive ${unitLabel}s.`;
             }
-            if (dom.returningSummary) {
-              const lastIndex = datasetValues.length - 1;
-              if (lastIndex >= 0) {
-                const latestLabel = labels[lastIndex];
-                const latestReturning = returningCounts[lastIndex] || 0;
-                const latestTotal = totals[lastIndex] || 0;
-                const latestPercentage = percentages[lastIndex] || 0;
-                if (hasReturningValues) {
-                  dom.returningSummary.textContent = `${latestLabel}: ${numberFormatter.format(latestReturning)} returning of ${numberFormatter.format(latestTotal)} active (${latestPercentage.toFixed(1)}%)`;
-                } else {
-                  dom.returningSummary.textContent = `${latestLabel}: 0 returning of ${numberFormatter.format(latestTotal)} active (0.0%)`;
-                }
-              } else {
-                dom.returningSummary.textContent = "-";
+            if (selectedIndex >= 0) {
+              const latestLabel = labels[selectedIndex];
+              const previousPercentage = selectedIndex > 0 ? (percentages[selectedIndex - 1] || 0) : null;
+              const latestReturning = returningCounts[selectedIndex] || 0;
+              const latestTotal = totals[selectedIndex] || 0;
+              const latestPercentage = percentages[selectedIndex] || 0;
+              const delta = previousPercentage == null ? null : latestPercentage - previousPercentage;
+              const selectedMetricValue = metric === "percentage"
+                ? `${latestPercentage.toFixed(1)}%`
+                : numberFormatter.format(latestReturning);
+              const selectedMetricLabel = metric === "percentage" ? "Return rate" : "Returning users";
+              const selectedMetricMeta = metric === "percentage"
+                ? `${latestLabel} recurring share`
+                : `${latestLabel} users active in consecutive ${unitLabel}s`;
+
+              renderReturningSummary({
+                cards: [
+                  {
+                    label: selectedMetricLabel,
+                    value: selectedMetricValue,
+                    meta: selectedMetricMeta,
+                    isPrimary: true
+                  },
+                  {
+                    label: "Active base",
+                    value: numberFormatter.format(latestTotal),
+                    meta: `${latestLabel} active users`
+                  },
+                  {
+                    label: "Return rate",
+                    value: `${latestPercentage.toFixed(1)}%`,
+                    meta: `${numberFormatter.format(latestReturning)} returning users`
+                  },
+                  {
+                    label: `Vs previous ${unitLabel}`,
+                    value: delta == null ? "-" : `${delta >= 0 ? "+" : ""}${delta.toFixed(1)} pp`,
+                    meta: delta == null
+                      ? `Need one earlier ${unitLabel} for delta`
+                      : `Previous ${unitLabel}: ${previousPercentage.toFixed(1)}%`,
+                    tone: delta == null ? "neutral" : (delta > 0 ? "positive" : (delta < 0 ? "negative" : "neutral"))
+                  }
+                ]
+              });
+            } else {
+              renderReturningSummary(null);
             }
-          }
         }
 
         function exportReturningUsersImage() {

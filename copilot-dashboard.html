@@ -42,9 +42,9 @@
   ></script>
 
   <script
-    src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+    src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"
+    integrity="sha384-OUW9euuUyxyHcAhTqbhI+Iyb8LMssXt/cpz0yXhs9UWG2/R/uaWdakx/4cfww7Vb"
     crossorigin="anonymous"
-    integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"
   ></script>
   <script
     src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"
@@ -107,7 +107,7 @@
         </div>
       </article>
       <aside class="dataset-card" role="complementary" aria-label="Dataset information">
-      <h2>Dataset status</h2>
+      <h2 class="chart-title">Dataset status</h2>
       <p class="muted" data-dataset-message>Load a CSV export to unlock the full dashboard experience.</p>
       <div class="dataset-meta-grid" data-dataset-meta hidden>
           <div class="meta-item">
@@ -302,20 +302,110 @@
       </article>
     </section>
 
-    <section class="trend-card insight-card goals-card" aria-label="Goals tracker" data-goals-card>
+    <section class="trend-card" aria-label="Impact trend">
+      <header>
+        <div>
+          <h2 class="chart-title">Impact trend for the selected period</h2>
+      <p class="chart-subtitle" data-trend-caption>Upload data to visualize momentum.</p>
+    </div>
+    <div class="chip is-muted" data-trend-window>-</div>
+  </header>
+  <div class="chart-actions chart-actions--impact">
+    <button type="button" class="series-bulk-toggle" data-toggle-series-mode aria-pressed="false">Hide capability lines</button>
+    <div class="trend-view-toggle" role="group" aria-label="Trend value view">
+      <button type="button" class="trend-view-button is-active" data-trend-view="total" aria-pressed="true">Totals</button>
+      <button type="button" class="trend-view-button" data-trend-view="average" aria-pressed="false">Avg per user</button>
+    </div>
+    <div class="series-toggle-rail" data-series-toggle-group aria-label="Series visibility toggles"></div>
+    <button type="button" class="trend-color-toggle" data-trend-color-toggle hidden aria-label="Toggle color controls" aria-expanded="false">
+      🎨
+    </button>
+    <div class="export-controls" data-export-controls aria-label="Export">
+      <button type="button" class="export-trigger" data-export-trigger aria-haspopup="true" aria-expanded="false">Export &#9660;</button>
+      <div class="export-menu" data-export-menu hidden role="menu">
+        <button type="button" data-export-excel-full role="menuitem">Download full report (Excel)</button>
+        <button type="button" data-export-excel-country role="menuitem">Download country report (Excel)</button>
+        <button type="button" data-export-excel role="menuitem">Download totals (Excel)</button>
+        <button type="button" data-export-pdf role="menuitem">Download PDF report</button>
+        <button type="button" data-export-csv role="menuitem">
+          <span class="export-menu__title">Download CSV (trend data)</span>
+          <span class="export-menu__subtitle">Time series used by charts</span>
+        </button>
+        <button type="button" data-export-png role="menuitem">Download PNG</button>
+        <button type="button" data-export-video role="menuitem">Download animation</button>
+        <button type="button" data-export-pivot-csv role="menuitem">
+          <span class="export-menu__title">Download pivot (CSV)</span>
+          <span class="export-menu__subtitle">Period × country × organization</span>
+        </button>
+        <button type="button" data-export-organizations-excel role="menuitem">Download organizations (Excel)</button>
+        <label class="export-option" data-export-include-details-wrapper>
+          <input type="checkbox" data-export-include-details checked />
+          Include category detail lines
+        </label>
+        <p class="export-hint" data-export-hint hidden></p>
+      </div>
+    </div>
+  </div>
+      <div class="trend-color-controls" data-trend-colors hidden>
+        <div class="trend-color-controls__content">
+          <div class="trend-color-controls__group">
+            <label for="trendColorStart">Start color</label>
+            <input type="color" id="trendColorStart" data-trend-color-start aria-label="Choose start color" />
+          </div>
+          <div class="trend-color-controls__group">
+            <label for="trendColorEnd">End color</label>
+            <input type="color" id="trendColorEnd" data-trend-color-end aria-label="Choose end color" />
+          </div>
+          <div class="trend-color-controls__actions">
+            <button type="button" class="trend-color-button" data-apply-trend-colors>Apply gradient</button>
+            <button type="button" class="trend-color-button is-secondary" data-reset-trend-colors>Reset colors</button>
+          </div>
+        </div>
+        <p class="trend-color-controls__hint" data-trend-color-hint>Color choices stay on this device.</p>
+      </div>
+
+      <p class="chart-hint" data-series-hint hidden>Switch to actions metric to compare capability lines.</p>
+      <div class="chart-wrapper">
+        <canvas id="trendChart" role="img" aria-label="Line chart showing Copilot metric over time"></canvas>
+        <div class="chart-empty" data-trend-empty>Load a CSV file to render the trend.</div>
+      </div>
+    </section>
+
+    <section class="group-card" aria-label="Group breakdown">
+      <div class="group-header">
+        <h2 class="chart-title">Impact trend breakdown</h2>
+        <p class="muted" data-group-caption>Select a metric and view to compare groups.</p>
+      </div>
+      <table class="group-table">
+        <thead>
+          <tr>
+            <th scope="col">Group</th>
+            <th scope="col" class="users-col">Users</th>
+            <th scope="col" class="value-col" data-group-value-header>Total Actions</th>
+            <th scope="col" class="avg-col">Avg actions/user</th>
+            <th scope="col" class="share-col">Share</th>
+            <th scope="col">Momentum</th>
+          </tr>
+        </thead>
+        <tbody data-group-body></tbody>
+      </table>
+      <button type="button" class="view-more-button" data-view-more hidden aria-expanded="false">Show remaining groups/offices</button>
+    </section>
+
+    <section class="trend-card insight-card goals-card" aria-label="Adoption progress" data-goals-card>
       <header class="card-header-with-actions">
         <div>
-          <h2 class="chart-title">Goals tracker</h2>
-          <p class="chart-subtitle" data-goals-caption>Track progress against operational Copilot adoption goals.</p>
+          <h2 class="chart-title">Adoption progress</h2>
+          <p class="chart-subtitle" data-goals-caption>Track month-by-month and week-by-week Copilot adoption progress.</p>
         </div>
         <div class="card-header-actions">
-          <button type="button" class="storage-button storage-button--inline" data-goals-export-csv>Download goals CSV</button>
+          <button type="button" class="storage-button storage-button--inline" data-goals-export-csv>Download adoption CSV</button>
         </div>
       </header>
       <div class="goals-grid">
         <article class="goal-panel" data-goal-card="goal1">
           <div class="goal-panel__header">
-            <h3 class="goal-panel__title">Goal 1: Daily Copilot usage (targeted users)</h3>
+            <h3 class="goal-panel__title">Monthly compliant reach</h3>
             <div class="goal-month-nav" data-goal-month-nav hidden>
               <button type="button" class="goal-month-nav__button" data-goal-month-prev aria-label="Previous month">&#9664;</button>
               <span class="goal-month-nav__label" data-goal-month-label>Latest month</span>
@@ -347,13 +437,13 @@
           <div class="goal-panel__badge chip is-muted" data-goal1-sustained>Awaiting dataset.</div>
           <div class="goal-trend" data-goal1-trend></div>
           <div class="goal-monthly-chart" data-goal1-monthly-chart-wrap hidden>
-            <canvas data-goal1-monthly-chart aria-label="Goal 1 monthly attainment trend"></canvas>
+            <canvas data-goal1-monthly-chart aria-label="Monthly compliant reach trend"></canvas>
           </div>
           <p class="goal-panel__meta goal-panel__meta--chart" data-goal1-monthly-chart-note hidden></p>
         </article>
         <article class="goal-panel" data-goal-card="goal1-weekly">
           <div class="goal-panel__header">
-            <h3 class="goal-panel__title">Goal 1: Weekly compliant reach</h3>
+            <h3 class="goal-panel__title">Weekly adoption progress</h3>
             <div class="goal-month-nav goal-month-nav--inline" data-goal-week-nav hidden>
               <button type="button" class="goal-month-nav__button" data-goal-week-prev aria-label="Previous week">&#9664;</button>
               <span class="goal-month-nav__label" data-goal-week-label>Latest week</span>
@@ -384,116 +474,11 @@
           </div>
           <div class="goal-panel__badge chip is-muted" data-goal1-weekly-status>Awaiting dataset.</div>
           <div class="goal-monthly-chart goal-weekly-sparkline" data-goal1-weekly-chart-wrap hidden>
-            <canvas data-goal1-weekly-chart aria-label="Goal 1 weekly attainment trend"></canvas>
+            <canvas data-goal1-weekly-chart aria-label="Weekly adoption progress trend"></canvas>
           </div>
           <p class="goal-panel__meta goal-panel__meta--chart" data-goal1-weekly-chart-note hidden></p>
         </article>
       </div>
-    </section>
-
-    <section class="trend-card" aria-label="Impact trend">
-      <header>
-        <div>
-          <h2 class="chart-title">Impact trend for the selected period</h2>
-      <p class="chart-subtitle" data-trend-caption>Upload data to visualize momentum.</p>
-    </div>
-    <div class="chip is-muted" data-trend-window>-</div>
-  </header>
-  <div class="chart-actions chart-actions--impact">
-    <div class="chart-toolbar-group chart-toolbar-group--primary">
-      <button type="button" class="series-bulk-toggle" data-toggle-series-mode aria-pressed="false">Hide capability lines</button>
-      <div class="trend-view-toggle" role="group" aria-label="Trend value view">
-        <button type="button" class="trend-view-button is-active" data-trend-view="total" aria-pressed="true">Totals</button>
-        <button type="button" class="trend-view-button" data-trend-view="average" aria-pressed="false">Avg per user</button>
-      </div>
-    </div>
-    <div class="chart-toolbar-group chart-toolbar-group--series">
-      <div class="series-toggle-rail" data-series-toggle-group aria-label="Series visibility toggles"></div>
-    </div>
-    <div class="chart-toolbar-group chart-toolbar-group--export">
-        <div class="export-controls" data-export-controls aria-label="Export">
-          <button type="button" class="export-trigger" data-export-trigger aria-haspopup="true" aria-expanded="false">Export &#9660;</button>
-          <div class="export-menu" data-export-menu hidden role="menu">
-            <button type="button" data-export-excel-full role="menuitem">Download full report (Excel)</button>
-            <button type="button" data-export-excel-country role="menuitem">Download country report (Excel)</button>
-            <button type="button" data-export-excel role="menuitem">Download totals (Excel)</button>
-            <button type="button" data-export-pdf role="menuitem">Download PDF report</button>
-            <button type="button" data-export-csv role="menuitem">
-              <span class="export-menu__title">Download CSV (trend data)</span>
-              <span class="export-menu__subtitle">Time series used by charts</span>
-            </button>
-            <button type="button" data-export-png role="menuitem">Download PNG</button>
-            <button type="button" data-export-video role="menuitem">Download animation</button>
-            <button type="button" data-export-pivot-csv role="menuitem">
-              <span class="export-menu__title">Download pivot (CSV)</span>
-              <span class="export-menu__subtitle">Period × country × organization</span>
-            </button>
-            <button type="button" data-export-organizations-excel role="menuitem">Download organizations (Excel)</button>
-            <label class="export-option" data-export-include-details-wrapper>
-              <input type="checkbox" data-export-include-details checked />
-              Include category detail lines
-            </label>
-            <p class="export-hint" data-export-hint hidden></p>
-          </div>
-        </div>
-      </div>
-      </div>
-      <div class="trend-color-controls" data-trend-colors hidden>
-
-        <div class="trend-color-controls__group">
-
-          <label for="trendColorStart">Start color</label>
-
-          <input type="color" id="trendColorStart" data-trend-color-start aria-label="Choose start color" />
-
-        </div>
-
-        <div class="trend-color-controls__group">
-
-          <label for="trendColorEnd">End color</label>
-
-          <input type="color" id="trendColorEnd" data-trend-color-end aria-label="Choose end color" />
-
-        </div>
-
-        <div class="trend-color-controls__actions">
-
-          <button type="button" class="trend-color-button" data-apply-trend-colors>Apply gradient</button>
-
-          <button type="button" class="trend-color-button is-secondary" data-reset-trend-colors>Reset colors</button>
-
-        </div>
-
-        <p class="trend-color-controls__hint" data-trend-color-hint>Color choices stay on this device.</p>
-
-      </div>
-
-      <p class="chart-hint" data-series-hint hidden>Switch to actions metric to compare capability lines.</p>
-      <div class="chart-wrapper">
-        <canvas id="trendChart" role="img" aria-label="Line chart showing Copilot metric over time"></canvas>
-        <div class="chart-empty" data-trend-empty>Load a CSV file to render the trend.</div>
-      </div>
-    </section>
-
-    <section class="group-card" aria-label="Group breakdown">
-      <div class="group-header">
-        <h2>Impact trend breakdown</h2>
-        <p class="muted" data-group-caption>Select a metric and view to compare groups.</p>
-      </div>
-      <table class="group-table">
-        <thead>
-          <tr>
-            <th scope="col">Group</th>
-            <th scope="col" class="users-col">Users</th>
-            <th scope="col" class="value-col" data-group-value-header>Total Actions</th>
-            <th scope="col" class="avg-col">Avg actions/user</th>
-            <th scope="col" class="share-col">Share</th>
-            <th scope="col">Momentum</th>
-          </tr>
-        </thead>
-        <tbody data-group-body></tbody>
-      </table>
-      <button type="button" class="view-more-button" data-view-more hidden aria-expanded="false">Show remaining groups/offices</button>
     </section>
 
     <section class="trend-card agent-hub" aria-label="Copilot agent exports" data-agent-hub hidden>
@@ -1043,12 +1028,8 @@
           <p class="chart-subtitle" data-adoption-caption>Upload data to see which apps drive Copilot usage.</p>
         </div>
         <div class="card-header-actions">
-          <div class="chart-export-group">
-            <button type="button" class="storage-button storage-button--inline" data-adoption-export-csv>Download CSV</button>
-          </div>
-          <div class="adoption-controls">
-            <button type="button" class="view-more-button" data-adoption-toggle hidden>Show app capabilities</button>
-          </div>
+          <button type="button" class="storage-button storage-button--inline" data-adoption-export-csv>Download CSV</button>
+          <button type="button" class="view-more-button" data-adoption-toggle hidden>Show app capabilities</button>
         </div>
       </header>
       <div class="adoption-table-wrapper">
@@ -1077,9 +1058,7 @@
         </div>
         <div class="card-header-actions">
           <div class="chip is-muted" data-usage-window>-</div>
-          <div class="chart-export-group">
-            <button type="button" class="storage-button storage-button--inline" data-usage-intensity-export-csv>Download CSV</button>
-          </div>
+          <button type="button" class="storage-button storage-button--inline" data-usage-intensity-export-csv>Download CSV</button>
         </div>
       </header>
       <div class="usage-thresholds" data-usage-thresholds>
@@ -1107,10 +1086,8 @@
             <button type="button" class="usage-trend-toggle is-active" data-usage-trend-mode="number">Show numbers</button>
             <button type="button" class="usage-trend-toggle" data-usage-trend-mode="percentage">Show percentages</button>
           </div>
-          <div class="chart-export-group">
-            <button type="button" class="storage-button storage-button--inline" data-usage-export-png>Download PNG</button>
-            <button type="button" class="storage-button storage-button--inline" data-usage-export-csv>Download CSV</button>
-          </div>
+          <button type="button" class="storage-button storage-button--inline" data-usage-export-png>Download PNG</button>
+          <button type="button" class="storage-button storage-button--inline" data-usage-export-csv>Download CSV</button>
         </div>
       </header>
       <div class="usage-region-controls" data-usage-trend-region-controls></div>
@@ -1120,50 +1097,46 @@
       </div>
     </section>
     <section class="trend-card insight-card" aria-label="Licensed users trend" data-enabled-licenses-card>
-      <header>
+      <header class="card-header-with-actions">
         <div>
           <h2 class="chart-title">Enabled Copilot users</h2>
           <p class="chart-subtitle" data-enabled-licenses-caption>Upload data to visualize licensed users by month.</p>
         </div>
-      </header>
-      <div class="enabled-licenses-controls">
-        <div class="export-controls" data-enabled-licenses-export-controls>
-          <button type="button" class="export-trigger" data-enabled-licenses-export-trigger aria-haspopup="true" aria-expanded="false">Export &#9660;</button>
-          <div class="export-menu" data-enabled-licenses-export-menu hidden role="menu">
-            <button type="button" data-enabled-licenses-export-transparent role="menuitem">PNG (transparent)</button>
-            <button type="button" data-enabled-licenses-export-white role="menuitem">PNG (white bg)</button>
-            <button type="button" data-enabled-licenses-export-no-values role="menuitem">PNG (no values)</button>
+        <div class="card-header-actions enabled-licenses-controls">
+          <div class="export-controls" data-enabled-licenses-export-controls>
+            <button type="button" class="export-trigger" data-enabled-licenses-export-trigger aria-haspopup="true" aria-expanded="false">Export &#9660;</button>
+            <div class="export-menu" data-enabled-licenses-export-menu hidden role="menu">
+              <button type="button" data-enabled-licenses-export-transparent role="menuitem">PNG (transparent)</button>
+              <button type="button" data-enabled-licenses-export-white role="menuitem">PNG (white bg)</button>
+              <button type="button" data-enabled-licenses-export-no-values role="menuitem">PNG (no values)</button>
+            </div>
           </div>
-        </div>
-        <div class="enabled-licenses-color-controls" data-enabled-licenses-color-controls>
-          <div class="enabled-licenses-color-controls__group">
-            <label for="enabledLicensesColorStart">Start color</label>
-            <input type="color" id="enabledLicensesColorStart" data-enabled-licenses-color-start aria-label="Choose start color" />
-          </div>
-          <div class="enabled-licenses-color-controls__group">
-            <label for="enabledLicensesColorEnd">End color</label>
-            <input type="color" id="enabledLicensesColorEnd" data-enabled-licenses-color-end aria-label="Choose end color" />
+          <div class="enabled-licenses-color-controls__row" data-enabled-licenses-color-controls>
+            <div class="enabled-licenses-color-controls__group">
+              <label for="enabledLicensesColorStart">Start</label>
+              <input type="color" id="enabledLicensesColorStart" data-enabled-licenses-color-start aria-label="Choose start color" />
+            </div>
+            <div class="enabled-licenses-color-controls__group">
+              <label for="enabledLicensesColorEnd">End</label>
+              <input type="color" id="enabledLicensesColorEnd" data-enabled-licenses-color-end aria-label="Choose end color" />
+            </div>
           </div>
           <label class="enabled-licenses-gradient-toggle">
             <input type="checkbox" data-enabled-licenses-gradient />
-            Use gradient
+            Gradient
           </label>
           <label class="enabled-licenses-value-toggle">
             <input type="checkbox" data-enabled-licenses-show-values checked />
-            Show values on bars
+            Values
           </label>
+          <div class="enabled-licenses-color-controls__actions">
+            <button type="button" class="trend-color-button" data-enabled-licenses-apply>Apply</button>
+            <button type="button" class="trend-color-button is-secondary" data-enabled-licenses-reset>Reset</button>
+          </div>
           <div class="enabled-licenses-color-controls__group enabled-licenses-override" data-enabled-licenses-override hidden>
             <label for="enabledLicensesOverride">Override last month</label>
             <div class="enabled-licenses-override__inputs">
-              <input
-                type="number"
-                id="enabledLicensesOverride"
-                inputmode="numeric"
-                min="0"
-                step="1"
-                data-enabled-licenses-override-input
-                aria-describedby="enabledLicensesOverrideHint"
-              />
+              <input type="number" id="enabledLicensesOverride" inputmode="numeric" min="0" step="1" data-enabled-licenses-override-input aria-describedby="enabledLicensesOverrideHint" />
               <div class="enabled-licenses-override__buttons">
                 <button type="button" class="trend-color-button" data-enabled-licenses-override-apply>Set</button>
                 <button type="button" class="trend-color-button is-secondary" data-enabled-licenses-override-clear>Clear</button>
@@ -1171,12 +1144,8 @@
             </div>
             <p class="enabled-licenses-override__hint" id="enabledLicensesOverrideHint" data-enabled-licenses-override-hint></p>
           </div>
-          <div class="enabled-licenses-color-controls__actions">
-            <button type="button" class="trend-color-button" data-enabled-licenses-apply>Apply</button>
-            <button type="button" class="trend-color-button is-secondary" data-enabled-licenses-reset>Reset</button>
-          </div>
         </div>
-      </div>
+      </header>
       <div class="enabled-licenses-chart">
         <canvas id="enabledLicensesChart" data-enabled-licenses-chart aria-label="Bar chart showing enabled Copilot users by month"></canvas>
         <div class="chart-empty" data-enabled-licenses-empty hidden>Upload data to visualize license coverage.</div>
@@ -1189,33 +1158,21 @@
           <p class="chart-subtitle" data-returning-caption>Upload data to monitor recurring adoption.</p>
         </div>
         <div class="card-header-actions">
-          <div class="action-cluster action-cluster--surface action-cluster--stacked action-cluster--compact">
-            <span class="action-cluster__eyebrow">Metric</span>
-            <div class="usage-trend-controls" role="group" aria-label="Returning users metric view" data-returning-metric-controls>
-              <button type="button" class="usage-trend-toggle is-active" data-returning-metric-button="total">Total users</button>
-              <button type="button" class="usage-trend-toggle" data-returning-metric-button="percentage">Percentage</button>
-            </div>
+          <div class="usage-trend-controls" role="group" aria-label="Returning users metric view" data-returning-metric-controls>
+            <button type="button" class="usage-trend-toggle is-active" data-returning-metric-button="total">Total users</button>
+            <button type="button" class="usage-trend-toggle" data-returning-metric-button="percentage">Percentage</button>
           </div>
-          <div class="action-cluster action-cluster--surface action-cluster--stacked action-cluster--compact">
-            <span class="action-cluster__eyebrow">Cadence</span>
-            <div class="usage-trend-controls" role="group" aria-label="Returning users interval view" data-returning-interval-controls>
-              <button type="button" class="usage-trend-toggle is-active" data-returning-interval="weekly">Weekly</button>
-              <button type="button" class="usage-trend-toggle" data-returning-interval="monthly">Monthly</button>
-            </div>
+          <div class="usage-trend-controls" role="group" aria-label="Returning users interval view" data-returning-interval-controls>
+            <button type="button" class="usage-trend-toggle is-active" data-returning-interval="weekly">Weekly</button>
+            <button type="button" class="usage-trend-toggle" data-returning-interval="monthly">Monthly</button>
           </div>
-          <div class="action-cluster action-cluster--surface action-cluster--stacked action-cluster--compact">
-            <span class="action-cluster__eyebrow">Scale</span>
-            <div class="usage-trend-controls" role="group" aria-label="Returning users percentage scale" data-returning-scale-controls>
-              <button type="button" class="usage-trend-toggle is-active" data-returning-scale="smart">Smart</button>
-              <button type="button" class="usage-trend-toggle" data-returning-scale="full">0-100</button>
-            </div>
+          <div class="usage-trend-controls" role="group" aria-label="Returning users percentage scale" data-returning-scale-controls>
+            <button type="button" class="usage-trend-toggle is-active" data-returning-scale="smart">Smart</button>
+            <button type="button" class="usage-trend-toggle" data-returning-scale="full">0-100</button>
           </div>
-          <div class="action-cluster action-cluster--surface action-cluster--stacked action-cluster--compact">
-            <span class="action-cluster__eyebrow">Export</span>
-            <div class="chart-export-group">
-              <button type="button" class="storage-button storage-button--inline" data-returning-export-png>Download PNG</button>
-              <button type="button" class="storage-button storage-button--inline" data-returning-export-csv>Download CSV</button>
-            </div>
+          <div class="chart-export-group">
+            <button type="button" class="storage-button storage-button--inline" data-returning-export-png>Download PNG</button>
+            <button type="button" class="storage-button storage-button--inline" data-returning-export-csv>Download CSV</button>
           </div>
         </div>
       </header>
@@ -1305,7 +1262,7 @@
     <div class="top-users-panel" data-top-users-panel id="topUsersPanel" hidden>
       <section class="group-card" aria-label="Top users">
         <div class="group-header">
-          <h2>Top users by total actions</h2>
+          <h2 class="chart-title">Top users by total actions</h2>
           <p class="muted">Reflects current filters; capped at 20 users.</p>
         </div>
         <div class="top-users" data-top-users></div>

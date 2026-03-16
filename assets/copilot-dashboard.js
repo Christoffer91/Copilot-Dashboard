@@ -77,8 +77,8 @@
           };
           const GOAL_DEFINITIONS = {
             goal1: {
-              id: "goal1",
-              label: "Daily Copilot usage (targeted users)",
+              id: "adoption_progress",
+              label: "Monthly compliant reach",
               statement: "100% of targeted employees use Copilot in daily work."
             }
           };
@@ -2870,6 +2870,7 @@
             exportHint: document.querySelector("[data-export-hint]"),
             exportIncludeDetails: document.querySelector("[data-export-include-details]"),
             exportIncludeDetailsWrapper: document.querySelector("[data-export-include-details-wrapper]"),
+            trendColorToggle: document.querySelector("[data-trend-color-toggle]"),
             trendColorControls: document.querySelector("[data-trend-colors]"),
             trendColorStart: document.querySelector("[data-trend-color-start]"),
             trendColorEnd: document.querySelector("[data-trend-color-end]"),
@@ -4212,7 +4213,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 labels: [],
                 datasets: [
                   {
-                    label: "Goal 1 attainment",
+                    label: "Monthly compliant reach",
                     data: [],
                     borderColor: lineColor,
                     backgroundColor: lineFill,
@@ -4239,6 +4240,11 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                  padding: {
+                    top: 8
+                  }
+                },
                 scales: {
                   x: {
                     grid: { display: false },
@@ -4303,7 +4309,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 labels: [],
                 datasets: [
                   {
-                    label: "Goal 1 attainment",
+                    label: "Weekly adoption progress",
                     data: [],
                     borderColor: lineColor,
                     backgroundColor: lineFill,
@@ -4446,8 +4452,14 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           }
       
           function setTrendColorControlsVisibility(isVisible) {
-            if (dom.trendColorControls) {
-              dom.trendColorControls.hidden = !isVisible;
+            if (dom.trendColorToggle) {
+              dom.trendColorToggle.hidden = !isVisible;
+              if (!isVisible) {
+                if (dom.trendColorControls) {
+                  dom.trendColorControls.hidden = true;
+                }
+                dom.trendColorToggle.setAttribute("aria-expanded", "false");
+              }
             }
           }
       
@@ -4500,6 +4512,16 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
       
           if (dom.trendColorHint && !window.localStorage) {
             dom.trendColorHint.textContent = "Color choices reset when you refresh this browser.";
+          }
+
+          if (dom.trendColorToggle) {
+            dom.trendColorToggle.addEventListener("click", () => {
+              const isOpen = dom.trendColorControls && !dom.trendColorControls.hidden;
+              if (dom.trendColorControls) {
+                dom.trendColorControls.hidden = isOpen;
+              }
+              dom.trendColorToggle.setAttribute("aria-expanded", String(!isOpen));
+            });
           }
       
           if (dom.applyTrendColors) {
@@ -11040,6 +11062,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   assistedHours: 0,
                   date: effectiveWeekDate,
                   users: new Set(),
+                  returningUsers: new Set(),
                   enabledUsers: new Set()
                 };
                 weekMap.set(weekKey, weekBucket);
@@ -11061,6 +11084,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 }
                 personWeeks.add(weekKey);
                 if (rowSelectedActions > 0) {
+                  weekBucket.returningUsers.add(personKey);
                   let weekActions = userWeekActions.get(personKey);
                   if (!weekActions) {
                     weekActions = new Map();
@@ -11116,6 +11140,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   isoYear: row.isoYear,
                   isoWeek: row.isoWeek,
                   users: new Set(),
+                  returningUsers: new Set(),
                   enabledUsers: new Set(),
                   categories: createCategoryAccumulator()
                 };
@@ -11129,6 +11154,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               }
               if (rowSelectedActions > 0 || rowSelectedHours > 0) {
                 periodBucket.users.add(personKey);
+              }
+              if (rowSelectedActions > 0) {
+                periodBucket.returningUsers.add(personKey);
               }
               if (isCopilotEnabled) {
                 periodBucket.enabledUsers.add(personKey);
@@ -11235,6 +11263,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   date: values.date,
                   categories: values.categories,
                   users: new Set(usersSet),
+                  returningUsers: values.returningUsers instanceof Set ? new Set(values.returningUsers) : new Set(),
                   enabledUsers: new Set(enabledSet),
                   enabledUsersCount: enabledCount,
                   userCount,
@@ -11253,6 +11282,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 assistedHours: values.assistedHours,
                 date: values.date,
                 users: values.users instanceof Set ? new Set(values.users) : new Set(),
+                returningUsers: values.returningUsers instanceof Set ? new Set(values.returningUsers) : new Set(),
                 enabledUsers: values.enabledUsers instanceof Set ? new Set(values.enabledUsers) : new Set()
               }))
               .sort((a, b) => a.date - b.date);
@@ -12476,6 +12506,15 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             });
           }
 
+          if (dom.goal1Trend) {
+            dom.goal1Trend.addEventListener("click", (e) => {
+              const item = e.target.closest(".goal-trend__item:not(.goal-trend__item--empty)");
+              if (!item || !item.dataset.weekKey) return;
+              state.goalWeekSelection = item.dataset.weekKey;
+              renderGoalCards(state.latestGoalMetrics);
+            });
+          }
+
           function updateTrendViewToggleState() {
             if (!dom.trendViewButtons || !dom.trendViewButtons.length) {
               return;
@@ -13195,7 +13234,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   };
                   monthMap.set(monthKey, accumulator);
                 }
-                const userSet = entry && entry.users instanceof Set ? entry.users : new Set();
+                const userSet = entry && entry.returningUsers instanceof Set ? entry.returningUsers : new Set();
                 userSet.forEach(user => accumulator.users.add(user));
               });
               const sortedMonths = Array.from(monthMap.values())
@@ -13236,7 +13275,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               const label = entry && typeof entry.label === "string" && entry.label.trim()
                 ? entry.label
                 : (date ? formatShortDate(date) : "");
-              const users = entry && entry.users instanceof Set ? entry.users : new Set();
+              const users = entry && entry.returningUsers instanceof Set ? entry.returningUsers : new Set();
               return { label, users };
             }).filter(entry => entry.label);
             const comparableWeeks = weeks.slice(1);
@@ -13266,8 +13305,13 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             if (!validValues.length) {
               return 0;
             }
-            const minValue = Math.min(...validValues);
-            return minValue >= 70 ? 70 : 0;
+            const sortedValues = validValues.slice().sort((a, b) => a - b);
+            const percentileIndex = Math.max(0, Math.floor((sortedValues.length - 1) * 0.15));
+            const anchor = sortedValues[percentileIndex];
+            if (anchor < 75) {
+              return 0;
+            }
+            return Math.max(70, Math.floor((anchor - 5) / 5) * 5);
           }
 
           function resolveReturningSelection(series, interval) {
@@ -13405,7 +13449,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               if (yScale) {
                 if (metric === "percentage") {
                   yScale.min = state.returningScaleMode === "full" ? 0 : resolveReturningPercentageAxisMin(percentages);
-                  yScale.max = 100;
+                  yScale.max = 102;
                   yScale.beginAtZero = yScale.min === 0;
                 } else {
                   delete yScale.min;
@@ -13884,7 +13928,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           }
           entries.forEach(entry => {
             const item = document.createElement("div");
-            item.className = `goal-trend__item${entry.metTarget ? " is-pass" : ""}`;
+            const isSelected = state.goalWeekSelection && entry.weekKey === state.goalWeekSelection;
+            item.className = `goal-trend__item${entry.metTarget ? " is-pass" : ""}${isSelected ? " is-selected" : ""}`;
+            item.dataset.weekKey = entry.weekKey;
             const weekLabel = formatGoalWeekLabel(entry.weekKey, entry.date);
             const value = Number.isFinite(entry.attainmentPct) ? `${entry.attainmentPct.toFixed(1)}%` : "-";
             const labelNode = document.createElement("span");
@@ -13930,6 +13976,17 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               : 0
           ));
           const targetValues = months.map(() => 100);
+          const validValues = values.filter(value => Number.isFinite(value));
+          const monthlyYScale = chart.options?.scales?.y;
+          if (monthlyYScale) {
+            const minValue = validValues.length ? Math.min(...validValues) : 0;
+            const useHighValueZoom = validValues.length > 0 && minValue >= 80;
+            monthlyYScale.min = useHighValueZoom
+              ? Math.max(70, Math.floor((minValue - 5) / 5) * 5)
+              : 0;
+            monthlyYScale.max = useHighValueZoom ? 104 : 102;
+            monthlyYScale.beginAtZero = monthlyYScale.min === 0;
+          }
           const pointRadii = months.map(month => (selectedKey && month.key === selectedKey ? 6 : 2.5));
           const pointHoverRadii = months.map(month => (selectedKey && month.key === selectedKey ? 8 : 5));
           const pointBackground = months.map(month => (selectedKey && month.key === selectedKey ? getCssVariableValue("--green-600", "#008A00") : "#ffffff"));
@@ -14022,9 +14079,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           if (dom.goal1WeeklyChartNote) {
             dom.goal1WeeklyChartNote.hidden = false;
             if (selectedWeek && selectedWeek.weekKey) {
-              dom.goal1WeeklyChartNote.textContent = `Weekly sparkline (attainment vs 100% target). Selected: ${formatGoalWeekLabel(selectedWeek.weekKey, selectedWeek.date)}.`;
+              dom.goal1WeeklyChartNote.textContent = `Weekly adoption progress (attainment vs 100% target). Selected: ${formatGoalWeekLabel(selectedWeek.weekKey, selectedWeek.date)}.`;
             } else {
-              dom.goal1WeeklyChartNote.textContent = "Weekly sparkline (attainment vs 100% target).";
+              dom.goal1WeeklyChartNote.textContent = "Weekly adoption progress (attainment vs 100% target).";
             }
           }
         }
@@ -14044,11 +14101,11 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
 
           if (dom.goalsCaption) {
             if (!hasGoal1) {
-              dom.goalsCaption.textContent = "Upload data to compute weekly goal attainment.";
+              dom.goalsCaption.textContent = "Upload data to compute adoption progress.";
             } else {
               const monthLabel = selectedMonth && selectedMonth.label ? selectedMonth.label : "selected month";
               const weekLabel = selectedWeek ? formatGoalWeekLabel(selectedWeek.weekKey, selectedWeek.date) : "selected week";
-              dom.goalsCaption.textContent = `Monthly panel shows compliant-user reach for ${monthLabel}. Weekly panel shows ${weekLabel}. Weekly attainment is strict (>=1 Copilot activity + >=1 active day).`;
+              dom.goalsCaption.textContent = `Monthly panel shows compliant reach for ${monthLabel}. Weekly panel shows ${weekLabel}. Weekly attainment is strict (>=1 Copilot activity + >=1 active day).`;
             }
           }
 
@@ -14292,7 +14349,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             ""
           ]);
           downloadCsv(
-            "copilot-goals-tracker.csv",
+            "copilot-adoption-progress.csv",
             [
               "Goal",
               "Goal statement",
@@ -14772,6 +14829,217 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             return rows;
           }
 
+          // ── Excel style definitions ──
+          const EXCEL_STYLES = {
+            titleFont: { name: "Calibri", sz: 14, bold: true, color: { rgb: "1F2325" } },
+            headerFont: { name: "Calibri", sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+            headerFill: { type: "pattern", patternType: "solid", fgColor: { rgb: "006E00" } },
+            headerBorder: { bottom: { style: "thin", color: { rgb: "005300" } } },
+            metaFont: { name: "Calibri", sz: 10, color: { rgb: "4D575D" } },
+            metaLabelFont: { name: "Calibri", sz: 10, bold: true, color: { rgb: "1F2325" } },
+            dataFont: { name: "Calibri", sz: 10, color: { rgb: "1F2325" } },
+            accentFont: { name: "Calibri", sz: 11, bold: true, color: { rgb: "006E00" } },
+            wrapAlignment: { wrapText: true, vertical: "top" },
+            centerAlignment: { horizontal: "center", vertical: "center" },
+            rightAlignment: { horizontal: "right" },
+            thinBorder: {
+              top: { style: "thin", color: { rgb: "DBDDDF" } },
+              bottom: { style: "thin", color: { rgb: "DBDDDF" } },
+              left: { style: "thin", color: { rgb: "DBDDDF" } },
+              right: { style: "thin", color: { rgb: "DBDDDF" } }
+            }
+          };
+
+          function applyStylesToSheet(sheet, config) {
+            if (!sheet || !config) return;
+            const { titleRow, headerRow, dataStartRow, dataEndRow, columnCount } = config;
+            const cellRef = (r, c) => XLSX.utils.encode_cell({ r, c });
+
+            if (titleRow !== undefined) {
+              const cell = sheet[cellRef(titleRow, 0)];
+              if (cell) cell.s = { font: EXCEL_STYLES.titleFont };
+            }
+
+            if (titleRow !== undefined && headerRow !== undefined) {
+              for (let r = titleRow + 1; r < headerRow; r++) {
+                for (let c = 0; c < columnCount; c++) {
+                  const cell = sheet[cellRef(r, c)];
+                  if (cell) {
+                    cell.s = {
+                      font: c === 0 ? EXCEL_STYLES.metaLabelFont : EXCEL_STYLES.metaFont,
+                      alignment: EXCEL_STYLES.wrapAlignment
+                    };
+                  }
+                }
+              }
+            }
+
+            if (headerRow !== undefined) {
+              for (let c = 0; c < columnCount; c++) {
+                const cell = sheet[cellRef(headerRow, c)];
+                if (cell) {
+                  cell.s = {
+                    font: EXCEL_STYLES.headerFont,
+                    fill: EXCEL_STYLES.headerFill,
+                    border: EXCEL_STYLES.headerBorder,
+                    alignment: EXCEL_STYLES.centerAlignment
+                  };
+                }
+              }
+            }
+
+            if (dataStartRow !== undefined && dataEndRow !== undefined) {
+              const altFill = { type: "pattern", patternType: "solid", fgColor: { rgb: "F7F9F5" } };
+              for (let r = dataStartRow; r <= dataEndRow; r++) {
+                const isAlt = (r - dataStartRow) % 2 === 1;
+                for (let c = 0; c < columnCount; c++) {
+                  const cell = sheet[cellRef(r, c)];
+                  if (cell) {
+                    cell.s = {
+                      font: EXCEL_STYLES.dataFont,
+                      border: EXCEL_STYLES.thinBorder,
+                      alignment: c === 0
+                        ? EXCEL_STYLES.wrapAlignment
+                        : { wrapText: true, vertical: "top", horizontal: "right" },
+                      ...(isAlt ? { fill: altFill } : {})
+                    };
+                    if (typeof cell.v === "number") {
+                      if (c === 1) cell.s.font = EXCEL_STYLES.accentFont;
+                      if (cell.v >= 100 && cell.v === Math.round(cell.v)) {
+                        cell.s.numFmt = "#,##0";
+                      } else if (cell.v !== Math.round(cell.v)) {
+                        cell.s.numFmt = "0.0";
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            // Freeze panes below header
+            if (headerRow !== undefined) {
+              if (!sheet["!views"]) sheet["!views"] = [];
+              sheet["!views"][0] = { state: "frozen", ySplit: headerRow + 1 };
+              if (!sheet["!rows"]) sheet["!rows"] = [];
+              sheet["!rows"][headerRow] = { hpt: 22 };
+            }
+          }
+
+          function applyDataSheetStyles(sheet, rows) {
+            if (!sheet || !Array.isArray(rows) || rows.length < 2) return;
+            applyStylesToSheet(sheet, {
+              headerRow: 0,
+              dataStartRow: 1,
+              dataEndRow: rows.length - 1,
+              columnCount: rows[0].length
+            });
+          }
+
+          function applyDataSheetWithDescriptionStyles(sheet, rows) {
+            if (!sheet || !Array.isArray(rows) || rows.length < 3) return;
+            applyStylesToSheet(sheet, {
+              titleRow: 0,
+              headerRow: 1,
+              dataStartRow: 2,
+              dataEndRow: rows.length - 1,
+              columnCount: rows[1].length
+            });
+          }
+
+          // Helper: append a titled section to a rows array, return section boundaries
+          function addExcelSection(rows, title, info, headers, dataRows, colCount) {
+            if (rows.length > 0) rows.push(new Array(colCount).fill(""));  // blank separator
+            const titleRow = rows.length;
+            const titleArr = new Array(colCount).fill("");
+            titleArr[0] = title;
+            rows.push(titleArr);
+            const infoRow = rows.length;
+            const infoArr = new Array(colCount).fill("");
+            infoArr[0] = info;
+            rows.push(infoArr);
+            const headerRow = rows.length;
+            const paddedHeaders = headers.concat(new Array(Math.max(0, colCount - headers.length)).fill(""));
+            rows.push(paddedHeaders);
+            const dataStartRow = rows.length;
+            dataRows.forEach(r => {
+              const paddedRow = r.concat(new Array(Math.max(0, colCount - r.length)).fill(""));
+              rows.push(paddedRow);
+            });
+            const dataEndRow = rows.length - 1;
+            return { titleRow, infoRow, headerRow, dataStartRow, dataEndRow, columnCount: colCount };
+          }
+
+          // Style a multi-section sheet (sheet title + multiple data sections)
+          function applyMultiSectionStyles(sheet, sections, sheetTitleRow) {
+            if (!sheet) return;
+            const cellRef = (r, c) => XLSX.utils.encode_cell({ r, c });
+            // Sheet title — large bold
+            const titleCell = sheet[cellRef(sheetTitleRow, 0)];
+            if (titleCell) titleCell.s = { font: EXCEL_STYLES.titleFont };
+            // Sheet info row — meta font
+            const infoCell = sheet[cellRef(sheetTitleRow + 1, 0)];
+            if (infoCell) infoCell.s = { font: EXCEL_STYLES.metaFont };
+
+            const sectionTitleFont = { name: "Calibri", sz: 12, bold: true, color: { rgb: "006E00" } };
+            const altFill = { type: "pattern", patternType: "solid", fgColor: { rgb: "F7F9F5" } };
+
+            sections.forEach(sec => {
+              const cols = sec.columnCount || 6;
+              // Section title — green bold
+              const stCell = sheet[cellRef(sec.titleRow, 0)];
+              if (stCell) stCell.s = { font: sectionTitleFont };
+              // Section info — gray
+              const siCell = sheet[cellRef(sec.infoRow, 0)];
+              if (siCell) siCell.s = { font: EXCEL_STYLES.metaFont };
+              // Header row — green fill, white bold
+              for (let c = 0; c < cols; c++) {
+                const cell = sheet[cellRef(sec.headerRow, c)];
+                if (cell) {
+                  cell.s = {
+                    font: EXCEL_STYLES.headerFont,
+                    fill: EXCEL_STYLES.headerFill,
+                    border: EXCEL_STYLES.headerBorder,
+                    alignment: EXCEL_STYLES.centerAlignment
+                  };
+                }
+              }
+              // Data rows — alternating fill, borders, number formatting
+              if (sec.dataStartRow <= sec.dataEndRow) {
+                for (let r = sec.dataStartRow; r <= sec.dataEndRow; r++) {
+                  const isAlt = (r - sec.dataStartRow) % 2 === 1;
+                  for (let c = 0; c < cols; c++) {
+                    const cell = sheet[cellRef(r, c)];
+                    if (cell) {
+                      cell.s = {
+                        font: EXCEL_STYLES.dataFont,
+                        border: EXCEL_STYLES.thinBorder,
+                        alignment: c === 0
+                          ? EXCEL_STYLES.wrapAlignment
+                          : { wrapText: true, vertical: "top", horizontal: "right" },
+                        ...(isAlt ? { fill: altFill } : {})
+                      };
+                      if (typeof cell.v === "number") {
+                        if (c === 1) cell.s.font = EXCEL_STYLES.accentFont;
+                        if (cell.v >= 100 && cell.v === Math.round(cell.v)) {
+                          cell.s.numFmt = "#,##0";
+                        } else if (cell.v !== Math.round(cell.v)) {
+                          cell.s.numFmt = "0.0";
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              // Header row height
+              if (!sheet["!rows"]) sheet["!rows"] = [];
+              sheet["!rows"][sec.headerRow] = { hpt: 22 };
+            });
+
+            // Freeze below sheet title area
+            if (!sheet["!views"]) sheet["!views"] = [];
+            sheet["!views"][0] = { state: "frozen", ySplit: sheetTitleRow + 2 };
+          }
+
           function autoSizeWorksheetColumns(worksheet, rows) {
             if (!worksheet || !Array.isArray(rows) || !rows.length || !rows[0]) {
               return;
@@ -14787,7 +15055,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   maxLength = length;
                 }
               });
-              columnWidths.push({ wch: Math.min(Math.max(maxLength + 2, 12), 40) });
+              const maxWidth = (columnIndex === columnCount - 1 && maxLength > 30) ? 55 : 40;
+              columnWidths.push({ wch: Math.min(Math.max(maxLength + 2, 12), maxWidth) });
             }
             worksheet["!cols"] = columnWidths;
           }
@@ -14827,6 +15096,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               const worksheet = XLSX.utils.aoa_to_sheet(rows);
               sanitizeWorksheetCellsForSpreadsheet(worksheet);
               autoSizeWorksheetColumns(worksheet, rows);
+              applyDataSheetStyles(worksheet, rows);
               const workbook = XLSX.utils.book_new();
               XLSX.utils.book_append_sheet(workbook, worksheet, "Trend totals");
               const filename = `copilot-trend-totals-${formatTimestamp()}.xlsx`;
@@ -15027,7 +15297,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   const value = Math.round(group && Number.isFinite(group.totalActions) ? group.totalActions : 0);
                   return `${group.name || "Unspecified"} (${value} actions)`;
                 });
-                overviewRows.push([`Top ${organizationGroupLabelPlural} by actions`, parts.join(BULLET_SEPARATOR), `${organizationGroupLabelPlural} in this view.`]);
+                overviewRows.push([`Top ${organizationGroupLabelPlural} by actions`, parts.join("\n"), `${organizationGroupLabelPlural} in this view.`]);
               }
 
               const countryGroups = Array.isArray(countryAggregates.groups) ? countryAggregates.groups : [];
@@ -15039,132 +15309,368 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   const value = Math.round(group && Number.isFinite(group.totalActions) ? group.totalActions : 0);
                   return `${group.name || "Unspecified"} (${value} actions)`;
                 });
-                overviewRows.push([`Top ${countryGroupLabelPlural} by actions`, parts.join(BULLET_SEPARATOR), `${countryGroupLabelPlural} with the highest total actions.`]);
+                overviewRows.push([`Top ${countryGroupLabelPlural} by actions`, parts.join("\n"), `${countryGroupLabelPlural} with the highest total actions.`]);
+              }
+
+              // Returning users summary
+              const retAgg = state.latestReturningAggregates;
+              if (retAgg && Array.isArray(retAgg.periods) && retAgg.periods.length) {
+                const retSeries = generateReturningSeries(retAgg, state.returningInterval || DEFAULT_RETURNING_INTERVAL);
+                if (retSeries.totals.length) {
+                  const lastIdx = retSeries.totals.length - 1;
+                  const lastTotal = retSeries.totals[lastIdx] || 0;
+                  const lastReturning = retSeries.returningCounts[lastIdx] || 0;
+                  const lastRate = lastTotal ? (lastReturning / lastTotal) * 100 : 0;
+                  overviewRows.push(["Return rate (latest period)", Number(lastRate.toFixed(1)), "Percentage of prior-period active users who returned."]);
+                  overviewRows.push(["Returning users (latest period)", lastReturning, "Users active in both this and the prior period."]);
+                }
+              }
+              // Adoption progress summary
+              const goalMetrics = state.latestGoalMetrics;
+              if (goalMetrics && goalMetrics.goal1 && goalMetrics.goal1.periodSummary) {
+                const ps = goalMetrics.goal1.periodSummary;
+                overviewRows.push(["Monthly compliant reach", Number((ps.attainmentPct || 0).toFixed(1)), "Percentage of targeted users meeting compliance criteria."]);
+                overviewRows.push(["Compliant users", ps.compliantUsers || 0, "Users meeting Copilot activity + active days criteria."]);
+                overviewRows.push(["Targeted users", ps.targetedUsers || 0, "Users with Copilot licenses (targeted for adoption)."]);
               }
 
               const overviewSheet = XLSX.utils.aoa_to_sheet(overviewRows);
               sanitizeWorksheetCellsForSpreadsheet(overviewSheet);
               autoSizeWorksheetColumns(overviewSheet, overviewRows);
+              const overviewHeaderIdx = overviewRows.findIndex(r => r[0] === "Metric");
+              applyStylesToSheet(overviewSheet, {
+                titleRow: 0,
+                headerRow: overviewHeaderIdx >= 0 ? overviewHeaderIdx : undefined,
+                dataStartRow: overviewHeaderIdx >= 0 ? overviewHeaderIdx + 1 : undefined,
+                dataEndRow: overviewRows.length - 1,
+                columnCount: 3
+              });
               XLSX.utils.book_append_sheet(workbook, overviewSheet, "Overview");
 
-              const trendPeriods = Array.isArray(aggregates.periods) ? aggregates.periods : [];
-              if (trendPeriods.length) {
-                const trendRows = buildTrendTotalsRows(trendPeriods);
-                const trendSheet = XLSX.utils.aoa_to_sheet(trendRows);
-                sanitizeWorksheetCellsForSpreadsheet(trendSheet);
-                autoSizeWorksheetColumns(trendSheet, trendRows);
-                XLSX.utils.book_append_sheet(workbook, trendSheet, "Trend totals");
-              }
+              // ── Sheet 2: "Trends" (Trend totals + Licenses + Returning users + Adoption progress) ──
+              {
+                const trendsRows = [];
+                const trendsSections = [];
+                const maxTrendCols = 5;  // widest section is returning users (5 cols)
 
-              if (organizationGroups.length) {
-                const orgRows = [];
-                orgRows.push(["Each row shows Copilot activity per organization or office.", "", "", "", "", ""]);
-                orgRows.push(["Organization / group", "Total actions", "Assisted hours", "Active users", "Avg actions per user", "Share of total actions"]);
-                const orgTotalActions = organizationGroups.reduce((sum, group) => {
-                  const value = Number.isFinite(group.totalActions) ? group.totalActions : 0;
-                  return sum + value;
-                }, 0);
-                organizationGroups.forEach(group => {
-                  const groupActions = Number.isFinite(group.totalActions) ? group.totalActions : 0;
-                  const groupHours = Number.isFinite(group.assistedHours) ? group.assistedHours : 0;
-                  const groupUsers = Number.isFinite(group.users) ? group.users : 0;
-                  const groupAverage = Number.isFinite(group.averageActionsPerUser) ? group.averageActionsPerUser : 0;
-                  const share = orgTotalActions ? (groupActions / orgTotalActions) * 100 : 0;
-                  orgRows.push([
-                    group.name || "Unspecified",
-                    groupActions,
-                    groupHours,
-                    groupUsers,
-                    groupAverage,
-                    share
-                  ]);
-                });
-                const orgSheet = XLSX.utils.aoa_to_sheet(orgRows);
-                sanitizeWorksheetCellsForSpreadsheet(orgSheet);
-                autoSizeWorksheetColumns(orgSheet, orgRows);
-                XLSX.utils.book_append_sheet(workbook, orgSheet, "By organization");
-              }
+                // Sheet title
+                trendsRows.push(["Trends & timeline data", "", "", "", ""]);
+                trendsRows.push(["Period-by-period metrics from the Copilot impact dashboard.", "", "", "", ""]);
 
-              if (countryGroups.length) {
-                const countryRows = [];
-                countryRows.push(["Each row shows Copilot activity per country.", "", "", "", "", ""]);
-                countryRows.push(["Country", "Total actions", "Assisted hours", "Active users", "Avg actions per user", "Share of total actions"]);
-                const totalCountryActions = countryGroups.reduce((sum, group) => {
-                  const value = Number.isFinite(group.totalActions) ? group.totalActions : 0;
-                  return sum + value;
-                }, 0);
-                countryGroups.forEach(group => {
-                  const groupActions = Number.isFinite(group.totalActions) ? group.totalActions : 0;
-                  const groupHours = Number.isFinite(group.assistedHours) ? group.assistedHours : 0;
-                  const groupUsers = Number.isFinite(group.users) ? group.users : 0;
-                  const groupAverage = Number.isFinite(group.averageActionsPerUser) ? group.averageActionsPerUser : 0;
-                  const share = totalCountryActions ? (groupActions / totalCountryActions) * 100 : 0;
-                  countryRows.push([
-                    group.name || "Unspecified",
-                    groupActions,
-                    groupHours,
-                    groupUsers,
-                    groupAverage,
-                    share
-                  ]);
-                });
-                const countrySheet = XLSX.utils.aoa_to_sheet(countryRows);
-                sanitizeWorksheetCellsForSpreadsheet(countrySheet);
-                autoSizeWorksheetColumns(countrySheet, countryRows);
-                XLSX.utils.book_append_sheet(workbook, countrySheet, "By country");
-              }
+                // Section A: Impact trend totals
+                const trendPeriods = Array.isArray(aggregates.periods) ? aggregates.periods : [];
+                if (trendPeriods.length) {
+                  const built = buildTrendTotalsRows(trendPeriods);
+                  const trendHeaders = built[0];
+                  const trendData = built.slice(1);
+                  trendsSections.push(addExcelSection(
+                    trendsRows,
+                    "Impact trend totals",
+                    "Aggregated Copilot actions, hours, and active users per period.",
+                    trendHeaders,
+                    trendData,
+                    maxTrendCols
+                  ));
+                }
 
-              const monthlyEnabled = Array.isArray(aggregates.monthlyEnabledUsers)
-                ? aggregates.monthlyEnabledUsers
-                : (Array.isArray(state.latestEnabledTimeline) ? state.latestEnabledTimeline : []);
-              if (monthlyEnabled.length) {
-                const licenseRows = [];
-                licenseRows.push(["Month", "Enabled Copilot users", "Explanation"]);
-                monthlyEnabled.forEach(entry => {
-                  const label = entry.label || entry.key || "";
-                  const count = Number.isFinite(entry.count) ? entry.count : 0;
-                  licenseRows.push([label, count, "Unique users enabled for Copilot in the representative week for this month."]);
-                });
-                const licenseSheet = XLSX.utils.aoa_to_sheet(licenseRows);
-                autoSizeWorksheetColumns(licenseSheet, licenseRows);
-                XLSX.utils.book_append_sheet(workbook, licenseSheet, "Licenses");
-              }
+                // Section B: Enabled Copilot users (licenses)
+                const monthlyEnabled = Array.isArray(aggregates.monthlyEnabledUsers)
+                  ? aggregates.monthlyEnabledUsers
+                  : (Array.isArray(state.latestEnabledTimeline) ? state.latestEnabledTimeline : []);
+                if (monthlyEnabled.length) {
+                  const licHeaders = ["Month", "Enabled Copilot users", "Explanation"];
+                  const licData = [];
+                  monthlyEnabled.forEach(entry => {
+                    licData.push([
+                      entry.label || entry.key || "",
+                      Number.isFinite(entry.count) ? entry.count : 0,
+                      "Unique users enabled for Copilot in the representative week for this month."
+                    ]);
+                  });
+                  trendsSections.push(addExcelSection(
+                    trendsRows,
+                    "Enabled Copilot users (licenses)",
+                    "Monthly count of users with an active Copilot license.",
+                    licHeaders,
+                    licData,
+                    maxTrendCols
+                  ));
+                }
 
-              const adoption = aggregates.adoption;
-              const adoptionApps = adoption && Array.isArray(adoption.apps) ? adoption.apps : [];
-              if (adoptionApps.length) {
-                const adoptionRows = [];
-                adoptionRows.push(["Type", "Name", "Parent app", "Active users", "% of active users"]);
-                adoptionApps.forEach(app => {
-                  const appLabel = app.label || app.key || "App";
-                  const appUsers = Number.isFinite(app.users) ? app.users : 0;
-                  const appShareValue = Number.isFinite(app.share) ? app.share : 0;
-                  adoptionRows.push(["App", appLabel, "", appUsers, appShareValue]);
-                  if (Array.isArray(app.features)) {
-                    app.features.forEach(feature => {
-                      const featureLabel = feature.label || feature.key || "Capability";
-                      const featureUsers = Number.isFinite(feature.users) ? feature.users : 0;
-                      const featureShareValue = Number.isFinite(feature.share) ? feature.share : 0;
-                      adoptionRows.push(["Capability", featureLabel, appLabel, featureUsers, featureShareValue]);
+                // Section C: Returning users
+                const retAggForSheet = state.latestReturningAggregates;
+                if (retAggForSheet && Array.isArray(retAggForSheet.periods) && retAggForSheet.periods.length) {
+                  const retSeries = generateReturningSeries(retAggForSheet, state.returningInterval || DEFAULT_RETURNING_INTERVAL);
+                  if (retSeries.labels.length) {
+                    const retHeaders = ["Period", "Active users", "Returning users", "Return rate (%)", "Change vs prior (pp)"];
+                    const retData = [];
+                    retSeries.labels.forEach((label, i) => {
+                      const total = retSeries.totals[i] || 0;
+                      const returning = retSeries.returningCounts[i] || 0;
+                      const rate = total ? Number(((returning / total) * 100).toFixed(1)) : 0;
+                      const prevTotal = i > 0 ? (retSeries.totals[i - 1] || 0) : 0;
+                      const prevReturning = i > 0 ? (retSeries.returningCounts[i - 1] || 0) : 0;
+                      const prevRate = prevTotal ? (prevReturning / prevTotal) * 100 : 0;
+                      const delta = i > 0 ? Number((rate - prevRate).toFixed(1)) : "";
+                      retData.push([label, total, returning, rate, delta]);
+                    });
+                    trendsSections.push(addExcelSection(
+                      trendsRows,
+                      "Returning users",
+                      "Users active in consecutive periods. Return rate = returning / prior-period active users.",
+                      retHeaders,
+                      retData,
+                      maxTrendCols
+                    ));
+                  }
+                }
+
+                // Section D: Adoption progress
+                const goalExportMetrics = state.latestGoalMetrics;
+                if (goalExportMetrics && goalExportMetrics.goal1) {
+                  const g = goalExportMetrics.goal1;
+                  const goalHeaders = ["Period", "Targeted users", "Compliant users", "Compliant reach (%)", "Met target"];
+                  const goalData = [];
+                  if (Array.isArray(g.months)) {
+                    g.months.forEach(m => {
+                      goalData.push([
+                        m.label || m.key || "",
+                        m.targetedUsers || 0,
+                        m.compliantUsers || 0,
+                        Number((m.attainmentPct || 0).toFixed(1)),
+                        m.targetedUsers > 0 && m.compliantUsers === m.targetedUsers ? "Yes" : "No"
+                      ]);
                     });
                   }
-                });
-                const adoptionSheet = XLSX.utils.aoa_to_sheet(adoptionRows);
-                autoSizeWorksheetColumns(adoptionSheet, adoptionRows);
-                XLSX.utils.book_append_sheet(workbook, adoptionSheet, "Adoption");
+                  if (Array.isArray(g.weekly) && g.weekly.length) {
+                    goalData.push(["", "", "", "", ""]);
+                    goalData.push(["Weekly breakdown", "", "", "", ""]);
+                    g.weekly.forEach(w => {
+                      goalData.push([
+                        w.weekKey || w.label || "",
+                        w.targetedUsers || 0,
+                        w.compliantUsers || 0,
+                        Number((w.attainmentPct || 0).toFixed(1)),
+                        w.metTarget ? "Yes" : "No"
+                      ]);
+                    });
+                  }
+                  if (goalData.length) {
+                    trendsSections.push(addExcelSection(
+                      trendsRows,
+                      "Adoption progress",
+                      "Compliance against 100% adoption target \u2014 monthly and weekly.",
+                      goalHeaders,
+                      goalData,
+                      maxTrendCols
+                    ));
+                  }
+                }
+
+                if (trendsSections.length) {
+                  const trendsSheet = XLSX.utils.aoa_to_sheet(trendsRows);
+                  sanitizeWorksheetCellsForSpreadsheet(trendsSheet);
+                  autoSizeWorksheetColumns(trendsSheet, trendsRows);
+                  applyMultiSectionStyles(trendsSheet, trendsSections, 0);
+                  XLSX.utils.book_append_sheet(workbook, trendsSheet, "Trends");
+                }
               }
 
-              if (perAppActions.length) {
-                const appRows = [];
-                appRows.push(["App", "Total actions", "Notes"]);
-                perAppActions.forEach(app => {
-                  const label = app.label || app.key || "App";
-                  const total = Number.isFinite(app.total) ? app.total : 0;
-                  appRows.push([label, total, "Total Copilot actions attributed to this app in the current filters."]);
-                });
-                const appSheet = XLSX.utils.aoa_to_sheet(appRows);
-                autoSizeWorksheetColumns(appSheet, appRows);
-                XLSX.utils.book_append_sheet(workbook, appSheet, "App actions");
+              // ── Sheet 3: "Breakdowns" (By organization + By country) ──
+              {
+                const bdRows = [];
+                const bdSections = [];
+                const bdCols = 6;
+
+                bdRows.push(["Breakdowns by group", "", "", "", "", ""]);
+                bdRows.push(["Copilot activity broken down by organization and country.", "", "", "", "", ""]);
+
+                // Section A: By organization
+                if (organizationGroups.length) {
+                  const orgHeaders = ["Organization / group", "Total actions", "Assisted hours", "Active users", "Avg actions per user", "Share of total actions"];
+                  const orgData = [];
+                  const orgTotalActions = organizationGroups.reduce((sum, group) => {
+                    return sum + (Number.isFinite(group.totalActions) ? group.totalActions : 0);
+                  }, 0);
+                  organizationGroups.forEach(group => {
+                    const groupActions = Number.isFinite(group.totalActions) ? group.totalActions : 0;
+                    const groupHours = Number.isFinite(group.assistedHours) ? group.assistedHours : 0;
+                    const groupUsers = Number.isFinite(group.users) ? group.users : 0;
+                    const groupAverage = Number.isFinite(group.averageActionsPerUser) ? group.averageActionsPerUser : 0;
+                    const share = orgTotalActions ? (groupActions / orgTotalActions) * 100 : 0;
+                    orgData.push([group.name || "Unspecified", groupActions, groupHours, groupUsers, groupAverage, share]);
+                  });
+                  bdSections.push(addExcelSection(
+                    bdRows,
+                    "By organization",
+                    "Each row shows Copilot activity per organization or office.",
+                    orgHeaders,
+                    orgData,
+                    bdCols
+                  ));
+                }
+
+                // Section B: By country
+                if (countryGroups.length) {
+                  const countryHeaders = ["Country", "Total actions", "Assisted hours", "Active users", "Avg actions per user", "Share of total actions"];
+                  const countryData = [];
+                  const totalCountryActions = countryGroups.reduce((sum, group) => {
+                    return sum + (Number.isFinite(group.totalActions) ? group.totalActions : 0);
+                  }, 0);
+                  countryGroups.forEach(group => {
+                    const groupActions = Number.isFinite(group.totalActions) ? group.totalActions : 0;
+                    const groupHours = Number.isFinite(group.assistedHours) ? group.assistedHours : 0;
+                    const groupUsers = Number.isFinite(group.users) ? group.users : 0;
+                    const groupAverage = Number.isFinite(group.averageActionsPerUser) ? group.averageActionsPerUser : 0;
+                    const share = totalCountryActions ? (groupActions / totalCountryActions) * 100 : 0;
+                    countryData.push([group.name || "Unspecified", groupActions, groupHours, groupUsers, groupAverage, share]);
+                  });
+                  bdSections.push(addExcelSection(
+                    bdRows,
+                    "By country",
+                    "Each row shows Copilot activity per country.",
+                    countryHeaders,
+                    countryData,
+                    bdCols
+                  ));
+                }
+
+                if (bdSections.length) {
+                  const bdSheet = XLSX.utils.aoa_to_sheet(bdRows);
+                  sanitizeWorksheetCellsForSpreadsheet(bdSheet);
+                  autoSizeWorksheetColumns(bdSheet, bdRows);
+                  applyMultiSectionStyles(bdSheet, bdSections, 0);
+                  XLSX.utils.book_append_sheet(workbook, bdSheet, "Breakdowns");
+                }
+              }
+
+              // ── Sheet 4: "Apps & usage" (Adoption + App actions + Activity 30d + Categories) ──
+              {
+                const appsRows = [];
+                const appsSections = [];
+                const appsCols = 5;  // widest section is adoption (5 cols)
+
+                appsRows.push(["Apps & usage details", "", "", "", ""]);
+                appsRows.push(["Per-app adoption, actions, recent activity, and category breakdowns.", "", "", "", ""]);
+
+                // Section A: Adoption by app
+                const adoption = aggregates.adoption;
+                const adoptionApps = adoption && Array.isArray(adoption.apps) ? adoption.apps : [];
+                if (adoptionApps.length) {
+                  const adpHeaders = ["Type", "Name", "Parent app", "Active users", "% of active users"];
+                  const adpData = [];
+                  adoptionApps.forEach(app => {
+                    const appLabel = app.label || app.key || "App";
+                    const appUsers = Number.isFinite(app.users) ? app.users : 0;
+                    const appShareValue = Number.isFinite(app.share) ? app.share : 0;
+                    adpData.push(["App", appLabel, "", appUsers, appShareValue]);
+                    if (Array.isArray(app.features)) {
+                      app.features.forEach(feature => {
+                        const featureLabel = feature.label || feature.key || "Capability";
+                        const featureUsers = Number.isFinite(feature.users) ? feature.users : 0;
+                        const featureShareValue = Number.isFinite(feature.share) ? feature.share : 0;
+                        adpData.push(["Capability", featureLabel, appLabel, featureUsers, featureShareValue]);
+                      });
+                    }
+                  });
+                  appsSections.push(addExcelSection(
+                    appsRows,
+                    "Adoption by app",
+                    "Active users per app and capability, with share of total active users.",
+                    adpHeaders,
+                    adpData,
+                    appsCols
+                  ));
+                }
+
+                // Section B: App actions
+                if (perAppActions.length) {
+                  const aaHeaders = ["App", "Total actions", "Notes"];
+                  const aaData = [];
+                  perAppActions.forEach(app => {
+                    const label = app.label || app.key || "App";
+                    const total = Number.isFinite(app.total) ? app.total : 0;
+                    aaData.push([label, total, "Total Copilot actions for this app."]);
+                  });
+                  appsSections.push(addExcelSection(
+                    appsRows,
+                    "App actions",
+                    "Total Copilot actions attributed to each app in the current filters.",
+                    aaHeaders,
+                    aaData,
+                    appsCols
+                  ));
+                }
+
+                // Section C: Recent activity (30 days)
+                const activeDaysExport = state.latestActiveDays;
+                if (activeDaysExport && typeof activeDaysExport === "object") {
+                  const uniqueUsers = activeDaysExport.uniqueUsers || {};
+                  const promptTotals = activeDaysExport.promptTotals || {};
+                  const allKeys = new Set([...Object.keys(uniqueUsers), ...Object.keys(promptTotals)]);
+                  if (allKeys.size) {
+                    const adHeaders = ["App", "Unique users (last 30d)", "Total prompts (last 30d)"];
+                    const adData = [];
+                    Array.from(allKeys)
+                      .sort((a, b) => (uniqueUsers[b] || 0) - (uniqueUsers[a] || 0))
+                      .forEach(app => {
+                        adData.push([app, uniqueUsers[app] || 0, promptTotals[app] || 0]);
+                      });
+                    appsSections.push(addExcelSection(
+                      appsRows,
+                      "Recent activity (last 30 days)",
+                      "Unique users and total prompts per app in the last 30 days.",
+                      adHeaders,
+                      adData,
+                      appsCols
+                    ));
+                  }
+                }
+
+                // Section D: Usage by category
+                const categoryTotalsExport = aggregates.categoryTotals;
+                if (categoryTotalsExport && typeof categoryTotalsExport === "object") {
+                  const catHeaders = ["Category", "Metric", "Value"];
+                  const catData = [];
+                  Object.entries(categoryTotalsExport).forEach(([category, totals]) => {
+                    if (!totals) return;
+                    const catLabel = (typeof categoryLabels !== "undefined" && categoryLabels[category]) || category;
+                    const total = typeof totals.total === "number" ? totals.total : (typeof totals.primary === "number" ? totals.primary : 0);
+                    catData.push([catLabel, `${catLabel} actions`, total]);
+                    if (Number.isFinite(totals.primary)) {
+                      const labels = (typeof categoryMetricLabels !== "undefined" && categoryMetricLabels[category]) || {};
+                      const cfg = (typeof categoryConfig !== "undefined" && categoryConfig[category]) || {};
+                      if (cfg.primary) {
+                        catData.push([catLabel, labels[cfg.primary] || cfg.primary, totals.primary]);
+                      }
+                    }
+                    if (Array.isArray(totals.secondary)) {
+                      const labels = (typeof categoryMetricLabels !== "undefined" && categoryMetricLabels[category]) || {};
+                      const cfg = (typeof categoryConfig !== "undefined" && categoryConfig[category]) || {};
+                      (cfg.secondary || []).forEach((field, idx) => {
+                        catData.push([catLabel, labels[field] || field, totals.secondary[idx] || 0]);
+                      });
+                    }
+                  });
+                  if (catData.length) {
+                    appsSections.push(addExcelSection(
+                      appsRows,
+                      "Usage by category",
+                      "Copilot usage broken down by category (Meetings, Email, Teams, etc.).",
+                      catHeaders,
+                      catData,
+                      appsCols
+                    ));
+                  }
+                }
+
+                if (appsSections.length) {
+                  const appsSheet = XLSX.utils.aoa_to_sheet(appsRows);
+                  sanitizeWorksheetCellsForSpreadsheet(appsSheet);
+                  autoSizeWorksheetColumns(appsSheet, appsRows);
+                  applyMultiSectionStyles(appsSheet, appsSections, 0);
+                  XLSX.utils.book_append_sheet(workbook, appsSheet, "Apps & usage");
+                }
               }
 
               const filename = `copilot-full-report-${formatTimestamp()}.xlsx`;

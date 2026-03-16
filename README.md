@@ -141,5 +141,14 @@ Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 - Added a Goals tracker section with CSV-only KPI measurement for Goal 1 (weekly attainment + sustained 4/4 status).
 - Added goals CSV export for governance reporting (`copilot-goals-tracker.csv`).
 
+### 2026-03-16
+- **Excel full report overhaul**: consolidated 11 sheets into 4 (Overview, Trends, Breakdowns, Apps & usage) with multi-section layout per sheet.
+  - Each section has a descriptive title, info row, green header, and alternating-row data.
+  - Switched from xlsx@0.18.5 to xlsx-js-style@1.2.0 for cell styling support.
+  - Added SRI integrity hash for xlsx-js-style CDN dependency.
+- Text wrapping: top organizations/countries now display as multi-line lists; all data columns wrap text with top-vertical alignment.
+- New styling helpers: `addExcelSection()`, `applyMultiSectionStyles()` for composing multi-section sheets.
+- New export coverage: returning users, adoption progress, activity (30d), and category breakdowns included in the full report.
+
 ### 2026-03-01
 - Fixed Agent Hub KPI cards and tab badges to refresh immediately after Users/Agents/Users&Agents CSV uploads.

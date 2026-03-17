@@ -71,7 +71,6 @@
       <article class="intro-card">
         <div class="intro-header">
           <span class="dashboard-pill">Microsoft Copilot Dashboard</span>
-          <p class="intro">Load the centrally managed Copilot CSV export (or upload a local export for ad-hoc analysis).</p>
         </div>
         <div class="upload-zone" data-drop-zone role="region" aria-label="File upload area">
           <input type="file" id="fileInput" accept=".csv" data-file-input hidden aria-describedby="uploadHint" />
@@ -102,9 +101,6 @@
           <p class="upload-meta" data-upload-meta>No file chosen yet.</p>
         </div>
         <div class="upload-status" role="status" aria-live="polite" data-upload-status>Waiting for your data.</div>
-        <div class="post-upload-cta" data-post-upload-cta hidden aria-label="Next steps">
-          <button type="button" class="upload-button" data-post-upload-export>Export &#9660;</button>
-        </div>
       </article>
       <aside class="dataset-card" role="complementary" aria-label="Dataset information">
       <h2 class="chart-title">Dataset status</h2>
@@ -129,7 +125,7 @@
               <button type="button" class="storage-button" data-snapshot-save disabled>Save encrypted snapshot</button>
               <button type="button" class="storage-button storage-button--ghost" data-snapshot-load>Load encrypted snapshot</button>
             </div>
-            <p class="snapshot-controls__hint muted" data-snapshot-hint>Encrypted snapshots let trusted colleagues reproduce this view without sending raw files.</p>
+            <p class="snapshot-controls__hint muted" data-snapshot-hint>Encrypted snapshots let trusted colleagues reopen this view without sharing raw files.</p>
           </div>
         </div>
       </aside>

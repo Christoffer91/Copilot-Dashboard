@@ -1100,7 +1100,8 @@ body.is-custom-theme {
       font-size: var(--font-size-xs);
       line-height: 1.35;
       color: var(--grey-500);
-      max-width: 320px;
+      max-width: none;
+      white-space: nowrap;
     }
 
     @media (max-width: 900px) {
@@ -1115,6 +1116,10 @@ body.is-custom-theme {
 
       .snapshot-controls__buttons {
         grid-template-columns: 1fr;
+      }
+
+      .snapshot-controls__hint {
+        white-space: normal;
       }
     }
 
@@ -4228,18 +4233,6 @@ body.is-custom-theme {
       font-size: var(--font-size-xs);
       color: var(--grey-500);
       line-height: 1.4;
-    }
-
-    .post-upload-cta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      margin-top: 2px;
-    }
-
-    .post-upload-cta[hidden] {
-      display: none;
     }
 
     .series-toggle {

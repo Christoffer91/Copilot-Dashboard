@@ -2803,8 +2803,6 @@
             uploadProgress: document.querySelector("[data-upload-progress]"),
             uploadProgressBar: document.querySelector("[data-upload-progress-bar]"),
             uploadCancel: document.querySelector("[data-upload-cancel]"),
-            postUploadCta: document.querySelector("[data-post-upload-cta]"),
-            postUploadExport: document.querySelector("[data-post-upload-export]"),
             datasetMessage: document.querySelector("[data-dataset-message]"),
             datasetMetaWrapper: document.querySelector("[data-dataset-meta]"),
             metaRecords: document.querySelector("[data-meta-records]"),
@@ -5240,13 +5238,6 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           }
           updateExportDetailOption();
 
-          if (dom.postUploadExport) {
-            dom.postUploadExport.addEventListener("click", () => {
-              openExportMenuFromCta();
-            });
-          }
-          updatePostUploadCtaVisibility();
-      
           if (dom.exportPDF) {
             dom.exportPDF.addEventListener("click", () => {
               void exportDashboardToPDF();
@@ -5428,7 +5419,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             }
             if (hint) {
               hint.textContent = hasDataset
-                ? "Encrypted snapshots let trusted colleagues reproduce this view without sending raw files."
+                ? "Encrypted snapshots let trusted colleagues reopen this view without sharing raw files."
                 : "Load a dataset before creating an encrypted snapshot.";
             }
           }
@@ -7884,12 +7875,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             if (dom.uploadStatus) {
               dom.uploadStatus.textContent = message;
             }
-            if (dom.postUploadCta) {
-              dom.postUploadCta.hidden = true;
-            }
-            if (dom.datasetMessage) {
-              dom.datasetMessage.textContent = "Upload a valid CSV export to continue.";
-            }
+            setDatasetMessage("Upload a valid CSV export to continue.");
             if (dom.uploadMeta) {
               dom.uploadMeta.textContent = "No file chosen yet.";
             }
@@ -7910,11 +7896,13 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             }
           }
 
-          function updatePostUploadCtaVisibility() {
-            const hasDataset = Array.isArray(state.rows) && state.rows.length > 0;
-            if (dom.postUploadCta) {
-              dom.postUploadCta.hidden = !hasDataset;
+          function setDatasetMessage(message) {
+            if (!dom.datasetMessage) {
+              return;
             }
+            const text = typeof message === "string" ? message.trim() : "";
+            dom.datasetMessage.textContent = text;
+            dom.datasetMessage.hidden = !text;
           }
       
           function computePercent(cursor, size) {
@@ -7936,9 +7924,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               const label = file && file.name ? file.name : "dataset";
               dom.uploadStatus.textContent = `Parsing ${label}...`;
             }
-            if (dom.datasetMessage) {
-              dom.datasetMessage.textContent = "Parsing in progress...";
-            }
+            setDatasetMessage("Parsing in progress...");
             if (dom.datasetMetaWrapper) {
               dom.datasetMetaWrapper.hidden = true;
             }
@@ -8000,8 +7986,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             }
             finishUploadProgress(silent ? null : "Import canceled.");
             setActiveParseController(null);
-            if (!silent && dom.datasetMessage) {
-              dom.datasetMessage.textContent = "Upload canceled. Select a CSV to try again.";
+            if (!silent) {
+              setDatasetMessage("Upload canceled. Select a CSV to try again.");
             }
           }
       
@@ -8127,14 +8113,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 : baseStatus;
             }
       
-            if (dom.datasetMessage) {
-              const baseMessage = meta.loadedFromStorage
-                ? 'Dataset restored. Filters reflect detected segments.'
-                : 'Dataset ready. Filters reflect detected segments.';
-              dom.datasetMessage.textContent = datasetContextDescription
-                ? `${baseMessage} ${datasetContextDescription}.`
-                : baseMessage;
-            }
+            setDatasetMessage("");
       
             if (dom.datasetMetaWrapper) {
               dom.datasetMetaWrapper.hidden = false;
@@ -8180,7 +8159,6 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               };
               updateStoredDatasetControls(storedMeta);
             }
-            updatePostUploadCtaVisibility();
           }
       
           function parseCsvTextContent(csvText, meta = {}) {
@@ -8246,7 +8224,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 currentCsvFieldLookup = null;
                 currentDatasetContext = null;
                 dom.uploadStatus.textContent = `Saved dataset could not be loaded (${message}).`;
-                dom.datasetMessage.textContent = "Stored dataset was cleared. Load a CSV to continue.";
+                setDatasetMessage("Stored dataset was cleared. Load a CSV to continue.");
                 dom.datasetMetaWrapper.hidden = true;
                 clearStoredDataset({ quiet: true });
               },
@@ -8255,7 +8233,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   currentCsvFieldLookup = null;
                   currentDatasetContext = null;
                   dom.uploadStatus.textContent = "Saved dataset was empty or unreadable.";
-                  dom.datasetMessage.textContent = "Stored dataset was cleared. Load a CSV to continue.";
+                  setDatasetMessage("Stored dataset was cleared. Load a CSV to continue.");
                   dom.datasetMetaWrapper.hidden = true;
                   clearStoredDataset({ quiet: true });
                   return;
@@ -14499,9 +14477,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             return;
           }
           const promptMessage = options.message || "Enter the shared password to unlock this dashboard.";
-          if (dom.datasetMessage) {
-            dom.datasetMessage.textContent = promptMessage;
-          }
+          setDatasetMessage(promptMessage);
           window.setTimeout(() => {
             if (!dom.snapshotImportDialog || typeof dom.snapshotImportDialog.showModal !== "function") {
               logWarn("Snapshot import dialog is unavailable for embedded exports.");

@@ -13305,13 +13305,13 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             if (!validValues.length) {
               return 0;
             }
-            const sortedValues = validValues.slice().sort((a, b) => a - b);
-            const percentileIndex = Math.max(0, Math.floor((sortedValues.length - 1) * 0.15));
-            const anchor = sortedValues[percentileIndex];
-            if (anchor < 75) {
+            const highValueCount = validValues.filter(value => value >= 75).length;
+            const highValueRatio = highValueCount / validValues.length;
+            if (highValueRatio < 0.7) {
               return 0;
             }
-            return Math.max(70, Math.floor((anchor - 5) / 5) * 5);
+            const minValue = Math.min(...validValues);
+            return Math.max(40, Math.floor((minValue - 5) / 5) * 5);
           }
 
           function resolveReturningSelection(series, interval) {

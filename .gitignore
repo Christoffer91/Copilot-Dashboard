@@ -21,6 +21,14 @@ coverage/
 # cPanel deployment config (contains server paths)
 .cpanel.yml
 
+# Local agent/editor state and generated artifacts
+.claude/
+.codex/
+.superpowers/
+tmp/
+test-results/
+output/
+
 # Private AI memory (never commit)
 .ai/
 **/.ai/

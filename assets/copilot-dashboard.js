@@ -3663,10 +3663,14 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             if (Number.isFinite(period.adoptionRate)) {
               return period.adoptionRate;
             }
-            const active = getPeriodUserCount(period);
-            const enabled = Number.isFinite(period.enabledUsersCount)
+            const active = Number.isFinite(period.adoptionUserCount)
+              ? period.adoptionUserCount
+              : getPeriodUserCount(period);
+            const enabled = Number.isFinite(period.adoptionEnabledUsersCount)
+              ? period.adoptionEnabledUsersCount
+              : (Number.isFinite(period.enabledUsersCount)
               ? period.enabledUsersCount
-              : (period.enabledUsers instanceof Set ? period.enabledUsers.size : 0);
+              : (period.enabledUsers instanceof Set ? period.enabledUsers.size : 0));
             if (!enabled || !active) {
               return 0;
             }
@@ -3696,6 +3700,29 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               return 0;
             }
             return value;
+          }
+
+          function resolveAdoptionTrendAxisBounds(periods) {
+            const values = Array.isArray(periods)
+              ? periods
+                .map(period => getPeriodAdoptionRate(period))
+                .filter(value => Number.isFinite(value))
+              : [];
+            if (!values.length) {
+              return { min: 0, max: 100 };
+            }
+            const minValue = Math.min(...values);
+            const maxValue = Math.max(...values);
+            const paddedMin = Math.max(0, Math.floor((minValue - 10) / 10) * 10);
+            const paddedMax = Math.min(100, Math.ceil((maxValue + 10) / 10) * 10);
+            if (paddedMax <= paddedMin) {
+              const fallbackMax = Math.min(100, paddedMin + 20);
+              return {
+                min: Math.max(0, fallbackMax - 20),
+                max: fallbackMax
+              };
+            }
+            return { min: paddedMin, max: paddedMax };
           }
 
           function formatTrendFixed(value, digits) {
@@ -11118,6 +11145,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   isoYear: row.isoYear,
                   isoWeek: row.isoWeek,
                   users: new Set(),
+                  adoptionUsers: new Set(),
                   returningUsers: new Set(),
                   enabledUsers: new Set(),
                   categories: createCategoryAccumulator()
@@ -11132,6 +11160,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               }
               if (rowSelectedActions > 0 || rowSelectedHours > 0) {
                 periodBucket.users.add(personKey);
+              }
+              if (rowSelectedActions > 0) {
+                periodBucket.adoptionUsers.add(personKey);
               }
               if (rowSelectedActions > 0) {
                 periodBucket.returningUsers.add(personKey);
@@ -11231,8 +11262,10 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             const periods = Array.from(periodMap.entries())
               .map(([label, values]) => {
                 const usersSet = values.users instanceof Set ? values.users : new Set();
+                const adoptionUsersSet = values.adoptionUsers instanceof Set ? values.adoptionUsers : new Set();
                 const enabledSet = values.enabledUsers instanceof Set ? values.enabledUsers : new Set();
                 const userCount = usersSet.size || 0;
+                const adoptionUserCount = adoptionUsersSet.size || 0;
                 const enabledCount = enabledSet.size || 0;
                 return {
                   label: formatPeriodLabel(label, values.date),
@@ -11241,13 +11274,16 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   date: values.date,
                   categories: values.categories,
                   users: new Set(usersSet),
+                  adoptionUsers: new Set(adoptionUsersSet),
                   returningUsers: values.returningUsers instanceof Set ? new Set(values.returningUsers) : new Set(),
                   enabledUsers: new Set(enabledSet),
                   enabledUsersCount: enabledCount,
+                  adoptionEnabledUsersCount: enabledCount,
                   userCount,
+                  adoptionUserCount,
                   averageActionsPerUser: userCount ? values.totalActions / userCount : 0,
                   averageHoursPerUser: userCount ? values.assistedHours / userCount : 0,
-                  adoptionRate: enabledCount ? (userCount / enabledCount) * 100 : 0
+                  adoptionRate: enabledCount ? (adoptionUserCount / enabledCount) * 100 : 0
                 };
               })
               .sort((a, b) => a.date - b.date);
@@ -11626,8 +11662,20 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             const metric = state.filters.metric;
             chart.data.datasets = buildTrendDatasets(periods, metric, state.seriesDetailMode);
             const yScale = chart.options?.scales?.y;
-            if (yScale && yScale.ticks) {
-              yScale.ticks.callback = value => formatTrendAxisTick(value);
+            if (yScale) {
+              if (yScale.ticks) {
+                yScale.ticks.callback = value => formatTrendAxisTick(value);
+              }
+              if (metric === "adoption") {
+                const bounds = resolveAdoptionTrendAxisBounds(periods);
+                yScale.min = bounds.min;
+                yScale.max = bounds.max;
+                yScale.beginAtZero = bounds.min === 0;
+              } else {
+                delete yScale.min;
+                delete yScale.max;
+                yScale.beginAtZero = true;
+              }
             }
             chart.update("none");
           }
@@ -15144,13 +15192,17 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 const totalActions = Number.isFinite(period?.totalActions) ? Math.round(period.totalActions) : 0;
                 const assistedHours = Number.isFinite(period?.assistedHours) ? period.assistedHours : 0;
                 const userCount = Number.isFinite(period?.userCount) ? period.userCount : 0;
+                const adoptionUserCount = Number.isFinite(period?.adoptionUserCount) ? period.adoptionUserCount : userCount;
                 const enabledCount = Number.isFinite(period?.enabledUsersCount) ? period.enabledUsersCount : 0;
+                const adoptionEnabledCount = Number.isFinite(period?.adoptionEnabledUsersCount) ? period.adoptionEnabledUsersCount : enabledCount;
                 const adoptionRate = Number.isFinite(period?.adoptionRate) ? period.adoptionRate : 0;
                 const avgActions = Number.isFinite(period?.averageActionsPerUser) ? period.averageActionsPerUser : 0;
                 const avgHours = Number.isFinite(period?.averageHoursPerUser) ? period.averageHoursPerUser : 0;
                 const selectedValue = metric === "hours"
                   ? Number(formatTrendFixed(assistedHours, 1))
                   : (metric === "adoption" ? Number(formatTrendFixed(adoptionRate, 1)) : totalActions);
+                const exportUserCount = metric === "adoption" ? adoptionUserCount : userCount;
+                const exportEnabledCount = metric === "adoption" ? adoptionEnabledCount : enabledCount;
 
                 return [
                   period && typeof period.label === "string" ? period.label : "",
@@ -15158,8 +15210,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   selectedValue,
                   totalActions,
                   Number(formatTrendFixed(assistedHours, 1)),
-                  userCount,
-                  enabledCount,
+                  exportUserCount,
+                  exportEnabledCount,
                   Number(formatTrendFixed(adoptionRate, 1)),
                   Number(formatTrendFixed(avgActions, 2)),
                   Number(formatTrendFixed(avgHours, 2))

@@ -10482,7 +10482,10 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
       
             dom.summaryActions.textContent = numberFormatter.format(Math.round(aggregates.totals.totalActions));
             dom.summaryHours.textContent = `${hoursFormatter.format(aggregates.totals.assistedHours)} hrs`;
-            dom.summaryUsers.textContent = numberFormatter.format(aggregates.activeUsers.size);
+            const summaryActiveUsers = aggregates.actionActiveUsers instanceof Set
+              ? aggregates.actionActiveUsers.size
+              : aggregates.activeUsers.size;
+            dom.summaryUsers.textContent = numberFormatter.format(summaryActiveUsers);
             if (aggregates.latestWeek) {
               const metricValue =
                 state.filters.metric === "hours"
@@ -10505,7 +10508,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
       
             dom.summaryActionsNote.textContent = `Across ${aggregates.filteredCount} records (avg ${numberFormatter.format(Math.round(aggregates.averageActionsPerUser))} actions per active user).`;
             dom.summaryHoursNote.textContent = `Average ${hoursFormatter.format(aggregates.averageHoursPerUser)} hrs per active user.`;
-            const activeUserCount = aggregates.activeUsers.size;
+            const activeUserCount = summaryActiveUsers;
             const enabledUserCount = aggregates.enabledUsers instanceof Set ? aggregates.enabledUsers.size : 0;
             if (activeUserCount || enabledUserCount) {
               const fragments = [];
@@ -10903,6 +10906,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               assistedHours: 0
             };
             const activeUsers = new Set();
+            const actionActiveUsers = new Set();
             const enabledUsers = new Set();
             const groupMap = new Map();
             const periodMap = new Map();
@@ -11012,6 +11016,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
       
               if (rowSelectedActions > 0 || rowSelectedHours > 0) {
                 activeUsers.add(personKey);
+              }
+              if (rowSelectedActions > 0) {
+                actionActiveUsers.add(personKey);
               }
       
               const withinLast30 = last30Cutoff instanceof Date && row.date >= last30Cutoff;
@@ -11218,7 +11225,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               adoptionEntries.forEach(entry => {
                 const { config, userSet, featureSets } = entry;
                 const metrics = row.metrics || {};
-                if (!activeUsers.has(personKey)) {
+                if (!actionActiveUsers.has(personKey)) {
                   return;
                 }
                 let assignedToApp = false;
@@ -11330,13 +11337,13 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               previousWeek = periods.length > 1 ? periods[periods.length - 2] : null;
             }
       
-            const averageActionsPerUser = activeUsers.size ? totals.totalActions / activeUsers.size : 0;
-            const averageHoursPerUser = activeUsers.size ? totals.assistedHours / activeUsers.size : 0;
+            const averageActionsPerUser = actionActiveUsers.size ? totals.totalActions / actionActiveUsers.size : 0;
+            const averageHoursPerUser = actionActiveUsers.size ? totals.assistedHours / actionActiveUsers.size : 0;
             const userSummaries = Array.from(userTotals.values());
             const topUsers = userSummaries
               .filter(entry => (entry.totalActions || 0) > 0)
               .sort((a, b) => (b.totalActions || 0) - (a.totalActions || 0));
-            const totalActiveUsersCount = activeUsers.size;
+            const totalActiveUsersCount = actionActiveUsers.size;
             const adoptionApps = [];
             adoptionEntries.forEach(entry => {
               const appUsers = entry.userSet.size;
@@ -11528,6 +11535,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             return {
               totals,
               activeUsers,
+              actionActiveUsers,
               enabledUsers,
               groups: groupEntries,
               periods,
@@ -15304,7 +15312,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
 
               const totalActions = Math.round(aggregates.totals && Number.isFinite(aggregates.totals.totalActions) ? aggregates.totals.totalActions : 0);
               const totalHours = aggregates.totals && Number.isFinite(aggregates.totals.assistedHours) ? aggregates.totals.assistedHours : 0;
-              const activeUsers = aggregates.activeUsers instanceof Set ? aggregates.activeUsers.size : 0;
+              const activeUsers = aggregates.actionActiveUsers instanceof Set
+                ? aggregates.actionActiveUsers.size
+                : (aggregates.activeUsers instanceof Set ? aggregates.activeUsers.size : 0);
               const enabledUsers = aggregates.enabledUsers instanceof Set ? aggregates.enabledUsers.size : 0;
               const averageActionsPerUser = Number.isFinite(aggregates.averageActionsPerUser) ? aggregates.averageActionsPerUser : 0;
               const averageHoursPerUser = Number.isFinite(aggregates.averageHoursPerUser) ? aggregates.averageHoursPerUser : 0;
@@ -15795,7 +15805,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
 
               const totalActions = Math.round(aggregates.totals && Number.isFinite(aggregates.totals.totalActions) ? aggregates.totals.totalActions : 0);
               const totalHours = aggregates.totals && Number.isFinite(aggregates.totals.assistedHours) ? aggregates.totals.assistedHours : 0;
-              const activeUsers = aggregates.activeUsers instanceof Set ? aggregates.activeUsers.size : 0;
+              const activeUsers = aggregates.actionActiveUsers instanceof Set
+                ? aggregates.actionActiveUsers.size
+                : (aggregates.activeUsers instanceof Set ? aggregates.activeUsers.size : 0);
               const enabledUsers = aggregates.enabledUsers instanceof Set ? aggregates.enabledUsers.size : 0;
               const averageActionsPerUser = Number.isFinite(aggregates.averageActionsPerUser) ? aggregates.averageActionsPerUser : 0;
               const averageHoursPerUser = Number.isFinite(aggregates.averageHoursPerUser) ? aggregates.averageHoursPerUser : 0;

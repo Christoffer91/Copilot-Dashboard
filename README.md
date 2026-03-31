@@ -11,6 +11,12 @@ A client-only dashboard for exploring Viva Insights Copilot CSV exports: filter 
   - `samples/viva-analytics-copilot-impact.csv` (Viva Analytics Copilot Impact shape, 83 columns)
   - `samples/copilot-dashboard-export.csv` (Copilot Dashboard export shape, 89 columns)
 - Rich filters, multi-metric charts, agent hub tables, theme toggles, and per-capability insights.
+- Compare mode for same-dimension analysis:
+  - organization vs organization
+  - region vs region
+  - domain vs domain
+  - shared global timeframe, metric, and aggregation
+  - compact side-by-side comparison summaries plus a full-width comparison chart
 - **Theme system**: 7 built-in themes (Light, Cool Light, Midnight Dark, Carbon Black, Cyberpunk, Neon, Sunset) + custom color picker.
 - Exports: PNG/PDF/CSV, Excel summaries, encrypted snapshots, and SharePoint bundle generator.
   - Export menu clarifies the difference between:
@@ -55,6 +61,12 @@ Usage intensity and returning users behavior:
 - If more than 12 months exist, the latest 12 are preselected by default for readability/performance.
 - Returning users are calculated as the number of people active in both the current period and the immediately previous period (weekly or monthly view).
 - Regression check script: `node tools/verify-returning-users.mjs`
+
+Active users semantics:
+- `Impact trend` with **Active users (%)** now uses:
+  - numerator: distinct users with at least `1` prompt/action in the same week/month
+  - denominator: distinct users with `Copilot Enabled User > 0` in that same week/month
+- The top `Active Copilot users` summary and `Adoption by app` denominator now use the same actions-only active-user rule for consistency.
 
 Goals tracker behavior:
 - Goal 1 uses CSV-only scope and is measured weekly:
@@ -103,6 +115,23 @@ Copyright (c) 2025 Christoffer Besler Hansen.
 Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 
 ## Changelog
+
+### 2026-03-31
+- Fixed `Impact trend` **Active users (%)** to use period-local actions-only numerator and period-local enabled denominator.
+- Added smart zoom for `Impact trend` **Active users (%)** so the y-axis pads the observed range instead of always spanning `0-100`.
+- Aligned the top `Active Copilot users` summary and `Adoption by app` active-user denominator to the same actions-only active-user rule.
+- Added compare mode:
+  - compare two organizations, regions, or domains
+  - shared timeframe, metric, and aggregation
+  - compact compare summaries
+  - full-width comparison chart
+- Compare chart behavior:
+  - one selected side shows one full-width line
+  - two selected sides show one shared overlay chart
+  - left side uses green, right side uses blue
+  - capability lines are hidden in compare by default
+- Fixed compare-mode interaction bugs caused by an overlaid empty state intercepting pointer events.
+- Replaced visible inline-width skeleton markup with CSS classes to reduce CSP noise in the compare/debug path.
 
 ### 2025-12-12
 - **Theme system overhaul**: Added 7 built-in themes + custom color picker

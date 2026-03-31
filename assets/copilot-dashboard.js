@@ -145,21 +145,29 @@
               group: "organization",
               categorySelection: null
             },
+            compare: {
+              enabled: false,
+              left: "",
+              right: "",
+              leftPeriods: [],
+              rightPeriods: []
+            },
             persistDatasets: false,
             charts: {
               trend: null,
-            usageFrequency: new Map(),
-            usageConsistency: new Map(),
-            usageTrend: null,
-            returningUsers: null,
-            enabledLicenses: null,
-            goal1Monthly: null,
-            goal1Weekly: null,
-            dimensionComparison: null
-          },
-          latestTrendPeriods: [],
-          latestUsageMonths: [],
-          latestUsageTrendRows: [],
+              compareOverlay: null,
+              usageFrequency: new Map(),
+              usageConsistency: new Map(),
+              usageTrend: null,
+              returningUsers: null,
+              enabledLicenses: null,
+              goal1Monthly: null,
+              goal1Weekly: null,
+              dimensionComparison: null
+            },
+            latestTrendPeriods: [],
+            latestUsageMonths: [],
+            latestUsageTrendRows: [],
             enabledLicensesColors: getDefaultEnabledLicensesColors(),
             latestEnabledTimeline: [],
             latestGroupData: null,
@@ -2838,6 +2846,19 @@
             aggregateFilter: document.querySelector("[data-filter-aggregate]"),
             metricFilter: document.querySelector("[data-filter-metric]"),
             groupFilter: document.querySelector("[data-filter-group]"),
+            compareToolbar: document.querySelector("[data-compare-toolbar]"),
+            compareEnabled: document.querySelector("[data-compare-enabled]"),
+            compareSelectors: document.querySelector("[data-compare-selectors]"),
+            compareLeft: document.querySelector("[data-compare-left]"),
+            compareRight: document.querySelector("[data-compare-right]"),
+            compareLeftLabel: document.querySelector("[data-compare-left-label]"),
+            compareRightLabel: document.querySelector("[data-compare-right-label]"),
+            compareHint: document.querySelector("[data-compare-hint]"),
+            compareSection: document.querySelector("[data-compare-section]"),
+            compareCaption: document.querySelector("[data-compare-caption]"),
+            compareEmpty: document.querySelector("[data-compare-empty]"),
+            compareGrid: document.querySelector("[data-compare-grid]"),
+            compareCharts: document.querySelector("[data-compare-charts]"),
             summaryActions: document.querySelector("[data-summary-actions]"),
             summaryActionsNote: document.querySelector("[data-summary-actions-note]"),
             summaryHours: document.querySelector("[data-summary-hours]"),
@@ -3812,7 +3833,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             return metricIsHours ? "hours" : "actions";
           }
 
-          function createTrendChartOptions() {
+          function createTrendChartOptions(getPeriods = () => state.latestTrendPeriods) {
             return {
               responsive: true,
               maintainAspectRatio: false,
@@ -3873,7 +3894,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                       if (index == null) {
                         return;
                       }
-                      const periods = Array.isArray(state.latestTrendPeriods) ? state.latestTrendPeriods : [];
+                      const periods = typeof getPeriods === "function" ? getPeriods() : [];
                       const period = periods[index];
                       if (!period) {
                         return;
@@ -3900,6 +3921,18 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             },
             options: createTrendChartOptions()
           });
+
+          const compareTrendOverlayCtx = document.getElementById("compareTrendChartOverlay")?.getContext("2d");
+          if (compareTrendOverlayCtx) {
+            state.charts.compareOverlay = new Chart(compareTrendOverlayCtx, {
+              type: "line",
+              data: {
+                labels: [],
+                datasets: []
+              },
+              options: createTrendChartOptions()
+            });
+          }
       
           const usageTrendCtx = dom.usageTrendCanvas?.getContext("2d");
           if (usageTrendCtx) {
@@ -5061,6 +5094,38 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             renderDashboard();
             persistFilterPreferences();
           });
+
+          if (dom.compareEnabled) {
+            dom.compareEnabled.addEventListener("change", () => {
+              state.compare.enabled = Boolean(dom.compareEnabled.checked);
+              if (!state.compare.enabled) {
+                state.compare.left = "";
+                state.compare.right = "";
+              }
+              updateCompareFilterLockState();
+              renderDashboard();
+            });
+          }
+
+          if (dom.compareLeft) {
+            dom.compareLeft.addEventListener("change", () => {
+              state.compare.left = dom.compareLeft.value || "";
+              if (state.compare.left && state.compare.left === state.compare.right) {
+                state.compare.right = "";
+              }
+              renderDashboard();
+            });
+          }
+
+          if (dom.compareRight) {
+            dom.compareRight.addEventListener("change", () => {
+              state.compare.right = dom.compareRight.value || "";
+              if (state.compare.right && state.compare.right === state.compare.left) {
+                state.compare.left = "";
+              }
+              renderDashboard();
+            });
+          }
       
           if (dom.usageTrendToggleButtons && dom.usageTrendToggleButtons.length) {
             dom.usageTrendToggleButtons.forEach(button => {
@@ -10412,6 +10477,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               state.groupsExpanded = false;
               state.topUsersExpanded = false;
               state.topUsersPanelOpen = false;
+              renderCompareSection([]);
               updateExportDetailOption();
               setTrendColorControlsVisibility(false);
               if (dom.seriesModeToggle) {
@@ -10421,9 +10487,11 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               return;
             }
       
+            const compareBaseRows = applyFilters(state.rows, { ignoreCompareDimension: true });
             const filtered = applyFilters(state.rows);
             if (state.filters.timeframe === "custom" && state.filters.customRangeInvalid) {
               handleInvalidCustomRange();
+              renderCompareSection([]);
               return;
             }
             if (!filtered.length) {
@@ -10465,6 +10533,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               state.latestEnabledTimeline = [];
               state.groupsExpanded = false;
               state.topUsersExpanded = false;
+              renderCompareSection(compareBaseRows);
               updateExportDetailOption();
               setTrendColorControlsVisibility(false);
               if (dom.seriesModeToggle) {
@@ -10544,6 +10613,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             buildTopUsersList(state.latestTopUsers);
             updateCategoryCards(aggregates.categoryTotals);
             updateAdoptionByApp(state.latestAdoption);
+            renderCompareSection(compareBaseRows);
             updateUsageIntensity(aggregates);
             updateEnabledLicensesChart(state.latestEnabledTimeline);
             updateReturningUsers(state.latestReturningAggregates);
@@ -10678,6 +10748,303 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               }
             }
           }
+
+          function getCompareDimensionKey() {
+            return state.filters.group === "country"
+              ? "country"
+              : (state.filters.group === "domain" ? "domain" : "organization");
+          }
+
+          function getCompareDimensionLabel() {
+            const key = getCompareDimensionKey();
+            if (key === "country") {
+              return "Region";
+            }
+            if (key === "domain") {
+              return "Domain";
+            }
+            return "Organization";
+          }
+
+          function getCompareDimensionSourceKey() {
+            const compareDimension = getCompareDimensionKey();
+            if (compareDimension === "country") {
+              return state.filterFields.country;
+            }
+            if (compareDimension === "domain") {
+              return "domain";
+            }
+            return state.filterFields.organization;
+          }
+
+          function resolveCompareSegmentValue(row) {
+            const compareDimension = getCompareDimensionKey();
+            if (compareDimension === "country") {
+              return resolveSegmentValue(row, state.filterFields.country);
+            }
+            if (compareDimension === "domain") {
+              return resolveSegmentValue(row, "domain");
+            }
+            return resolveSegmentValue(row, state.filterFields.organization);
+          }
+
+          function shouldIgnoreFilterForCompare(filterType, options = {}) {
+            const compareDimension = getCompareDimensionKey();
+            if (options.ignoreCompareDimension === true) {
+              return filterType === compareDimension;
+            }
+            return Boolean(state.compare.enabled) && filterType === compareDimension;
+          }
+
+          function getComparePanelElements(side) {
+            const panel = document.querySelector(`[data-compare-panel="${side}"]`);
+            if (!panel) {
+              return null;
+            }
+            return {
+              panel,
+              title: panel.querySelector(`[data-compare-title="${side}"]`),
+              subtitle: panel.querySelector(`[data-compare-subtitle="${side}"]`),
+              window: panel.querySelector(`[data-compare-window="${side}"]`),
+              summaryActions: panel.querySelector(`[data-compare-summary-actions="${side}"]`),
+              summaryActionsNote: panel.querySelector(`[data-compare-summary-actions-note="${side}"]`),
+              summaryHours: panel.querySelector(`[data-compare-summary-hours="${side}"]`),
+              summaryHoursNote: panel.querySelector(`[data-compare-summary-hours-note="${side}"]`),
+              summaryUsers: panel.querySelector(`[data-compare-summary-users="${side}"]`),
+              summaryUsersNote: panel.querySelector(`[data-compare-summary-users-note="${side}"]`),
+              latestPeriod: panel.querySelector(`[data-compare-summary-latest-period="${side}"]`),
+              latestMetric: panel.querySelector(`[data-compare-summary-latest-metric="${side}"]`),
+              latestNote: panel.querySelector(`[data-compare-summary-latest-note="${side}"]`)
+            };
+          }
+
+          function getCompareChartElements() {
+            return {
+              card: document.querySelector("[data-compare-chart-card]"),
+              title: document.querySelector("[data-compare-chart-title]"),
+              caption: document.querySelector("[data-compare-chart-caption]"),
+              window: document.querySelector("[data-compare-chart-window]"),
+              empty: document.querySelector("[data-compare-trend-empty]")
+            };
+          }
+
+          function setComparePanelPlaceholder(side, title, message) {
+            const refs = getComparePanelElements(side);
+            if (!refs) {
+              return;
+            }
+            if (refs.title) {
+              refs.title.textContent = title;
+            }
+            if (refs.subtitle) {
+              refs.subtitle.textContent = message;
+            }
+            if (refs.window) {
+              refs.window.textContent = "-";
+            }
+            if (refs.summaryActions) {
+              refs.summaryActions.textContent = "-";
+            }
+            if (refs.summaryActionsNote) {
+              refs.summaryActionsNote.textContent = message;
+            }
+            if (refs.summaryHours) {
+              refs.summaryHours.textContent = "-";
+            }
+            if (refs.summaryHoursNote) {
+              refs.summaryHoursNote.textContent = message;
+            }
+            if (refs.summaryUsers) {
+              refs.summaryUsers.textContent = "-";
+            }
+            if (refs.summaryUsersNote) {
+              refs.summaryUsersNote.textContent = message;
+            }
+            if (refs.latestPeriod) {
+              refs.latestPeriod.textContent = "-";
+            }
+            if (refs.latestMetric) {
+              refs.latestMetric.textContent = "";
+            }
+            if (refs.latestNote) {
+              refs.latestNote.textContent = message;
+            }
+          }
+
+          function getSummaryActiveUserCount(aggregates) {
+            if (aggregates?.actionActiveUsers instanceof Set) {
+              return aggregates.actionActiveUsers.size;
+            }
+            return aggregates?.activeUsers instanceof Set ? aggregates.activeUsers.size : 0;
+          }
+
+          function formatLatestMetricForAggregates(aggregates) {
+            const latestPeriod = aggregates?.latestWeek;
+            if (!latestPeriod) {
+              return { periodLabel: null, metricValue: null, note: "No latest period available." };
+            }
+            let metricValue = null;
+            if (state.filters.metric === "hours") {
+              metricValue = `${hoursFormatter.format(latestPeriod.assistedHours || 0)} hrs`;
+            } else if (state.filters.metric === "adoption") {
+              metricValue = `${formatTrendFixed(getPeriodAdoptionRate(latestPeriod), 1)}%`;
+            } else {
+              metricValue = numberFormatter.format(Math.round(latestPeriod.totalActions || 0));
+            }
+            const delta = aggregates.previousWeek
+              ? state.filters.metric === "hours"
+                ? (latestPeriod.assistedHours || 0) - (aggregates.previousWeek.assistedHours || 0)
+                : state.filters.metric === "adoption"
+                  ? getPeriodAdoptionRate(latestPeriod) - getPeriodAdoptionRate(aggregates.previousWeek)
+                  : (latestPeriod.totalActions || 0) - (aggregates.previousWeek.totalActions || 0)
+              : null;
+            const note = delta == null
+              ? "No prior period available."
+              : state.filters.metric === "hours"
+                ? `Change vs prior period: ${hoursFormatter.format(delta)} hrs`
+                : state.filters.metric === "adoption"
+                  ? `Change vs prior period: ${formatTrendFixed(delta, 1)} pp`
+                  : `Change vs prior period: ${numberFormatter.format(Math.round(delta))}`;
+            return {
+              periodLabel: latestPeriod.label || null,
+              metricValue,
+              note
+            };
+          }
+
+          function resolveSharedCompareTrendBounds(metric, leftPeriods, rightPeriods, leftDatasets, rightDatasets) {
+            if (metric === "adoption") {
+              return resolveAdoptionTrendAxisBounds([...(leftPeriods || []), ...(rightPeriods || [])]);
+            }
+            const values = [...(leftDatasets || []), ...(rightDatasets || [])]
+              .flatMap(dataset => Array.isArray(dataset?.data) ? dataset.data : [])
+              .filter(value => Number.isFinite(value));
+            const maxValue = values.length ? Math.max(...values) : 0;
+            return {
+              min: 0,
+              max: maxValue > 0 ? Math.ceil(maxValue * 1.1) : 1
+            };
+          }
+
+          function buildAlignedComparePeriods(referencePeriods, entityPeriods) {
+            const refs = Array.isArray(referencePeriods) ? referencePeriods : [];
+            const entityMap = new Map((Array.isArray(entityPeriods) ? entityPeriods : []).map(period => [period?.key || period?.label, period]));
+            return refs.map(reference => {
+              const key = reference?.key || reference?.label;
+              const existing = entityMap.get(key);
+              if (existing) {
+                return existing;
+              }
+              return {
+                key,
+                label: reference?.label || "",
+                date: reference?.date instanceof Date ? new Date(reference.date.getTime()) : null,
+                totalActions: 0,
+                assistedHours: 0,
+                categories: null,
+                users: new Set(),
+                adoptionUsers: new Set(),
+                returningUsers: new Set(),
+                enabledUsers: new Set(),
+                enabledUsersCount: 0,
+                adoptionEnabledUsersCount: 0,
+                userCount: 0,
+                adoptionUserCount: 0,
+                averageActionsPerUser: 0,
+                averageHoursPerUser: 0,
+                adoptionRate: 0
+              };
+            });
+          }
+
+
+          function updateCompareFilterLockState() {
+            const compareDimension = getCompareDimensionKey();
+            const orgLocked = Boolean(state.compare.enabled) && compareDimension === "organization";
+            const countryLocked = Boolean(state.compare.enabled) && compareDimension === "country";
+            if (dom.organizationFilter) {
+              dom.organizationFilter.disabled = orgLocked;
+            }
+            if (dom.organizationFieldSelect) {
+              dom.organizationFieldSelect.disabled = orgLocked;
+            }
+            if (dom.countryFilter) {
+              dom.countryFilter.disabled = countryLocked;
+            }
+            if (dom.countryFieldSelect) {
+              dom.countryFieldSelect.disabled = countryLocked;
+            }
+          }
+
+          function setCompareSelectOptions(select, values, currentValue, placeholder, excludedValue) {
+            if (!select) {
+              return;
+            }
+            const fragment = document.createDocumentFragment();
+            const placeholderOption = document.createElement("option");
+            placeholderOption.value = "";
+            placeholderOption.textContent = placeholder;
+            fragment.appendChild(placeholderOption);
+            values.forEach(value => {
+              if (!value || value === excludedValue) {
+                return;
+              }
+              const option = document.createElement("option");
+              option.value = value;
+              option.textContent = value;
+              option.selected = value === currentValue;
+              fragment.appendChild(option);
+            });
+            select.innerHTML = "";
+            select.appendChild(fragment);
+            select.value = currentValue && currentValue !== excludedValue ? currentValue : "";
+          }
+
+          function updateCompareControls(baseRows) {
+            const dimensionLabel = getCompareDimensionLabel();
+            let compareValues = Array.from(new Set((Array.isArray(baseRows) ? baseRows : [])
+              .map(row => resolveCompareSegmentValue(row))
+              .filter(value => value && value !== "Unspecified"))).sort((a, b) => a.localeCompare(b));
+            if (!compareValues.length) {
+              compareValues = getDistinctSegmentValues(getCompareDimensionSourceKey()).sort((a, b) => a.localeCompare(b));
+            }
+            if (dom.compareEnabled) {
+              dom.compareEnabled.checked = Boolean(state.compare.enabled);
+            }
+            if (state.compare.left && !compareValues.includes(state.compare.left)) {
+              state.compare.left = "";
+            }
+            if (state.compare.right && !compareValues.includes(state.compare.right)) {
+              state.compare.right = "";
+            }
+            if (state.compare.left && state.compare.left === state.compare.right) {
+              state.compare.right = "";
+            }
+            if (dom.compareSelectors) {
+              dom.compareSelectors.hidden = !state.compare.enabled;
+            }
+            if (dom.compareHint) {
+              dom.compareHint.hidden = false;
+              dom.compareHint.textContent = state.compare.enabled
+                ? `Compare two ${dimensionLabel.toLowerCase()}s side by side using the current timeframe, metric, and aggregation.`
+                : `Turn on compare mode to compare two ${dimensionLabel.toLowerCase()}s side by side.`;
+            }
+            if (dom.compareLeftLabel) {
+              dom.compareLeftLabel.textContent = `Left ${dimensionLabel.toLowerCase()}`;
+            }
+            if (dom.compareRightLabel) {
+              dom.compareRightLabel.textContent = `Right ${dimensionLabel.toLowerCase()}`;
+            }
+            setCompareSelectOptions(dom.compareLeft, compareValues, state.compare.left, `Choose ${dimensionLabel.toLowerCase()}`, state.compare.right);
+            setCompareSelectOptions(dom.compareRight, compareValues, state.compare.right, `Choose ${dimensionLabel.toLowerCase()}`, state.compare.left);
+            if (dom.compareLeft) {
+              dom.compareLeft.disabled = !state.compare.enabled || compareValues.length === 0;
+            }
+            if (dom.compareRight) {
+              dom.compareRight.disabled = !state.compare.enabled || compareValues.length === 0;
+            }
+            return compareValues;
+          }
       
           function handleInvalidCustomRange() {
             dom.summaryActions.textContent = "-";
@@ -10745,12 +11112,14 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             const day = String(date.getUTCDate()).padStart(2, "0");
             return `${year}-${month}-${day}`;
           }
-          function applyFilters(rows) {
+          function applyFilters(rows, options = {}) {
             const { organization, country, timeframe, customStart, customEnd, customRangeInvalid } = state.filters;
             const organizationFilter = organization instanceof Set ? organization : new Set();
             const countryFilter = country instanceof Set ? country : new Set();
-            const hasOrganizationFilter = organizationFilter.size > 0;
-            const hasCountryFilter = countryFilter.size > 0;
+            const ignoreOrganizationFilter = shouldIgnoreFilterForCompare("organization", options);
+            const ignoreCountryFilter = shouldIgnoreFilterForCompare("country", options);
+            const hasOrganizationFilter = organizationFilter.size > 0 && !ignoreOrganizationFilter;
+            const hasCountryFilter = countryFilter.size > 0 && !ignoreCountryFilter;
             if (timeframe === "custom" && customRangeInvalid) {
               return [];
             }
@@ -11276,6 +11645,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 const enabledCount = enabledSet.size || 0;
                 return {
                   label: formatPeriodLabel(label, values.date),
+                  key: label,
                   totalActions: values.totalActions,
                   assistedHours: values.assistedHours,
                   date: values.date,
@@ -11651,7 +12021,90 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 return applyTrendColorToDataset(dataset, def.id);
               });
           }
+
+          function buildCompareOverlayDatasets(leftPeriods, rightPeriods) {
+            const metric = state.filters.metric;
+            const getValue = period => {
+              if (metric === "hours") {
+                return Number.isFinite(period?.assistedHours) ? period.assistedHours : 0;
+              }
+              if (metric === "adoption") {
+                return getPeriodAdoptionRate(period);
+              }
+              return Number.isFinite(period?.totalActions) ? period.totalActions : 0;
+            };
+            const datasets = [];
+            if (state.compare.left) {
+              datasets.push({
+                label: state.compare.left,
+                data: (leftPeriods || []).map(getValue),
+                borderColor: "rgba(0, 110, 0, 0.92)",
+                backgroundColor: state.compare.right
+                  ? "rgba(0, 110, 0, 0.08)"
+                  : "rgba(0, 110, 0, 0.16)",
+                borderWidth: 3,
+                fill: !state.compare.right,
+                tension: 0.26,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointBackgroundColor: "#ffffff",
+                pointBorderColor: "rgba(0, 110, 0, 0.92)",
+                pointBorderWidth: 2
+              });
+            }
+            if (state.compare.right) {
+              datasets.push({
+                label: state.compare.right,
+                data: (rightPeriods || []).map(getValue),
+                borderColor: "rgba(58, 132, 193, 0.95)",
+                backgroundColor: "rgba(58, 132, 193, 0.08)",
+                borderWidth: 3,
+                fill: false,
+                tension: 0.26,
+                pointRadius: 3,
+                pointHoverRadius: 5,
+                pointBackgroundColor: "#ffffff",
+                pointBorderColor: "rgba(58, 132, 193, 0.95)",
+                pointBorderWidth: 2
+              });
+            }
+            return datasets;
+          }
       
+          function applyTrendScaleToChart(chart, metric, periods, sharedBounds) {
+            const yScale = chart?.options?.scales?.y;
+            if (!yScale) {
+              return;
+            }
+            if (yScale.ticks) {
+              yScale.ticks.callback = value => formatTrendAxisTick(value);
+            }
+            const bounds = sharedBounds || (metric === "adoption"
+              ? resolveAdoptionTrendAxisBounds(periods)
+              : null);
+            if (bounds) {
+              yScale.min = bounds.min;
+              yScale.max = bounds.max;
+              yScale.beginAtZero = bounds.min === 0;
+            } else {
+              delete yScale.min;
+              delete yScale.max;
+              yScale.beginAtZero = true;
+            }
+          }
+
+          function getTrendCaptionText() {
+            const isAverageView = state.trendView === "average";
+            const isHoursMetric = state.filters.metric === "hours";
+            const isAdoptionMetric = state.filters.metric === "adoption";
+            if (isAdoptionMetric) {
+              return `Active users (% of enabled) aggregated ${state.filters.aggregate}.`;
+            }
+            return isHoursMetric
+              ? (isAverageView ? "Copilot assisted hours per active user" : "Copilot assisted hours")
+              : (isAverageView ? "Copilot actions per active user" : "Copilot actions");
+          }
+
           function updateTrendChart(periods) {
             const chart = state.charts.trend;
             if (!chart) {
@@ -11669,22 +12122,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
 
             const metric = state.filters.metric;
             chart.data.datasets = buildTrendDatasets(periods, metric, state.seriesDetailMode);
-            const yScale = chart.options?.scales?.y;
-            if (yScale) {
-              if (yScale.ticks) {
-                yScale.ticks.callback = value => formatTrendAxisTick(value);
-              }
-              if (metric === "adoption") {
-                const bounds = resolveAdoptionTrendAxisBounds(periods);
-                yScale.min = bounds.min;
-                yScale.max = bounds.max;
-                yScale.beginAtZero = bounds.min === 0;
-              } else {
-                delete yScale.min;
-                delete yScale.max;
-                yScale.beginAtZero = true;
-              }
-            }
+            applyTrendScaleToChart(chart, metric, periods);
             chart.update("none");
           }
 
@@ -11692,17 +12130,169 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             if (!dom.trendCaption) {
               return;
             }
-            const isAverageView = state.trendView === "average";
-            const isHoursMetric = state.filters.metric === "hours";
-            const isAdoptionMetric = state.filters.metric === "adoption";
-            if (isAdoptionMetric) {
-              dom.trendCaption.textContent = `Active users (% of enabled) aggregated ${state.filters.aggregate}.`;
+            dom.trendCaption.textContent = getTrendCaptionText();
+          }
+
+          function renderComparePanel(side, selection, aggregates, sharedBounds) {
+            const refs = getComparePanelElements(side);
+            if (!refs) {
               return;
             }
-            const metricLabel = isHoursMetric
-              ? (isAverageView ? "Copilot assisted hours per active user" : "Copilot assisted hours")
-              : (isAverageView ? "Copilot actions per active user" : "Copilot actions");
-            dom.trendCaption.textContent = `${metricLabel} aggregated ${state.filters.aggregate}.`;
+            if (!selection) {
+              setComparePanelPlaceholder(side, side === "left" ? "Left selection" : "Right selection", side === "left" ? "Choose an entity to compare." : "Choose another entity to compare.");
+              return;
+            }
+            if (!aggregates || !Array.isArray(aggregates.periods) || !aggregates.periods.length) {
+              setComparePanelPlaceholder(side, selection, "No data for this selection under the current filters.");
+              return;
+            }
+            const activeUsers = getSummaryActiveUserCount(aggregates);
+            const enabledUserCount = aggregates.enabledUsers instanceof Set ? aggregates.enabledUsers.size : 0;
+            const latest = formatLatestMetricForAggregates(aggregates);
+            if (refs.title) {
+              refs.title.textContent = selection;
+            }
+            if (refs.subtitle) {
+              refs.subtitle.textContent = `${getCompareDimensionLabel()} comparison`;
+            }
+            if (refs.window) {
+              refs.window.textContent = aggregates.windowLabel || "-";
+            }
+            if (refs.summaryActions) {
+              refs.summaryActions.textContent = numberFormatter.format(Math.round(aggregates.totals?.totalActions || 0));
+            }
+            if (refs.summaryActionsNote) {
+              refs.summaryActionsNote.textContent = `Across ${aggregates.filteredCount || 0} records (avg ${numberFormatter.format(Math.round(aggregates.averageActionsPerUser || 0))} actions per active user).`;
+            }
+            if (refs.summaryHours) {
+              refs.summaryHours.textContent = `${hoursFormatter.format(aggregates.totals?.assistedHours || 0)} hrs`;
+            }
+            if (refs.summaryHoursNote) {
+              refs.summaryHoursNote.textContent = `Average ${hoursFormatter.format(aggregates.averageHoursPerUser || 0)} hrs per active user.`;
+            }
+            if (refs.summaryUsers) {
+              refs.summaryUsers.textContent = numberFormatter.format(activeUsers);
+            }
+            if (refs.summaryUsersNote) {
+              refs.summaryUsersNote.textContent = activeUsers || enabledUserCount
+                ? `${numberFormatter.format(activeUsers)} active (with actions)${enabledUserCount ? `${BULLET_SEPARATOR}${numberFormatter.format(enabledUserCount)} enabled` : ""}`
+                : "No active users in view.";
+            }
+            if (refs.latestPeriod) {
+              refs.latestPeriod.textContent = latest.periodLabel ?? "-";
+            }
+            if (refs.latestMetric) {
+              refs.latestMetric.textContent = latest.metricValue ?? "";
+            }
+            if (refs.latestNote) {
+              refs.latestNote.textContent = latest.note;
+            }
+          }
+
+          function renderCompareSection(baseRows) {
+            updateCompareFilterLockState();
+            if (!dom.compareSection || !dom.compareGrid || !dom.compareEmpty || !dom.compareCharts) {
+              return;
+            }
+            const compareValues = updateCompareControls(baseRows);
+            if (!state.compare.enabled) {
+              dom.compareSection.hidden = true;
+              dom.compareCharts.hidden = true;
+              state.compare.leftPeriods = [];
+              state.compare.rightPeriods = [];
+              const overlayChart = state.charts.compareOverlay;
+              if (overlayChart) {
+                overlayChart.data.labels = [];
+                overlayChart.data.datasets = [];
+                overlayChart.update("none");
+              }
+              return;
+            }
+            dom.compareSection.hidden = false;
+            const dimensionLabel = getCompareDimensionLabel();
+            if (dom.compareCaption) {
+              dom.compareCaption.textContent = `Compare two ${dimensionLabel.toLowerCase()}s side by side using the current metric, timeframe, and aggregation.`;
+            }
+            if (!compareValues.length) {
+              dom.compareGrid.hidden = true;
+              dom.compareCharts.hidden = true;
+              dom.compareEmpty.hidden = false;
+              dom.compareEmpty.textContent = `No ${dimensionLabel.toLowerCase()}s are available for the current scope.`;
+              setComparePanelPlaceholder("left", "Left selection", `No ${dimensionLabel.toLowerCase()}s available.`);
+              setComparePanelPlaceholder("right", "Right selection", `No ${dimensionLabel.toLowerCase()}s available.`);
+              state.compare.leftPeriods = [];
+              state.compare.rightPeriods = [];
+              const overlayChart = state.charts.compareOverlay;
+              if (overlayChart) {
+                overlayChart.data.labels = [];
+                overlayChart.data.datasets = [];
+                overlayChart.update("none");
+              }
+              return;
+            }
+            if (!state.compare.left && !state.compare.right) {
+              dom.compareGrid.hidden = true;
+              dom.compareCharts.hidden = true;
+              dom.compareEmpty.hidden = false;
+              dom.compareEmpty.textContent = `Choose two ${dimensionLabel.toLowerCase()}s to compare.`;
+              setComparePanelPlaceholder("left", "Left selection", "Choose an entity to compare.");
+              setComparePanelPlaceholder("right", "Right selection", "Choose another entity to compare.");
+              state.compare.leftPeriods = [];
+              state.compare.rightPeriods = [];
+              const overlayChart = state.charts.compareOverlay;
+              if (overlayChart) {
+                overlayChart.data.labels = [];
+                overlayChart.data.datasets = [];
+                overlayChart.update("none");
+              }
+              return;
+            }
+            dom.compareGrid.hidden = false;
+            dom.compareEmpty.hidden = true;
+            dom.compareCharts.hidden = false;
+            const buildRowsForSelection = selection => (Array.isArray(baseRows) ? baseRows : []).filter(row => resolveCompareSegmentValue(row) === selection);
+            const compareBaseAggregates = Array.isArray(baseRows) && baseRows.length ? computeAggregates(baseRows) : null;
+            const referencePeriods = Array.isArray(compareBaseAggregates?.periods) ? compareBaseAggregates.periods : [];
+            const leftRows = state.compare.left ? buildRowsForSelection(state.compare.left) : [];
+            const rightRows = state.compare.right ? buildRowsForSelection(state.compare.right) : [];
+            const leftAggregates = leftRows.length ? computeAggregates(leftRows) : null;
+            const rightAggregates = rightRows.length ? computeAggregates(rightRows) : null;
+            const alignedLeftPeriods = buildAlignedComparePeriods(referencePeriods, leftAggregates?.periods || []);
+            const alignedRightPeriods = buildAlignedComparePeriods(referencePeriods, rightAggregates?.periods || []);
+            state.compare.leftPeriods = alignedLeftPeriods;
+            state.compare.rightPeriods = alignedRightPeriods;
+            const leftDatasets = leftAggregates ? buildTrendDatasets(alignedLeftPeriods, state.filters.metric, state.seriesDetailMode) : [];
+            const rightDatasets = rightAggregates ? buildTrendDatasets(alignedRightPeriods, state.filters.metric, state.seriesDetailMode) : [];
+            const sharedBounds = resolveSharedCompareTrendBounds(state.filters.metric, alignedLeftPeriods, alignedRightPeriods, leftDatasets, rightDatasets);
+            renderComparePanel("left", state.compare.left, leftAggregates, sharedBounds);
+            renderComparePanel("right", state.compare.right, rightAggregates, sharedBounds);
+            const overlayRefs = getCompareChartElements();
+            const overlayChart = state.charts.compareOverlay;
+            const visiblePeriods = state.compare.left ? alignedLeftPeriods : alignedRightPeriods;
+            const overlayDatasets = buildCompareOverlayDatasets(alignedLeftPeriods, alignedRightPeriods);
+            if (overlayRefs?.title) {
+              overlayRefs.title.textContent = state.compare.left && state.compare.right
+                ? "Comparison impact trend"
+                : `${state.compare.left || state.compare.right} impact trend`;
+            }
+            if (overlayRefs?.caption) {
+              overlayRefs.caption.textContent = state.compare.left && state.compare.right
+                ? `${getTrendCaptionText()} Left is green, right is blue.`
+                : getTrendCaptionText();
+            }
+            if (overlayRefs?.window) {
+              overlayRefs.window.textContent = (leftAggregates?.windowLabel || rightAggregates?.windowLabel || "-");
+            }
+            if (overlayRefs?.empty) {
+              overlayRefs.empty.hidden = overlayDatasets.length > 0;
+              overlayRefs.empty.textContent = "Choose at least one entity to compare.";
+            }
+            if (overlayChart) {
+              overlayChart.data.labels = (visiblePeriods || []).map(item => item.label);
+              overlayChart.data.datasets = overlayDatasets;
+              applyTrendScaleToChart(overlayChart, state.filters.metric, visiblePeriods || [], sharedBounds);
+              overlayChart.update("none");
+            }
           }
       
           function initializeSeriesToggles() {

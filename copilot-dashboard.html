@@ -29,7 +29,7 @@
   />
   <link rel="stylesheet" href="../assets/chansen-ui.css?v=20260123a" />
   <script src="../assets/chansen-ui-theme.js?v=20260123a"></script>
-  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20260317a" />
+  <link rel="stylesheet" href="assets/copilot-dashboard.css?v=20260331a" />
   <script
     src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
     crossorigin="anonymous"
@@ -234,6 +234,27 @@
       <div class="control-actions">
         <button type="button" class="reset-button" data-reset-filters>Reset filters</button>
       </div>
+      <div class="compare-toolbar" data-compare-toolbar>
+        <label class="compare-toolbar__toggle">
+          <input type="checkbox" data-compare-enabled />
+          <span>Compare mode</span>
+        </label>
+        <div class="compare-toolbar__selectors" data-compare-selectors hidden>
+          <div class="compare-toolbar__field">
+            <label for="compareLeftSelect" data-compare-left-label>Left entity</label>
+            <select id="compareLeftSelect" data-compare-left aria-label="Left comparison entity">
+              <option value="">Choose left side</option>
+            </select>
+          </div>
+          <div class="compare-toolbar__field">
+            <label for="compareRightSelect" data-compare-right-label>Right entity</label>
+            <select id="compareRightSelect" data-compare-right aria-label="Right comparison entity">
+              <option value="">Choose right side</option>
+            </select>
+          </div>
+        </div>
+        <p class="compare-toolbar__hint" data-compare-hint hidden>Choose two entities to compare side by side.</p>
+      </div>
     </section>
     <section class="summary-grid" aria-label="Key metrics">
       <article class="summary-card summary-card--actions">
@@ -296,6 +317,175 @@
         </span>
         <span class="summary-note" data-summary-latest-note>Ready after parsing.</span>
       </article>
+    </section>
+
+    <section class="compare-section" data-compare-section hidden aria-label="Comparison view">
+      <header class="compare-section__header">
+        <div>
+          <h2 class="chart-title">Comparison view</h2>
+          <p class="chart-subtitle" data-compare-caption>Compare two entities side by side using the current metric, timeframe, and aggregation.</p>
+        </div>
+      </header>
+      <div class="compare-section__empty chart-empty" data-compare-empty hidden>Choose two entities to compare.</div>
+      <div class="compare-grid" data-compare-grid hidden>
+        <article class="compare-panel" data-compare-panel="left">
+          <header class="compare-panel__header">
+            <div>
+              <h3 class="compare-panel__title" data-compare-title="left">Left selection</h3>
+              <p class="compare-panel__subtitle" data-compare-subtitle="left">Choose an entity to compare.</p>
+            </div>
+            <div class="chip is-muted" data-compare-window="left">-</div>
+          </header>
+          <div class="summary-grid compare-summary-grid" data-compare-summary-grid="left">
+            <article class="summary-card summary-card--actions">
+              <div class="summary-card__meta">
+                <span class="summary-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="img" focusable="false">
+                    <path d="M13 2.5L6 13.5h4.2l-1 8 8-12h-4.2L13 2.5Z" />
+                  </svg>
+                </span>
+                <span class="summary-label">Copilot actions taken</span>
+              </div>
+              <span class="summary-value" data-compare-summary-actions="left">-</span>
+              <span class="summary-note" data-compare-summary-actions-note="left">Choose an entity to compare.</span>
+            </article>
+            <article class="summary-card summary-card--hours">
+              <div class="summary-card__meta">
+                <span class="summary-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="img" focusable="false">
+                    <circle cx="12" cy="12" r="6.5" />
+                    <path d="M12 8.25v4.25l2.5 1.6" />
+                  </svg>
+                </span>
+                <span class="summary-label">Copilot assisted hours</span>
+              </div>
+              <span class="summary-value" data-compare-summary-hours="left">-</span>
+              <span class="summary-note" data-compare-summary-hours-note="left">Choose an entity to compare.</span>
+            </article>
+            <article class="summary-card summary-card--users">
+              <div class="summary-card__meta">
+                <span class="summary-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="img" focusable="false">
+                    <circle cx="12" cy="10.5" r="2.6" />
+                    <path d="M6.5 18.5c0-2.6 2.5-4.7 5.5-4.7s5.5 2.1 5.5 4.7" />
+                    <circle cx="17.5" cy="9.2" r="1.8" />
+                    <path d="M16.2 14.7a3.3 3.3 0 0 1 2.8 3.3" />
+                  </svg>
+                </span>
+                <span class="summary-label">Active Copilot users</span>
+              </div>
+              <span class="summary-value" data-compare-summary-users="left">-</span>
+              <span class="summary-note" data-compare-summary-users-note="left">Choose an entity to compare.</span>
+            </article>
+            <article class="summary-card summary-card--period">
+              <div class="summary-card__meta">
+                <span class="summary-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="img" focusable="false">
+                    <rect x="4.5" y="6.5" width="15" height="12.5" rx="2" />
+                    <path d="M8 4.5v4" />
+                    <path d="M16 4.5v4" />
+                    <line x1="4.5" y1="10.5" x2="19.5" y2="10.5" />
+                    <path d="M9.5 14h2" />
+                    <path d="M12.5 17h2.5" />
+                  </svg>
+                </span>
+                <span class="summary-label">Latest period</span>
+              </div>
+              <span class="summary-value summary-value--latest">
+                <span class="summary-latest-period-label" data-compare-summary-latest-period="left">-</span>
+                <span class="summary-latest-metric" data-compare-summary-latest-metric="left"></span>
+              </span>
+                <span class="summary-note" data-compare-summary-latest-note="left">Choose an entity to compare.</span>
+            </article>
+          </div>
+        </article>
+        <article class="compare-panel" data-compare-panel="right">
+          <header class="compare-panel__header">
+            <div>
+              <h3 class="compare-panel__title" data-compare-title="right">Right selection</h3>
+              <p class="compare-panel__subtitle" data-compare-subtitle="right">Choose another entity to compare.</p>
+            </div>
+            <div class="chip is-muted" data-compare-window="right">-</div>
+          </header>
+          <div class="summary-grid compare-summary-grid" data-compare-summary-grid="right">
+            <article class="summary-card summary-card--actions">
+              <div class="summary-card__meta">
+                <span class="summary-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="img" focusable="false">
+                    <path d="M13 2.5L6 13.5h4.2l-1 8 8-12h-4.2L13 2.5Z" />
+                  </svg>
+                </span>
+                <span class="summary-label">Copilot actions taken</span>
+              </div>
+              <span class="summary-value" data-compare-summary-actions="right">-</span>
+              <span class="summary-note" data-compare-summary-actions-note="right">Choose another entity to compare.</span>
+            </article>
+            <article class="summary-card summary-card--hours">
+              <div class="summary-card__meta">
+                <span class="summary-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="img" focusable="false">
+                    <circle cx="12" cy="12" r="6.5" />
+                    <path d="M12 8.25v4.25l2.5 1.6" />
+                  </svg>
+                </span>
+                <span class="summary-label">Copilot assisted hours</span>
+              </div>
+              <span class="summary-value" data-compare-summary-hours="right">-</span>
+              <span class="summary-note" data-compare-summary-hours-note="right">Choose another entity to compare.</span>
+            </article>
+            <article class="summary-card summary-card--users">
+              <div class="summary-card__meta">
+                <span class="summary-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="img" focusable="false">
+                    <circle cx="12" cy="10.5" r="2.6" />
+                    <path d="M6.5 18.5c0-2.6 2.5-4.7 5.5-4.7s5.5 2.1 5.5 4.7" />
+                    <circle cx="17.5" cy="9.2" r="1.8" />
+                    <path d="M16.2 14.7a3.3 3.3 0 0 1 2.8 3.3" />
+                  </svg>
+                </span>
+                <span class="summary-label">Active Copilot users</span>
+              </div>
+              <span class="summary-value" data-compare-summary-users="right">-</span>
+              <span class="summary-note" data-compare-summary-users-note="right">Choose another entity to compare.</span>
+            </article>
+            <article class="summary-card summary-card--period">
+              <div class="summary-card__meta">
+                <span class="summary-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" role="img" focusable="false">
+                    <rect x="4.5" y="6.5" width="15" height="12.5" rx="2" />
+                    <path d="M8 4.5v4" />
+                    <path d="M16 4.5v4" />
+                    <line x1="4.5" y1="10.5" x2="19.5" y2="10.5" />
+                    <path d="M9.5 14h2" />
+                    <path d="M12.5 17h2.5" />
+                  </svg>
+                </span>
+                <span class="summary-label">Latest period</span>
+              </div>
+              <span class="summary-value summary-value--latest">
+                <span class="summary-latest-period-label" data-compare-summary-latest-period="right">-</span>
+                <span class="summary-latest-metric" data-compare-summary-latest-metric="right"></span>
+              </span>
+                <span class="summary-note" data-compare-summary-latest-note="right">Choose another entity to compare.</span>
+            </article>
+          </div>
+        </article>
+      </div>
+      <div class="compare-charts" data-compare-charts hidden>
+        <article class="trend-card compare-chart-card" data-compare-chart-card>
+          <header class="compare-chart-card__header">
+            <div>
+              <h3 class="chart-title" data-compare-chart-title>Comparison impact trend</h3>
+              <p class="chart-subtitle" data-compare-chart-caption>Choose at least one entity to compare.</p>
+            </div>
+            <div class="chip is-muted" data-compare-chart-window>-</div>
+          </header>
+          <div class="chart-wrap compare-chart-wrap">
+            <canvas id="compareTrendChartOverlay" aria-label="Comparison impact trend"></canvas>
+            <div class="chart-empty" data-compare-trend-empty>Choose at least one entity to compare.</div>
+          </div>
+        </article>
+      </div>
     </section>
 
     <section class="trend-card" aria-label="Impact trend">
@@ -619,25 +809,25 @@
         </div>
         <div class="agent-loading-skeleton" data-agent-loading="users" hidden>
           <div class="agent-skeleton-row">
-            <div class="agent-skeleton-cell" style="width: 30%"></div>
-            <div class="agent-skeleton-cell" style="width: 25%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w30"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w25"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
           </div>
           <div class="agent-skeleton-row">
-            <div class="agent-skeleton-cell" style="width: 28%"></div>
-            <div class="agent-skeleton-cell" style="width: 27%"></div>
-            <div class="agent-skeleton-cell" style="width: 13%"></div>
-            <div class="agent-skeleton-cell" style="width: 17%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w28"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w27"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w13"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w17"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
           </div>
           <div class="agent-skeleton-row">
-            <div class="agent-skeleton-cell" style="width: 32%"></div>
-            <div class="agent-skeleton-cell" style="width: 23%"></div>
-            <div class="agent-skeleton-cell" style="width: 18%"></div>
-            <div class="agent-skeleton-cell" style="width: 12%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w32"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w23"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w18"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w12"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
           </div>
         </div>
         <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="users" hidden>Show all rows</button>
@@ -784,25 +974,25 @@
         </div>
         <div class="agent-loading-skeleton" data-agent-loading="agents" hidden>
           <div class="agent-skeleton-row">
-            <div class="agent-skeleton-cell" style="width: 30%"></div>
-            <div class="agent-skeleton-cell" style="width: 25%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w30"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w25"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
           </div>
           <div class="agent-skeleton-row">
-            <div class="agent-skeleton-cell" style="width: 28%"></div>
-            <div class="agent-skeleton-cell" style="width: 27%"></div>
-            <div class="agent-skeleton-cell" style="width: 13%"></div>
-            <div class="agent-skeleton-cell" style="width: 17%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w28"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w27"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w13"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w17"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
           </div>
           <div class="agent-skeleton-row">
-            <div class="agent-skeleton-cell" style="width: 32%"></div>
-            <div class="agent-skeleton-cell" style="width: 23%"></div>
-            <div class="agent-skeleton-cell" style="width: 18%"></div>
-            <div class="agent-skeleton-cell" style="width: 12%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w32"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w23"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w18"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w12"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
           </div>
         </div>
         <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="agents" hidden>Show all rows</button>
@@ -934,25 +1124,25 @@
         </div>
         <div class="agent-loading-skeleton" data-agent-loading="combined" hidden>
           <div class="agent-skeleton-row">
-            <div class="agent-skeleton-cell" style="width: 30%"></div>
-            <div class="agent-skeleton-cell" style="width: 25%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w30"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w25"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
           </div>
           <div class="agent-skeleton-row">
-            <div class="agent-skeleton-cell" style="width: 28%"></div>
-            <div class="agent-skeleton-cell" style="width: 27%"></div>
-            <div class="agent-skeleton-cell" style="width: 13%"></div>
-            <div class="agent-skeleton-cell" style="width: 17%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w28"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w27"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w13"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w17"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
           </div>
           <div class="agent-skeleton-row">
-            <div class="agent-skeleton-cell" style="width: 32%"></div>
-            <div class="agent-skeleton-cell" style="width: 23%"></div>
-            <div class="agent-skeleton-cell" style="width: 18%"></div>
-            <div class="agent-skeleton-cell" style="width: 12%"></div>
-            <div class="agent-skeleton-cell" style="width: 15%"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w32"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w23"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w18"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w12"></div>
+            <div class="agent-skeleton-cell agent-skeleton-cell--w15"></div>
           </div>
         </div>
         <button type="button" class="agent-toggle-rows" data-agent-hub-toggle="combined" hidden>Show all rows</button>
@@ -1337,6 +1527,6 @@
   ></script>
   <script defer src="assets/sharepoint-static-assets.js"></script>
   <script defer src="assets/vendor/fflate.min.js"></script>
-  <script defer src="assets/copilot-dashboard.js?v=20260331b"></script>
+  <script defer src="assets/copilot-dashboard.js?v=20260331c"></script>
 </body>
 </html>

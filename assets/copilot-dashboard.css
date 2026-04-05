@@ -2449,14 +2449,13 @@ body.is-custom-theme {
     }
 
     .compare-toolbar {
-      grid-column: 1 / -1;
-      display: flex;
+      display: inline-flex;
       flex-wrap: wrap;
-      align-items: end;
-      gap: 12px 16px;
-      padding-top: 4px;
-      border-top: 1px solid rgba(189, 197, 200, 0.25);
-      margin-top: 4px;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px 12px;
+      margin-left: auto;
+      min-height: 42px;
     }
 
     .compare-toolbar__toggle {
@@ -2480,17 +2479,17 @@ body.is-custom-theme {
 
     .compare-toolbar__selectors {
       display: flex;
-      flex: 1 1 420px;
+      flex: 0 1 auto;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
     }
 
     .compare-toolbar__field {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      min-width: 220px;
-      flex: 1 1 220px;
+      gap: 4px;
+      min-width: 180px;
+      flex: 0 1 200px;
     }
 
     .compare-toolbar__field label {
@@ -2517,10 +2516,10 @@ body.is-custom-theme {
     }
 
     .compare-toolbar__hint {
-      width: 100%;
       margin: 0;
       font-size: var(--font-size-xs);
       color: var(--grey-500);
+      white-space: nowrap;
     }
 
     .compare-section {
@@ -6031,10 +6030,13 @@ body.is-custom-theme {
 
       .compare-toolbar {
         align-items: stretch;
+        width: 100%;
+        margin-left: 0;
       }
 
       .compare-toolbar__selectors {
         flex-direction: column;
+        width: 100%;
       }
 
       .summary-card {

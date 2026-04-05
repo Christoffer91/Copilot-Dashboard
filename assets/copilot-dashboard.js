@@ -195,7 +195,10 @@
               start: null,
               end: null
             },
+            hoveredTrendDatasetId: null,
+            hoveredCompareDatasetLabel: null,
             seriesVisibility: {},
+            seriesManualTouched: {},
             seriesDetailMode: "respect",
             returningMetric: "total",
             returningInterval: DEFAULT_RETURNING_INTERVAL,
@@ -1838,6 +1841,89 @@
               : 0;
             return primary + secondarySum;
           }
+
+          function resolveExclusiveMetricGroup(metrics, primaryFields = [], fallbackFields = []) {
+            const primaryTotal = sumPositiveMetricValues(metrics, primaryFields);
+            if (primaryTotal > 0) {
+              return primaryTotal;
+            }
+            return sumPositiveMetricValues(metrics, fallbackFields);
+          }
+
+          function resolveAdditiveDocumentsTotal(metrics) {
+            const wordTotal = resolveExclusiveMetricGroup(
+              metrics,
+              ["wordActions"],
+              ["documentSummaries", "draftWord", "rewriteTextWord", "visualizeTableWord"]
+            );
+            const powerpointTotal = resolveExclusiveMetricGroup(
+              metrics,
+              ["powerpointActions"],
+              ["presentationCreated", "addContentPresentation", "organizePresentation", "summarizePresentation"]
+            );
+            const excelTotal = resolveExclusiveMetricGroup(
+              metrics,
+              ["excelActions"],
+              ["excelAnalysis", "excelFormula", "excelFormatting"]
+            );
+            return wordTotal + powerpointTotal + excelTotal;
+          }
+
+          const additiveTooltipCategoryConfig = [
+            {
+              key: "meetings",
+              label: categoryLabels.meetings,
+              getValue: metrics => sumPositiveMetricValues(metrics, ["meetingRecap", "meetingSummariesTotal", "meetingSummariesActions"])
+            },
+            {
+              key: "emails",
+              label: categoryLabels.emails,
+              getValue: metrics => sumPositiveMetricValues(metrics, ["outlookActions", "emailDrafts", "emailCoaching", "emailSummaries"])
+            },
+            {
+              key: "chats",
+              label: categoryLabels.chats,
+              getValue: metrics => sumPositiveMetricValues(metrics, ["teamsActions", "chatCompose", "chatSummaries", "chatConversations"])
+            },
+            {
+              key: "documents",
+              label: categoryLabels.documents,
+              getValue: metrics => sumPositiveMetricValues(metrics, [
+                "wordActions",
+                "documentSummaries",
+                "draftWord",
+                "rewriteTextWord",
+                "visualizeTableWord",
+                "powerpointActions",
+                "presentationCreated",
+                "addContentPresentation",
+                "organizePresentation",
+                "summarizePresentation",
+                "excelActions",
+                "excelAnalysis",
+                "excelFormula",
+                "excelFormatting"
+              ])
+            },
+            {
+              key: "copilot-chat-work",
+              label: categoryLabels["copilot-chat-work"],
+              getValue: metrics => resolveExclusiveMetricGroup(
+                metrics,
+                ["chatPromptsWork"],
+                ["chatPromptsWorkTeams", "chatPromptsWorkOutlook"]
+              )
+            },
+            {
+              key: "copilot-chat-web",
+              label: categoryLabels["copilot-chat-web"],
+              getValue: metrics => resolveExclusiveMetricGroup(
+                metrics,
+                ["chatPromptsWeb"],
+                ["chatPromptsWebTeams", "chatPromptsWebOutlook"]
+              )
+            }
+          ];
       
           const agentCsvFieldMap = {
             id: "Agent ID",
@@ -2683,6 +2769,31 @@
 
           function cloneActiveCategorySelection() {
             return new Set(getActiveCategorySelection());
+          }
+
+          function getAutoHiddenSeriesIds(periods, metric, detailMode = "respect") {
+            if (metric !== "actions" || detailMode === "none" || !Array.isArray(periods) || !periods.length) {
+              return new Set();
+            }
+            const totalMax = periods.reduce((max, period) => Math.max(max, Number(period?.totalActions) || 0), 0);
+            if (!Number.isFinite(totalMax) || totalMax <= 0) {
+              return new Set();
+            }
+            const threshold = totalMax * 0.15;
+            const hidden = new Set();
+            chartSeriesDefinitions.forEach(def => {
+              if (!def.togglable) {
+                return;
+              }
+              const maxValue = periods.reduce((max, period) => {
+                const value = Number(def.getValue(period)) || 0;
+                return Math.max(max, value);
+              }, 0);
+              if (maxValue < threshold) {
+                hidden.add(def.id);
+              }
+            });
+            return hidden;
           }
 
           function buildSelectionContext(selectionSet) {
@@ -3833,7 +3944,61 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             return metricIsHours ? "hours" : "actions";
           }
 
-          function createTrendChartOptions(getPeriods = () => state.latestTrendPeriods) {
+          function formatSignedActionDelta(value) {
+            const numeric = Number.isFinite(value) ? Math.round(value) : 0;
+            if (numeric === 0) {
+              return "0";
+            }
+            return `${numeric > 0 ? "+" : "-"}${numberFormatter.format(Math.abs(numeric))}`;
+          }
+
+          function formatCurrentAndDelta(value, previousValue, formatter) {
+            const currentValue = Number.isFinite(value) ? value : 0;
+            const previous = Number.isFinite(previousValue) ? previousValue : 0;
+            const format = typeof formatter === "function"
+              ? formatter
+              : (v => numberFormatter.format(Math.round(v)));
+            return `${format(currentValue)} (${formatSignedActionDelta(currentValue - previous)})`;
+          }
+
+          function buildAdditiveActionTooltipLines(period, previousPeriod) {
+            if (!period || state.filters.metric !== "actions" || state.trendView === "average") {
+              return [];
+            }
+            const currentCategories = period.additiveCategories && typeof period.additiveCategories === "object"
+              ? period.additiveCategories
+              : {};
+            const previousCategories = previousPeriod && previousPeriod.additiveCategories && typeof previousPeriod.additiveCategories === "object"
+              ? previousPeriod.additiveCategories
+              : {};
+            const lines = [];
+            let totalDeltaFromGroups = 0;
+            additiveTooltipCategoryConfig.forEach(entry => {
+              const currentValue = Number(currentCategories[entry.key] || 0);
+              const previousValue = Number(previousCategories[entry.key] || 0);
+              const delta = currentValue - previousValue;
+              totalDeltaFromGroups += delta;
+              lines.push(`${entry.label}: ${formatCurrentAndDelta(currentValue, previousValue)}`);
+            });
+            const totalActions = Number(period.totalActions || 0);
+            const previousTotalActions = Number(previousPeriod?.totalActions || 0);
+            const totalDelta = totalActions - previousTotalActions;
+            const otherDelta = totalDelta - totalDeltaFromGroups;
+            if (otherDelta !== 0) {
+              lines.push(`Other: ${formatSignedActionDelta(otherDelta)}`);
+            }
+            return lines;
+          }
+
+          function getHoveredTrendDatasetId() {
+            return state.hoveredTrendDatasetId;
+          }
+
+          function getHoveredCompareDatasetLabel() {
+            return state.hoveredCompareDatasetLabel;
+          }
+
+          function createTrendChartOptions(getPeriods = () => state.latestTrendPeriods, includeAdditiveActionBreakdown = true, chartScope = "main") {
             return {
               responsive: true,
               maintainAspectRatio: false,
@@ -3877,6 +4042,49 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   displayColors: false,
                   callbacks: {
                     label: context => {
+                      const datasetId = context.dataset?.__copilotDefinitionId || null;
+                      const hoveredTrendDatasetId = getHoveredTrendDatasetId();
+                      const hoveredCompareDatasetLabel = getHoveredCompareDatasetLabel();
+                      if (state.filters.metric === "actions" && state.trendView !== "average") {
+                        if (chartScope === "main") {
+                          if (hoveredTrendDatasetId === "total") {
+                            if (datasetId === "total") {
+                              const periods = typeof getPeriods === "function" ? getPeriods() : [];
+                              const period = periods[context.dataIndex];
+                              const previousPeriod = context.dataIndex > 0 ? periods[context.dataIndex - 1] : null;
+                              const totalActions = Number(period?.totalActions || 0);
+                              const previousTotalActions = Number(previousPeriod?.totalActions || 0);
+                              return `Total actions: ${formatCurrentAndDelta(totalActions, previousTotalActions)}`;
+                            }
+                            if (datasetId === "enabled-users") {
+                              const periods = typeof getPeriods === "function" ? getPeriods() : [];
+                              const period = periods[context.dataIndex];
+                              const previousPeriod = context.dataIndex > 0 ? periods[context.dataIndex - 1] : null;
+                              const enabledCount = Number(period?.enabledUsersCount || 0);
+                              const previousEnabled = Number(previousPeriod?.enabledUsersCount || 0);
+                              return `Enabled users: ${formatCurrentAndDelta(enabledCount, previousEnabled)}`;
+                            }
+                            return "";
+                          }
+                          if (hoveredTrendDatasetId && datasetId !== hoveredTrendDatasetId) {
+                            return "";
+                          }
+                          if (datasetId && datasetId !== "enabled-users") {
+                            const currentValue = Number(context.parsed?.y || 0);
+                            const previousValue = context.dataIndex > 0 ? Number(context.dataset?.data?.[context.dataIndex - 1] || 0) : 0;
+                            return `${context.dataset.label}: ${formatCurrentAndDelta(currentValue, previousValue)}`;
+                          }
+                          return "";
+                        }
+                        if (chartScope === "compare") {
+                          if (hoveredCompareDatasetLabel && context.dataset?.label !== hoveredCompareDatasetLabel) {
+                            return "";
+                          }
+                          const currentValue = Number(context.parsed?.y || 0);
+                          const previousValue = context.dataIndex > 0 ? Number(context.dataset?.data?.[context.dataIndex - 1] || 0) : 0;
+                          return `${context.dataset.label}: ${formatCurrentAndDelta(currentValue, previousValue)}`;
+                        }
+                      }
                       const datasetLabel = context.dataset && context.dataset.label ? context.dataset.label : "Value";
                       const value = Number.isFinite(context.parsed.y) ? context.parsed.y : 0;
                       const formattedValue = formatTrendTooltipValue(value);
@@ -3884,9 +4092,6 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                       return unit ? `${datasetLabel}: ${formattedValue} ${unit}` : `${datasetLabel}: ${formattedValue}`;
                     },
                     afterBody: contexts => {
-                      if (state.trendView !== "average") {
-                        return;
-                      }
                       if (!Array.isArray(contexts) || !contexts.length) {
                         return;
                       }
@@ -3899,8 +4104,15 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                       if (!period) {
                         return;
                       }
-                      const enabled = Number.isFinite(period.enabledUsersCount) ? period.enabledUsersCount : 0;
-                      return [`Enabled users: ${numberFormatter.format(enabled)}`];
+                      const previousPeriod = index > 0 ? periods[index - 1] : null;
+                      if (chartScope === "main" && includeAdditiveActionBreakdown && state.filters.metric === "actions" && state.trendView !== "average" && getHoveredTrendDatasetId() === "total") {
+                        return buildAdditiveActionTooltipLines(period, previousPeriod);
+                      }
+                      if (state.trendView === "average") {
+                        const enabled = Number.isFinite(period.enabledUsersCount) ? period.enabledUsersCount : 0;
+                        return [`Enabled users: ${numberFormatter.format(enabled)}`];
+                      }
+                      return [];
                     }
                   }
                 }
@@ -3908,6 +4120,19 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               interaction: {
                 mode: "index",
                 intersect: false
+              },
+              onHover: (event, elements, chart) => {
+                if (chartScope === "main") {
+                  const nearest = chart?.getElementsAtEventForMode?.(event, "nearest", { intersect: false }, false) || [];
+                  const first = nearest.length ? nearest[0] : (Array.isArray(elements) && elements.length ? elements[0] : null);
+                  const dataset = first ? chart?.data?.datasets?.[first.datasetIndex] : null;
+                  state.hoveredTrendDatasetId = dataset?.__copilotDefinitionId || null;
+                } else if (chartScope === "compare") {
+                  const nearest = chart?.getElementsAtEventForMode?.(event, "nearest", { intersect: false }, false) || [];
+                  const first = nearest.length ? nearest[0] : (Array.isArray(elements) && elements.length ? elements[0] : null);
+                  const dataset = first ? chart?.data?.datasets?.[first.datasetIndex] : null;
+                  state.hoveredCompareDatasetLabel = dataset?.label || null;
+                }
               }
             };
           }
@@ -3919,7 +4144,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               labels: [],
               datasets: []
             },
-            options: createTrendChartOptions()
+            options: createTrendChartOptions(() => state.latestTrendPeriods, true, "main")
           });
 
           const compareTrendOverlayCtx = document.getElementById("compareTrendChartOverlay")?.getContext("2d");
@@ -3930,7 +4155,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 labels: [],
                 datasets: []
               },
-              options: createTrendChartOptions()
+              options: createTrendChartOptions(() => state.latestTrendPeriods, false, "compare")
             });
           }
       
@@ -11024,10 +11249,10 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               dom.compareSelectors.hidden = !state.compare.enabled;
             }
             if (dom.compareHint) {
-              dom.compareHint.hidden = false;
-              dom.compareHint.textContent = state.compare.enabled
-                ? `Compare two ${dimensionLabel.toLowerCase()}s side by side using the current timeframe, metric, and aggregation.`
-                : `Turn on compare mode to compare two ${dimensionLabel.toLowerCase()}s side by side.`;
+              dom.compareHint.hidden = !state.compare.enabled;
+              if (state.compare.enabled) {
+                dom.compareHint.textContent = `Compare two ${dimensionLabel.toLowerCase()}s side by side using the current timeframe, metric, and aggregation.`;
+              }
             }
             if (dom.compareLeftLabel) {
               dom.compareLeftLabel.textContent = `Left ${dimensionLabel.toLowerCase()}`;
@@ -11300,6 +11525,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               secondary: categoryConfig[key].secondary.map(() => 0),
               total: 0
             }]));
+            const createAdditiveTooltipAccumulator = () => Object.fromEntries(
+              additiveTooltipCategoryConfig.map(entry => [entry.key, 0])
+            );
             const categoryTotals = {};
             categoryKeys.forEach(key => {
               const config = categoryConfig[key];
@@ -11524,7 +11752,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   adoptionUsers: new Set(),
                   returningUsers: new Set(),
                   enabledUsers: new Set(),
-                  categories: createCategoryAccumulator()
+                  categories: createCategoryAccumulator(),
+                  additiveCategories: createAdditiveTooltipAccumulator()
                 };
                 periodMap.set(periodKey, periodBucket);
               }
@@ -11591,6 +11820,12 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   }
                 });
               });
+              additiveTooltipCategoryConfig.forEach(entry => {
+                const value = entry.getValue(metrics);
+                if (Number.isFinite(value) && value > 0) {
+                  periodBucket.additiveCategories[entry.key] = (periodBucket.additiveCategories[entry.key] || 0) + value;
+                }
+              });
               adoptionEntries.forEach(entry => {
                 const { config, userSet, featureSets } = entry;
                 const metrics = row.metrics || {};
@@ -11650,6 +11885,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   assistedHours: values.assistedHours,
                   date: values.date,
                   categories: values.categories,
+                  additiveCategories: values.additiveCategories || createAdditiveTooltipAccumulator(),
                   users: new Set(usersSet),
                   adoptionUsers: new Set(adoptionUsersSet),
                   returningUsers: values.returningUsers instanceof Set ? new Set(values.returningUsers) : new Set(),
@@ -11963,6 +12199,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             }
             const normalizedDetailMode = detailMode || "respect";
             const activeSelection = getActiveCategorySelection();
+            const autoHidden = getAutoHiddenSeriesIds(periods, metric, normalizedDetailMode);
             return chartSeriesDefinitions
               .filter(def => {
                 if (def.metrics && !def.metrics.includes(metric)) {
@@ -11973,6 +12210,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 }
                 if (def.id === "total") {
                   return true;
+                }
+                if (def.id === "enabled-users") {
+                  return false;
                 }
                 if (!def.togglable) {
                   return true;
@@ -11987,6 +12227,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   return true;
                 }
                 if (state.seriesVisibility[def.id] === false) {
+                  return false;
+                }
+                if (autoHidden.has(def.id) && state.seriesManualTouched[def.id] !== true) {
                   return false;
                 }
                 return activeSelection.has(def.id);
@@ -12315,7 +12558,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               button.setAttribute("aria-pressed", String(isVisible));
               button.addEventListener("click", () => {
                 const currentSelection = cloneActiveCategorySelection();
-                const currentlyVisible = currentSelection.has(def.id);
+                const autoHidden = getAutoHiddenSeriesIds(state.latestTrendPeriods, state.filters.metric, state.seriesDetailMode);
+                const currentlyVisible = currentSelection.has(def.id) && (!autoHidden.has(def.id) || state.seriesManualTouched[def.id] === true);
                 const nextVisible = !currentlyVisible;
                 if (!nextVisible && currentSelection.size <= 1) {
                   return;
@@ -12326,6 +12570,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   currentSelection.delete(def.id);
                 }
                 state.filters.categorySelection = currentSelection;
+                state.seriesManualTouched[def.id] = true;
                 state.seriesVisibility[def.id] = nextVisible;
                 button.classList.toggle("is-active", nextVisible);
                 button.setAttribute("aria-pressed", String(nextVisible));
@@ -12363,14 +12608,16 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               dom.seriesHint.hidden = !hintShouldShow;
             }
             const selection = getActiveCategorySelection();
+            const autoHidden = getAutoHiddenSeriesIds(state.latestTrendPeriods, state.filters.metric, state.seriesDetailMode);
             seriesToggleButtons.forEach((button, id) => {
-              const visible = selection.has(id);
+              const visible = selection.has(id) && (!autoHidden.has(id) || state.seriesManualTouched[id] === true);
               state.seriesVisibility[id] = visible;
               button.classList.toggle("is-active", visible);
               button.setAttribute("aria-pressed", String(visible));
               const disabled = state.filters.metric !== "actions";
               button.disabled = disabled;
               button.classList.toggle("is-disabled", disabled);
+              button.classList.toggle("is-auto-hidden", autoHidden.has(id) && state.seriesManualTouched[id] !== true && !disabled);
             });
           }
       
@@ -15251,7 +15498,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
       
             const datasets = buildTrendDatasets(periods, metric, detailMode);
       
-            const options = createTrendChartOptions();
+            const options = createTrendChartOptions(() => state.latestTrendPeriods, false);
       
             options.animation = false;
       

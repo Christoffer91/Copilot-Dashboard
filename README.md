@@ -116,6 +116,11 @@ Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 
 ## Changelog
 
+### 2026-04-06
+- Fixed `Impact trend` line hover/dimming so the highlighted series follows the cursor reliably across the chart, including edge points.
+- Kept `Meetings` and `Documents` available as pills for total-action filtering, while auto-hiding their low-signal lines from the main actions chart.
+- Refined the `Impact trend` total tooltip to use additive action buckets plus `Other`, and show `Copilot chat (web)` as an informational row outside the additive total.
+
 ### 2026-03-31
 - Fixed `Impact trend` **Active users (%)** to use period-local actions-only numerator and period-local enabled denominator.
 - Added smart zoom for `Impact trend` **Active users (%)** so the y-axis pads the observed range instead of always spanning `0-100`.

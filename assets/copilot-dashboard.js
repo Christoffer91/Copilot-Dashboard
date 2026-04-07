@@ -302,10 +302,13 @@
             },
             meetingRecap: {
               primary: [
-                "Meetings recapped by Copilot",
                 "Intelligent recap actions taken",
+                "Meetings recapped by Copilot",
                 "Recap"
               ]
+            },
+            meetingsRecappedByCopilot: {
+              primary: ["Meetings recapped by Copilot"]
             },
             meetingSummariesTotal: {
               primary: [
@@ -447,7 +450,11 @@
               primary: ["Visualize as table actions taken using Copilot in Word"]
             },
             wordChatPrompts: {
-              primary: ["Chat (Copilot in Word) prompts submitted"]
+              primary: ["Chat (Copilot in Word) prompts submitted"],
+              fallbackSum: [
+                "Copilot Chat (work) in Word prompts submitted",
+                "Copilot Chat (web) in Word prompts submitted"
+              ]
             },
             addContentPresentation: {
               primary: ["Add content to presentation actions taken"]
@@ -456,10 +463,18 @@
               primary: ["Organize presentation actions taken"]
             },
             powerpointChatPrompts: {
-              primary: ["Chat (Copilot in PowerPoint) prompts submitted"]
+              primary: ["Chat (Copilot in PowerPoint) prompts submitted"],
+              fallbackSum: [
+                "Copilot Chat (work) in PowerPoint prompts submitted",
+                "Copilot Chat (web) in PowerPoint prompts submitted"
+              ]
             },
             excelChatPrompts: {
-              primary: ["Chat (Copilot in Excel) prompts submitted"]
+              primary: ["Chat (Copilot in Excel) prompts submitted"],
+              fallbackSum: [
+                "Copilot Chat (work) in Excel prompts submitted",
+                "Copilot Chat (web) in Excel prompts submitted"
+              ]
             },
             summarizePresentation: {
               primary: ["Summarize presentation actions taken using Copilot in PowerPoint"]
@@ -1775,10 +1790,9 @@
               ]
             },
             "copilot-chat": {
-              primary: "chatPromptsWork",
-              secondary: ["chatPromptsWeb", "chatPromptsTeams"],
+              primary: "chatWorkActions",
+              secondary: ["chatPromptsWeb"],
               formatters: [
-                value => numberFormatter.format(Math.round(value)),
                 value => numberFormatter.format(Math.round(value)),
                 value => numberFormatter.format(Math.round(value))
               ]
@@ -1808,9 +1822,8 @@
               excelAnalysis: "Excel analysis actions taken using Copilot"
             },
             "copilot-chat": {
-              chatPromptsWork: "Copilot Chat (work) prompts submitted",
+              chatWorkActions: "Copilot actions taken in Copilot chat (work)",
               chatPromptsWeb: "Copilot Chat (web) prompts submitted",
-              chatPromptsTeams: "Teams chat prompts submitted to Copilot"
             }
           };
           const categoryHourFieldMap = {
@@ -1822,7 +1835,7 @@
             meetings: "Meetings",
             emails: "Emails",
             chats: "Teams",
-            documents: "Documents",
+            documents: "Office apps",
             "copilot-chat": "Copilot chat",
             "copilot-chat-work": "Copilot chat (work)",
             "copilot-chat-web": "Copilot chat (web)"
@@ -1873,55 +1886,50 @@
             {
               key: "meetings",
               label: categoryLabels.meetings,
-              getValue: metrics => sumPositiveMetricValues(metrics, ["meetingRecap", "meetingSummariesTotal", "meetingSummariesActions"])
+              getValue: metrics => sumPositiveMetricValues(metrics, ["meetingRecap"])
             },
             {
               key: "emails",
               label: categoryLabels.emails,
-              getValue: metrics => sumPositiveMetricValues(metrics, ["outlookActions", "emailDrafts", "emailCoaching", "emailSummaries"])
+              getValue: metrics => sumPositiveMetricValues(metrics, ["outlookActions"])
             },
             {
               key: "chats",
               label: categoryLabels.chats,
-              getValue: metrics => sumPositiveMetricValues(metrics, ["teamsActions", "chatCompose", "chatSummaries", "chatConversations"])
+              getValue: metrics => sumPositiveMetricValues(metrics, ["teamsActions"])
             },
             {
               key: "documents",
               label: categoryLabels.documents,
-              getValue: metrics => sumPositiveMetricValues(metrics, [
-                "wordActions",
-                "documentSummaries",
-                "draftWord",
-                "rewriteTextWord",
-                "visualizeTableWord",
-                "powerpointActions",
-                "presentationCreated",
-                "addContentPresentation",
-                "organizePresentation",
-                "summarizePresentation",
-                "excelActions",
-                "excelAnalysis",
-                "excelFormula",
-                "excelFormatting"
-              ])
+              getValue: metrics => sumPositiveMetricValues(metrics, ["wordActions", "powerpointActions", "excelActions"])
             },
             {
               key: "copilot-chat-work",
               label: categoryLabels["copilot-chat-work"],
-              getValue: metrics => resolveExclusiveMetricGroup(
-                metrics,
-                ["chatPromptsWork"],
-                ["chatPromptsWorkTeams", "chatPromptsWorkOutlook"]
-              )
+              getValue: metrics => sumPositiveMetricValues(metrics, ["chatWorkActions"])
+            }
+          ];
+
+          const residualTooltipDriverConfig = [
+            {
+              key: "meetings-recapped",
+              label: "Meetings recapped",
+              getValue: metrics => sumPositiveMetricValues(metrics, ["meetingsRecappedByCopilot"])
             },
             {
-              key: "copilot-chat-web",
-              label: categoryLabels["copilot-chat-web"],
-              getValue: metrics => resolveExclusiveMetricGroup(
-                metrics,
-                ["chatPromptsWeb"],
-                ["chatPromptsWebTeams", "chatPromptsWebOutlook"]
-              )
+              key: "office-app-chat-prompts",
+              label: "Office app chat prompts",
+              getValue: metrics => sumPositiveMetricValues(metrics, ["wordChatPrompts", "powerpointChatPrompts", "excelChatPrompts"])
+            },
+            {
+              key: "emails-sent-with-copilot",
+              label: "Emails sent with Copilot",
+              getValue: metrics => sumPositiveMetricValues(metrics, ["emailTotalWithCopilot"])
+            },
+            {
+              key: "word-summaries",
+              label: "Word summaries",
+              getValue: metrics => sumPositiveMetricValues(metrics, ["documentSummaries"])
             }
           ];
       
@@ -2201,7 +2209,7 @@
             {
               id: "meetings",
               label: () => categoryLabels.meetings,
-              getValue: period => (state.filters.metric === "hours" ? 0 : getCategoryTotalValue(period?.categories?.meetings)),
+              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.additiveCategories?.meetings || 0)),
               borderColor: "rgba(9, 114, 136, 0.85)",
               backgroundColor: "transparent",
               borderWidth: 2,
@@ -2214,7 +2222,7 @@
             {
               id: "emails",
               label: () => categoryLabels.emails,
-              getValue: period => (state.filters.metric === "hours" ? 0 : getCategoryTotalValue(period?.categories?.emails)),
+              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.additiveCategories?.emails || 0)),
               borderColor: "rgba(81, 70, 214, 0.85)",
               backgroundColor: "transparent",
               borderWidth: 2,
@@ -2227,7 +2235,7 @@
             {
               id: "chats",
               label: () => categoryLabels.chats,
-              getValue: period => (state.filters.metric === "hours" ? 0 : getCategoryTotalValue(period?.categories?.chats)),
+              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.additiveCategories?.chats || 0)),
               borderColor: "rgba(58, 132, 193, 0.85)",
               backgroundColor: "transparent",
               borderWidth: 2,
@@ -2240,7 +2248,7 @@
             {
               id: "documents",
               label: () => categoryLabels.documents,
-              getValue: period => (state.filters.metric === "hours" ? 0 : getCategoryTotalValue(period?.categories?.documents)),
+              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.additiveCategories?.documents || 0)),
               borderColor: "rgba(246, 189, 24, 0.85)",
               backgroundColor: "transparent",
               borderWidth: 2,
@@ -2253,7 +2261,7 @@
             {
               id: "copilot-chat-work",
               label: () => categoryLabels["copilot-chat-work"],
-              getValue: period => (state.filters.metric === "hours" ? 0 : ((period.categories && period.categories["copilot-chat"] && period.categories["copilot-chat"].primary) || 0)),
+              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.additiveCategories?.["copilot-chat-work"] || 0)),
               borderColor: "rgba(0, 138, 0, 0.75)",
               backgroundColor: "transparent",
               borderWidth: 2,
@@ -2280,6 +2288,7 @@
           ];
           const togglableSeriesIds = chartSeriesDefinitions.filter(def => def.togglable).map(def => def.id);
           const defaultCategorySelection = new Set(togglableSeriesIds);
+          const removedMainActionSeriesIds = new Set(["meetings", "documents"]);
       
           const trendSeriesIds = chartSeriesDefinitions.map(def => def.id);
       
@@ -2723,9 +2732,7 @@
 
           const capabilityFieldMap = {
             meetings: [
-              "meetingRecap",
-              "meetingSummariesTotal",
-              "meetingSummariesActions"
+              "meetingRecap"
             ],
             emails: [
               "emailDrafts",
@@ -2741,16 +2748,23 @@
             documents: [
               "wordActions",
               "documentSummaries",
+              "draftWord",
+              "rewriteTextWord",
+              "visualizeTableWord",
+              "powerpointActions",
               "presentationCreated",
-              "excelAnalysis"
+              "addContentPresentation",
+              "organizePresentation",
+              "summarizePresentation",
+              "excelActions",
+              "excelAnalysis",
+              "excelFormula",
+              "excelFormatting"
             ],
             "copilot-chat-work": [
-              "chatPromptsWork",
-              "chatPromptsTeams"
+              "chatWorkActions"
             ],
-            "copilot-chat-web": [
-              "chatPromptsWeb"
-            ]
+            "copilot-chat-web": []
           };
 
           const hourCategoryKeys = Object.keys(categoryHourFieldMap);
@@ -2767,11 +2781,15 @@
             return defaultCategorySelection;
           }
 
+          function shouldRemoveSeriesFromMainActions(definitionId, metric, chartScope = "main") {
+            return chartScope === "main" && metric === "actions" && removedMainActionSeriesIds.has(definitionId);
+          }
+
           function cloneActiveCategorySelection() {
             return new Set(getActiveCategorySelection());
           }
 
-          function getAutoHiddenSeriesIds(periods, metric, detailMode = "respect") {
+          function getAutoHiddenSeriesIds(periods, metric, detailMode = "respect", chartScope = "main") {
             if (metric !== "actions" || detailMode === "none" || !Array.isArray(periods) || !periods.length) {
               return new Set();
             }
@@ -2783,6 +2801,10 @@
             const hidden = new Set();
             chartSeriesDefinitions.forEach(def => {
               if (!def.togglable) {
+                return;
+              }
+              if (shouldRemoveSeriesFromMainActions(def.id, metric, chartScope)) {
+                hidden.add(def.id);
                 return;
               }
               const maxValue = periods.reduce((max, period) => {
@@ -3775,6 +3797,39 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             return dataset;
           }
 
+          function applyMainTrendHoverEmphasis(dataset, definitionId) {
+            if (!dataset) {
+              return dataset;
+            }
+            const hoveredId = state.hoveredTrendDatasetId;
+            if (!hoveredId || state.filters.metric !== "actions" || state.trendView === "average") {
+              return dataset;
+            }
+
+            const isHovered = hoveredId === definitionId;
+
+            if (isHovered) {
+              dataset.borderWidth = (dataset.borderWidth || 2) + 1;
+              dataset.pointRadius = (dataset.pointRadius || 3) + 1;
+              dataset.pointHoverRadius = (dataset.pointHoverRadius || 5) + 1;
+              return dataset;
+            }
+
+            const baseHex = definitionId === "total"
+              ? (sanitizeHexColor(state.trendColorPreference?.end) || DEFAULT_TREND_END_COLOR)
+              : getTrendColor(definitionId);
+            const dimmed = hexToRgba(baseHex, definitionId === "total" ? 0.42 : 0.32) || baseHex;
+            dataset.borderColor = dimmed;
+            dataset.pointBorderColor = dimmed;
+            dataset.pointHoverBorderColor = dimmed;
+            dataset.pointHoverBackgroundColor = dimmed;
+            if (definitionId === "total") {
+              dataset.backgroundColor = hexToRgba(baseHex, 0.08) || baseHex;
+            }
+            dataset.borderWidth = Math.max(1.5, (dataset.borderWidth || 2) - 0.4);
+            return dataset;
+          }
+
           function getPeriodUserCount(period) {
             if (!period) {
               return 0;
@@ -3971,31 +4026,82 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             const previousCategories = previousPeriod && previousPeriod.additiveCategories && typeof previousPeriod.additiveCategories === "object"
               ? previousPeriod.additiveCategories
               : {};
+            const currentResidualDrivers = period.residualDrivers && typeof period.residualDrivers === "object"
+              ? period.residualDrivers
+              : {};
+            const previousResidualDrivers = previousPeriod && previousPeriod.residualDrivers && typeof previousPeriod.residualDrivers === "object"
+              ? previousPeriod.residualDrivers
+              : {};
             const lines = [];
-            let totalDeltaFromGroups = 0;
+            let totalCurrentFromGroups = 0;
+            let totalPreviousFromGroups = 0;
             additiveTooltipCategoryConfig.forEach(entry => {
               const currentValue = Number(currentCategories[entry.key] || 0);
               const previousValue = Number(previousCategories[entry.key] || 0);
-              const delta = currentValue - previousValue;
-              totalDeltaFromGroups += delta;
+              totalCurrentFromGroups += currentValue;
+              totalPreviousFromGroups += previousValue;
               lines.push(`${entry.label}: ${formatCurrentAndDelta(currentValue, previousValue)}`);
             });
             const totalActions = Number(period.totalActions || 0);
             const previousTotalActions = Number(previousPeriod?.totalActions || 0);
-            const totalDelta = totalActions - previousTotalActions;
-            const otherDelta = totalDelta - totalDeltaFromGroups;
-            if (otherDelta !== 0) {
-              lines.push(`Other: ${formatSignedActionDelta(otherDelta)}`);
+            const otherCurrent = totalActions - totalCurrentFromGroups;
+            const otherPrevious = previousTotalActions - totalPreviousFromGroups;
+            const currentWebPrompts = Number(period?.categories?.["copilot-chat"]?.secondary?.[0] || 0);
+            const previousWebPrompts = Number(previousPeriod?.categories?.["copilot-chat"]?.secondary?.[0] || 0);
+            if (currentWebPrompts !== 0 || previousWebPrompts !== 0) {
+              lines.push(`Copilot chat (web, not in total): ${formatCurrentAndDelta(currentWebPrompts, previousWebPrompts)}`);
+            }
+            if (otherCurrent !== 0 || otherPrevious !== 0) {
+              lines.push(`Other: ${formatCurrentAndDelta(otherCurrent, otherPrevious)}`);
             }
             return lines;
           }
 
           function getHoveredTrendDatasetId() {
-            return state.hoveredTrendDatasetId;
+            return state.hoveredTrendDatasetId || null;
           }
 
-          function getHoveredCompareDatasetLabel() {
-            return state.hoveredCompareDatasetLabel;
+          function resolveMainTrendHoveredDatasetId(event, chart) {
+            const chartArea = chart?.chartArea;
+            const native = event?.native || event;
+            const x = typeof event?.x === "number" ? event.x : (typeof native?.x === "number" ? native.x : null);
+            const y = typeof event?.y === "number" ? event.y : (typeof native?.y === "number" ? native.y : null);
+            const edgePadding = 14;
+            const outside = chartArea && x != null && y != null
+              ? (x < chartArea.left - edgePadding || x > chartArea.right + edgePadding || y < chartArea.top - edgePadding || y > chartArea.bottom + edgePadding)
+              : false;
+            if (outside) {
+              return null;
+            }
+            let indexItems = chart?.getElementsAtEventForMode?.(event, "index", { intersect: false, axis: "x" }, false) || [];
+            if (!indexItems.length) {
+              indexItems = chart?.getElementsAtEventForMode?.(event, "nearest", { intersect: false }, false) || [];
+            }
+            const candidates = indexItems
+              .map(item => {
+                const dataset = chart?.data?.datasets?.[item.datasetIndex];
+                const datasetId = dataset?.__copilotDefinitionId || null;
+                const elementY = Number(item?.element?.y);
+                return {
+                  datasetId,
+                  distance: Number.isFinite(y) && Number.isFinite(elementY) ? Math.abs(elementY - y) : Number.POSITIVE_INFINITY
+                };
+              })
+              .filter(item => item.datasetId && item.datasetId !== "enabled-users");
+            if (!candidates.length) {
+              return null;
+            }
+            candidates.sort((left, right) => left.distance - right.distance);
+            return candidates[0]?.datasetId || null;
+          }
+
+          function refreshMainTrendHoverDatasets(chart) {
+            if (!chart) {
+              return;
+            }
+            const periods = Array.isArray(state.latestTrendPeriods) ? state.latestTrendPeriods : [];
+            chart.data.datasets = buildTrendDatasets(periods, state.filters.metric, state.seriesDetailMode, "main");
+            chart.update("none");
           }
 
           function createTrendChartOptions(getPeriods = () => state.latestTrendPeriods, includeAdditiveActionBreakdown = true, chartScope = "main") {
@@ -4044,32 +4150,31 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                     label: context => {
                       const datasetId = context.dataset?.__copilotDefinitionId || null;
                       const hoveredTrendDatasetId = getHoveredTrendDatasetId();
-                      const hoveredCompareDatasetLabel = getHoveredCompareDatasetLabel();
                       if (state.filters.metric === "actions" && state.trendView !== "average") {
                         if (chartScope === "main") {
+                          const periods = typeof getPeriods === "function" ? getPeriods() : [];
+                          const period = periods[context.dataIndex];
+                          const previousPeriod = context.dataIndex > 0 ? periods[context.dataIndex - 1] : null;
                           if (hoveredTrendDatasetId === "total") {
                             if (datasetId === "total") {
-                              const periods = typeof getPeriods === "function" ? getPeriods() : [];
-                              const period = periods[context.dataIndex];
-                              const previousPeriod = context.dataIndex > 0 ? periods[context.dataIndex - 1] : null;
                               const totalActions = Number(period?.totalActions || 0);
                               const previousTotalActions = Number(previousPeriod?.totalActions || 0);
                               return `Total actions: ${formatCurrentAndDelta(totalActions, previousTotalActions)}`;
-                            }
-                            if (datasetId === "enabled-users") {
-                              const periods = typeof getPeriods === "function" ? getPeriods() : [];
-                              const period = periods[context.dataIndex];
-                              const previousPeriod = context.dataIndex > 0 ? periods[context.dataIndex - 1] : null;
-                              const enabledCount = Number(period?.enabledUsersCount || 0);
-                              const previousEnabled = Number(previousPeriod?.enabledUsersCount || 0);
-                              return `Enabled users: ${formatCurrentAndDelta(enabledCount, previousEnabled)}`;
                             }
                             return "";
                           }
                           if (hoveredTrendDatasetId && datasetId !== hoveredTrendDatasetId) {
                             return "";
                           }
-                          if (datasetId && datasetId !== "enabled-users") {
+                          if (datasetId === "total") {
+                            const totalActions = Number(period?.totalActions || 0);
+                            const previousTotalActions = Number(previousPeriod?.totalActions || 0);
+                            return `Total actions: ${formatCurrentAndDelta(totalActions, previousTotalActions)}`;
+                          }
+                          if (datasetId === "enabled-users") {
+                            return "";
+                          }
+                          if (datasetId) {
                             const currentValue = Number(context.parsed?.y || 0);
                             const previousValue = context.dataIndex > 0 ? Number(context.dataset?.data?.[context.dataIndex - 1] || 0) : 0;
                             return `${context.dataset.label}: ${formatCurrentAndDelta(currentValue, previousValue)}`;
@@ -4077,9 +4182,6 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                           return "";
                         }
                         if (chartScope === "compare") {
-                          if (hoveredCompareDatasetLabel && context.dataset?.label !== hoveredCompareDatasetLabel) {
-                            return "";
-                          }
                           const currentValue = Number(context.parsed?.y || 0);
                           const previousValue = context.dataIndex > 0 ? Number(context.dataset?.data?.[context.dataIndex - 1] || 0) : 0;
                           return `${context.dataset.label}: ${formatCurrentAndDelta(currentValue, previousValue)}`;
@@ -4105,8 +4207,12 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                         return;
                       }
                       const previousPeriod = index > 0 ? periods[index - 1] : null;
-                      if (chartScope === "main" && includeAdditiveActionBreakdown && state.filters.metric === "actions" && state.trendView !== "average" && getHoveredTrendDatasetId() === "total") {
-                        return buildAdditiveActionTooltipLines(period, previousPeriod);
+                      const datasetId = contexts[0]?.dataset?.__copilotDefinitionId || null;
+                      if (chartScope === "main" && includeAdditiveActionBreakdown && state.filters.metric === "actions" && state.trendView !== "average" && getHoveredTrendDatasetId() === "total" && datasetId === "total") {
+                        const enabled = Number.isFinite(period.enabledUsersCount) ? period.enabledUsersCount : 0;
+                        const previousEnabled = Number(previousPeriod?.enabledUsersCount || 0);
+                        const additiveLines = buildAdditiveActionTooltipLines(period, previousPeriod);
+                        return [`Enabled users: ${formatCurrentAndDelta(enabled, previousEnabled)}`, ...additiveLines];
                       }
                       if (state.trendView === "average") {
                         const enabled = Number.isFinite(period.enabledUsersCount) ? period.enabledUsersCount : 0;
@@ -4119,19 +4225,17 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               },
               interaction: {
                 mode: "index",
-                intersect: false
+                intersect: false,
+                axis: "x"
               },
               onHover: (event, elements, chart) => {
-                if (chartScope === "main") {
-                  const nearest = chart?.getElementsAtEventForMode?.(event, "nearest", { intersect: false }, false) || [];
-                  const first = nearest.length ? nearest[0] : (Array.isArray(elements) && elements.length ? elements[0] : null);
-                  const dataset = first ? chart?.data?.datasets?.[first.datasetIndex] : null;
-                  state.hoveredTrendDatasetId = dataset?.__copilotDefinitionId || null;
-                } else if (chartScope === "compare") {
-                  const nearest = chart?.getElementsAtEventForMode?.(event, "nearest", { intersect: false }, false) || [];
-                  const first = nearest.length ? nearest[0] : (Array.isArray(elements) && elements.length ? elements[0] : null);
-                  const dataset = first ? chart?.data?.datasets?.[first.datasetIndex] : null;
-                  state.hoveredCompareDatasetLabel = dataset?.label || null;
+                if (chartScope !== "main") {
+                  return;
+                }
+                const previousHoveredId = state.hoveredTrendDatasetId;
+                state.hoveredTrendDatasetId = resolveMainTrendHoveredDatasetId(event, chart);
+                if (previousHoveredId !== state.hoveredTrendDatasetId && Array.isArray(state.latestTrendPeriods) && state.latestTrendPeriods.length) {
+                  refreshMainTrendHoverDatasets(chart);
                 }
               }
             };
@@ -7522,7 +7626,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               state.seriesVisibility = {};
             }
             if (snapshot.seriesDetailMode && (snapshot.seriesDetailMode === "respect" || snapshot.seriesDetailMode === "all" || snapshot.seriesDetailMode === "none")) {
-              state.seriesDetailMode = snapshot.seriesDetailMode;
+              state.seriesDetailMode = snapshot.seriesDetailMode === "all" ? "respect" : snapshot.seriesDetailMode;
             }
             if (snapshot.returningMetric === "percentage" || snapshot.returningMetric === "total") {
               state.returningMetric = snapshot.returningMetric;
@@ -8178,11 +8282,6 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           function validateCsvFile(file) {
             if (!isCsvFile(file)) {
               showUploadError("Only CSV exports are supported. Please choose a .csv file.");
-              return false;
-            }
-            if (Number.isFinite(file.size) && file.size > MAX_DATASET_FILE_SIZE) {
-              const limitMb = Math.round(MAX_DATASET_FILE_SIZE / (1024 * 1024));
-              showUploadError(`File is too large. Please choose a CSV under ${limitMb} MB.`);
               return false;
             }
             return true;
@@ -11528,6 +11627,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             const createAdditiveTooltipAccumulator = () => Object.fromEntries(
               additiveTooltipCategoryConfig.map(entry => [entry.key, 0])
             );
+            const createResidualTooltipAccumulator = () => Object.fromEntries(
+              residualTooltipDriverConfig.map(entry => [entry.key, 0])
+            );
             const categoryTotals = {};
             categoryKeys.forEach(key => {
               const config = categoryConfig[key];
@@ -11753,7 +11855,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   returningUsers: new Set(),
                   enabledUsers: new Set(),
                   categories: createCategoryAccumulator(),
-                  additiveCategories: createAdditiveTooltipAccumulator()
+                  additiveCategories: createAdditiveTooltipAccumulator(),
+                  residualDrivers: createResidualTooltipAccumulator()
                 };
                 periodMap.set(periodKey, periodBucket);
               }
@@ -11826,6 +11929,12 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   periodBucket.additiveCategories[entry.key] = (periodBucket.additiveCategories[entry.key] || 0) + value;
                 }
               });
+              residualTooltipDriverConfig.forEach(entry => {
+                const value = entry.getValue(metrics);
+                if (Number.isFinite(value) && value > 0) {
+                  periodBucket.residualDrivers[entry.key] = (periodBucket.residualDrivers[entry.key] || 0) + value;
+                }
+              });
               adoptionEntries.forEach(entry => {
                 const { config, userSet, featureSets } = entry;
                 const metrics = row.metrics || {};
@@ -11886,6 +11995,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   date: values.date,
                   categories: values.categories,
                   additiveCategories: values.additiveCategories || createAdditiveTooltipAccumulator(),
+                  residualDrivers: values.residualDrivers || createResidualTooltipAccumulator(),
                   users: new Set(usersSet),
                   adoptionUsers: new Set(adoptionUsersSet),
                   returningUsers: values.returningUsers instanceof Set ? new Set(values.returningUsers) : new Set(),
@@ -12175,10 +12285,10 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             };
           }
       
-          function buildTrendDatasets(periods, metric, detailMode = "respect") {
+          function buildTrendDatasets(periods, metric, detailMode = "respect", chartScope = "main") {
             if (!Array.isArray(periods) || !periods.length) {
               return chartSeriesDefinitions
-                .filter(def => !def.togglable || def.id === "total")
+                .filter(def => (!def.togglable || def.id === "total") && !shouldRemoveSeriesFromMainActions(def.id, metric, chartScope))
                 .map(def => ({
                   label: typeof def.label === "function" ? def.label(metric) : def.label,
                   data: [],
@@ -12197,11 +12307,14 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   __copilotIsDetailSeries: Boolean(def.togglable)
                 }));
             }
-            const normalizedDetailMode = detailMode || "respect";
+            const normalizedDetailMode = detailMode === "all" ? "respect" : (detailMode || "respect");
             const activeSelection = getActiveCategorySelection();
-            const autoHidden = getAutoHiddenSeriesIds(periods, metric, normalizedDetailMode);
+            const autoHidden = getAutoHiddenSeriesIds(periods, metric, normalizedDetailMode, chartScope);
             return chartSeriesDefinitions
               .filter(def => {
+                if (shouldRemoveSeriesFromMainActions(def.id, metric, chartScope)) {
+                  return false;
+                }
                 if (def.metrics && !def.metrics.includes(metric)) {
                   return false;
                 }
@@ -12261,7 +12374,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   __copilotDefinitionId: def.id,
                   __copilotIsDetailSeries: Boolean(def.togglable)
                 };
-                return applyTrendColorToDataset(dataset, def.id);
+                return applyMainTrendHoverEmphasis(applyTrendColorToDataset(dataset, def.id), def.id);
               });
           }
 
@@ -12364,7 +12477,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             chart.data.labels = periods.map(item => item.label);
 
             const metric = state.filters.metric;
-            chart.data.datasets = buildTrendDatasets(periods, metric, state.seriesDetailMode);
+            chart.data.datasets = buildTrendDatasets(periods, metric, state.seriesDetailMode, "main");
             applyTrendScaleToChart(chart, metric, periods);
             chart.update("none");
           }
@@ -12504,8 +12617,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             const alignedRightPeriods = buildAlignedComparePeriods(referencePeriods, rightAggregates?.periods || []);
             state.compare.leftPeriods = alignedLeftPeriods;
             state.compare.rightPeriods = alignedRightPeriods;
-            const leftDatasets = leftAggregates ? buildTrendDatasets(alignedLeftPeriods, state.filters.metric, state.seriesDetailMode) : [];
-            const rightDatasets = rightAggregates ? buildTrendDatasets(alignedRightPeriods, state.filters.metric, state.seriesDetailMode) : [];
+            const leftDatasets = leftAggregates ? buildTrendDatasets(alignedLeftPeriods, state.filters.metric, state.seriesDetailMode, "compare") : [];
+            const rightDatasets = rightAggregates ? buildTrendDatasets(alignedRightPeriods, state.filters.metric, state.seriesDetailMode, "compare") : [];
             const sharedBounds = resolveSharedCompareTrendBounds(state.filters.metric, alignedLeftPeriods, alignedRightPeriods, leftDatasets, rightDatasets);
             renderComparePanel("left", state.compare.left, leftAggregates, sharedBounds);
             renderComparePanel("right", state.compare.right, rightAggregates, sharedBounds);
@@ -12558,8 +12671,10 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               button.setAttribute("aria-pressed", String(isVisible));
               button.addEventListener("click", () => {
                 const currentSelection = cloneActiveCategorySelection();
-                const autoHidden = getAutoHiddenSeriesIds(state.latestTrendPeriods, state.filters.metric, state.seriesDetailMode);
-                const currentlyVisible = currentSelection.has(def.id) && (!autoHidden.has(def.id) || state.seriesManualTouched[def.id] === true);
+                const autoHidden = getAutoHiddenSeriesIds(state.latestTrendPeriods, state.filters.metric, state.seriesDetailMode, "main");
+                const currentlyVisible = removedMainActionSeriesIds.has(def.id)
+                  ? currentSelection.has(def.id)
+                  : (currentSelection.has(def.id) && (!autoHidden.has(def.id) || state.seriesManualTouched[def.id] === true));
                 const nextVisible = !currentlyVisible;
                 if (!nextVisible && currentSelection.size <= 1) {
                   return;
@@ -12608,16 +12723,18 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               dom.seriesHint.hidden = !hintShouldShow;
             }
             const selection = getActiveCategorySelection();
-            const autoHidden = getAutoHiddenSeriesIds(state.latestTrendPeriods, state.filters.metric, state.seriesDetailMode);
+            const autoHidden = getAutoHiddenSeriesIds(state.latestTrendPeriods, state.filters.metric, state.seriesDetailMode, "main");
             seriesToggleButtons.forEach((button, id) => {
-              const visible = selection.has(id) && (!autoHidden.has(id) || state.seriesManualTouched[id] === true);
+              const visible = removedMainActionSeriesIds.has(id)
+                ? selection.has(id)
+                : (selection.has(id) && (!autoHidden.has(id) || state.seriesManualTouched[id] === true));
               state.seriesVisibility[id] = visible;
               button.classList.toggle("is-active", visible);
               button.setAttribute("aria-pressed", String(visible));
               const disabled = state.filters.metric !== "actions";
               button.disabled = disabled;
               button.classList.toggle("is-disabled", disabled);
-              button.classList.toggle("is-auto-hidden", autoHidden.has(id) && state.seriesManualTouched[id] !== true && !disabled);
+              button.classList.toggle("is-auto-hidden", autoHidden.has(id) && state.seriesManualTouched[id] !== true && !removedMainActionSeriesIds.has(id) && !disabled);
             });
           }
       
@@ -15496,7 +15613,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
       
             const metric = state.filters.metric;
       
-            const datasets = buildTrendDatasets(periods, metric, detailMode);
+            const datasets = buildTrendDatasets(periods, metric, detailMode, "main");
       
             const options = createTrendChartOptions(() => state.latestTrendPeriods, false);
       
@@ -17673,13 +17790,11 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
           }
 
           function datasetExceedsCacheLimit(sizeInBytes) {
-            // Prevents attempting to mirror very large datasets into IndexedDB/localStorage, which repeatedly failed in low-memory browsers.
-            return Number.isFinite(sizeInBytes) && sizeInBytes > DATASET_CACHE_LIMIT_BYTES;
+            return false;
           }
 
           function getDatasetCacheLimitMessage() {
-            // Surface a clear hint so future debugging sessions know why persistence fell back to session-only.
-            return `Datasets larger than ${formatFileSize(DATASET_CACHE_LIMIT_BYTES)} stay in this session only.`;
+            return "";
           }
 
           function formatFileSize(byteCount) {

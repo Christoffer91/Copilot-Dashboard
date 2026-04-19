@@ -119,7 +119,10 @@ Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 ### 2026-04-06
 - Fixed `Impact trend` line hover/dimming so the highlighted series follows the cursor reliably across the chart, including edge points.
 - Kept `Meetings` and `Documents` available as pills for total-action filtering, while auto-hiding their low-signal lines from the main actions chart.
-- Refined the `Impact trend` total tooltip to use additive action buckets plus `Other`, and show `Copilot chat (web)` as an informational row outside the additive total.
+- Refined the `Impact trend` total tooltip to use strict master action totals plus `Other`, and show `Copilot chat (web)` as an informational row outside the additive total.
+- Renamed the document bucket in tooltip/chart labeling to `Office apps`.
+- Updated CSV mapping for newer Microsoft app-scoped work/web prompt headers in Word, PowerPoint, and Excel.
+- Removed the app-level 100 MB upload and browser-cache limits for CSV datasets.
 
 ### 2026-03-31
 - Fixed `Impact trend` **Active users (%)** to use period-local actions-only numerator and period-local enabled denominator.
@@ -138,43 +141,6 @@ Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 - Fixed compare-mode interaction bugs caused by an overlaid empty state intercepting pointer events.
 - Replaced visible inline-width skeleton markup with CSS classes to reduce CSP noise in the compare/debug path.
 
-### 2025-12-12
-- **Theme system overhaul**: Added 7 built-in themes + custom color picker
-  - Keep: Light, Cool Light, Midnight Dark, Carbon Black
-  - Added "crazy" themes: Cyberpunk (pink/cyan), Neon (matrix green), Sunset (orange/purple gradient)
-  - Custom theme with user-defined accent, background, and text colors
-  - All themes saved to localStorage and persist across sessions
-- Fixed theme "bleeding" issue where background gradients persisted when switching themes
-- Security review documentation added to README
-
-### 2025-12-26
-- Export UX refresh: quick export buttons, post-upload CTA, clipboard sharing, and save-to-picker support (where available).
-
-### 2025-12-30
-- Restored export menu items: country report (Excel), pivot (CSV), organizations (Excel).
-- Improved ultrawide support by allowing the page to expand on large screens and fitting more “Usage intensity” cards per row.
-
-### 2026-01-03
-- Export menu: added helper subtitles for trend CSV vs pivot CSV.
-- Sticky filter dropdown: avoids duplicate `id`/`for` in cloned controls (a11y/robustness).
-- Documented OneDrive revert mitigation and cache-bust workflow.
-
-### 2026-02-13
-- Added support for dual CSV families (Viva Analytics Copilot Impact and Copilot Dashboard export) with automatic schema detection.
-- Improved localized CSV parsing with alias/index fallback mapping plus locale-aware number/date handling.
-- Added two synthetic public sample datasets (10,000 rows each) and switched **Load sample dataset** to a dataset chooser.
-- Added sample regeneration script: `node tools/generate-public-samples.mjs`.
-
-### 2026-02-19
-- Updated Usage intensity defaults to `25/50` (middle/high).
-- Usage intensity now surfaces all CSV months as selectable chips; when more than 12 months exist, the latest 12 are preselected.
-- Added legacy snapshot threshold migration (`17/35` -> `25/50`) when loading older snapshots without threshold version metadata.
-- Added deterministic returning-users verifier: `node tools/verify-returning-users.mjs`.
-
-### 2026-02-27
-- Added a Goals tracker section with CSV-only KPI measurement for Goal 1 (weekly attainment + sustained 4/4 status).
-- Added goals CSV export for governance reporting (`copilot-goals-tracker.csv`).
-
 ### 2026-03-16
 - **Excel full report overhaul**: consolidated 11 sheets into 4 (Overview, Trends, Breakdowns, Apps & usage) with multi-section layout per sheet.
   - Each section has a descriptive title, info row, green header, and alternating-row data.
@@ -186,3 +152,40 @@ Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 
 ### 2026-03-01
 - Fixed Agent Hub KPI cards and tab badges to refresh immediately after Users/Agents/Users&Agents CSV uploads.
+
+### 2026-02-27
+- Added a Goals tracker section with CSV-only KPI measurement for Goal 1 (weekly attainment + sustained 4/4 status).
+- Added goals CSV export for governance reporting (`copilot-goals-tracker.csv`).
+
+### 2026-02-19
+- Updated Usage intensity defaults to `25/50` (middle/high).
+- Usage intensity now surfaces all CSV months as selectable chips; when more than 12 months exist, the latest 12 are preselected.
+- Added legacy snapshot threshold migration (`17/35` -> `25/50`) when loading older snapshots without threshold version metadata.
+- Added deterministic returning-users verifier: `node tools/verify-returning-users.mjs`.
+
+### 2026-02-13
+- Added support for dual CSV families (Viva Analytics Copilot Impact and Copilot Dashboard export) with automatic schema detection.
+- Improved localized CSV parsing with alias/index fallback mapping plus locale-aware number/date handling.
+- Added two synthetic public sample datasets (10,000 rows each) and switched **Load sample dataset** to a dataset chooser.
+- Added sample regeneration script: `node tools/generate-public-samples.mjs`.
+
+### 2026-01-03
+- Export menu: added helper subtitles for trend CSV vs pivot CSV.
+- Sticky filter dropdown: avoids duplicate `id`/`for` in cloned controls (a11y/robustness).
+- Documented OneDrive revert mitigation and cache-bust workflow.
+
+### 2025-12-30
+- Restored export menu items: country report (Excel), pivot (CSV), organizations (Excel).
+- Improved ultrawide support by allowing the page to expand on large screens and fitting more “Usage intensity” cards per row.
+
+### 2025-12-26
+- Export UX refresh: quick export buttons, post-upload CTA, clipboard sharing, and save-to-picker support (where available).
+
+### 2025-12-12
+- **Theme system overhaul**: Added 7 built-in themes + custom color picker
+  - Keep: Light, Cool Light, Midnight Dark, Carbon Black
+  - Added "crazy" themes: Cyberpunk (pink/cyan), Neon (matrix green), Sunset (orange/purple gradient)
+  - Custom theme with user-defined accent, background, and text colors
+  - All themes saved to localStorage and persist across sessions
+- Fixed theme "bleeding" issue where background gradients persisted when switching themes
+- Security review documentation added to README

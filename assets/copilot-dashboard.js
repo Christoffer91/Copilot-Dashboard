@@ -4026,12 +4026,6 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             const previousCategories = previousPeriod && previousPeriod.additiveCategories && typeof previousPeriod.additiveCategories === "object"
               ? previousPeriod.additiveCategories
               : {};
-            const currentResidualDrivers = period.residualDrivers && typeof period.residualDrivers === "object"
-              ? period.residualDrivers
-              : {};
-            const previousResidualDrivers = previousPeriod && previousPeriod.residualDrivers && typeof previousPeriod.residualDrivers === "object"
-              ? previousPeriod.residualDrivers
-              : {};
             const lines = [];
             let totalCurrentFromGroups = 0;
             let totalPreviousFromGroups = 0;
@@ -4044,8 +4038,12 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             });
             const totalActions = Number(period.totalActions || 0);
             const previousTotalActions = Number(previousPeriod?.totalActions || 0);
-            const otherCurrent = totalActions - totalCurrentFromGroups;
-            const otherPrevious = previousTotalActions - totalPreviousFromGroups;
+            const residualCurrent = totalActions - totalCurrentFromGroups;
+            const residualPrevious = previousTotalActions - totalPreviousFromGroups;
+            const otherCurrent = Math.max(0, residualCurrent);
+            const otherPrevious = Math.max(0, residualPrevious);
+            const overlapCurrent = Math.max(0, -residualCurrent);
+            const overlapPrevious = Math.max(0, -residualPrevious);
             const currentWebPrompts = Number(period?.categories?.["copilot-chat"]?.secondary?.[0] || 0);
             const previousWebPrompts = Number(previousPeriod?.categories?.["copilot-chat"]?.secondary?.[0] || 0);
             if (currentWebPrompts !== 0 || previousWebPrompts !== 0) {
@@ -4053,6 +4051,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             }
             if (otherCurrent !== 0 || otherPrevious !== 0) {
               lines.push(`Other: ${formatCurrentAndDelta(otherCurrent, otherPrevious)}`);
+            }
+            if (overlapCurrent !== 0 || overlapPrevious !== 0) {
+              lines.push(`Bucket overlap: ${formatCurrentAndDelta(overlapCurrent, overlapPrevious)}`);
             }
             return lines;
           }
@@ -7422,6 +7423,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               parseCsvTextContent(payload.dataset.csvText, {
                 sourceName: payload.dataset.meta?.name || "Snapshot dataset",
                 sourceSize: payload.dataset.meta?.size,
+                datasetSource: "embedded-snapshot",
                 savedMeta: payload.dataset.meta ? { ...payload.dataset.meta } : undefined
               });
             } catch (error) {
@@ -8458,6 +8460,25 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               return Promise.resolve("copilot");
             }
           }
+
+          const datasetSourceLabels = {
+            uploaded: "Uploaded file",
+            "saved-local": "Saved local dataset",
+            "embedded-snapshot": "Embedded snapshot",
+            "embedded-payload": "Embedded payload",
+            sample: "Sample dataset"
+          };
+
+          function resolveDatasetSourceLabel(meta = {}) {
+            const source = typeof meta.datasetSource === "string" ? meta.datasetSource : "";
+            if (source && datasetSourceLabels[source]) {
+              return datasetSourceLabels[source];
+            }
+            if (meta.loadedFromStorage || meta.savedMeta) {
+              return datasetSourceLabels["saved-local"];
+            }
+            return datasetSourceLabels.uploaded;
+          }
       
           function finalizeParsedDataset(context, meta = {}) {
             const datasetContext = meta.datasetContext || currentDatasetContext;
@@ -8507,26 +8528,30 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             const sizeText = typeof sizeBytes === 'number' ? `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB` : null;
             const sourceName = meta.sourceName || (meta.savedMeta && meta.savedMeta.name);
             const formattedSource = sourceName ? shortenLabel(sourceName) : null;
+            const sourceLabel = resolveDatasetSourceLabel(meta);
       
             if (dom.uploadMeta) {
+              const metaParts = [`Source: ${sourceLabel}`];
               if (formattedSource && sizeText) {
-                dom.uploadMeta.textContent = `${formattedSource} · ${sizeText}`;
+                metaParts.push(formattedSource, sizeText);
               } else if (formattedSource) {
-                dom.uploadMeta.textContent = formattedSource;
+                metaParts.push(formattedSource);
               } else if (sizeText) {
-                dom.uploadMeta.textContent = sizeText;
+                metaParts.push(sizeText);
               } else {
-                dom.uploadMeta.textContent = `${rowCountText} rows`;
+                metaParts.push(`${rowCountText} rows`);
               }
+              dom.uploadMeta.textContent = metaParts.join(BULLET_SEPARATOR);
             }
       
             if (dom.uploadStatus) {
+              const sourceSuffix = ` Source: ${sourceLabel}.`;
               const baseStatus = meta.loadedFromStorage
                 ? "Saved dataset loaded."
                 : `Loaded ${rowCountText} rows${notesText}.`;
               dom.uploadStatus.textContent = datasetContextDescription
-                ? `${baseStatus} Detected ${datasetContextDescription}.`
-                : baseStatus;
+                ? `${baseStatus}${sourceSuffix} Detected ${datasetContextDescription}.`
+                : `${baseStatus}${sourceSuffix}`;
             }
       
             setDatasetMessage("");
@@ -8684,6 +8709,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 }, {
                   sourceName: runtimeMeta.name,
                   sourceSize: runtimeMeta.size,
+                  datasetSource: meta.datasetSource || (loadedFromStorage ? "saved-local" : "uploaded"),
                   loadedFromStorage,
                   savedMeta: savedMetaPayload || undefined,
                   datasetContext
@@ -8769,6 +8795,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 parseCsvTextContent(csvText, {
                   sourceName: savedMeta.name || "Saved dataset",
                   sourceSize: savedMeta.size,
+                  datasetSource: "saved-local",
                   savedMeta
                 });
               }
@@ -8801,6 +8828,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               parseCsvTextContent(record.csv, {
                 sourceName: savedMeta.name || "Saved dataset",
                 sourceSize: savedMeta.size,
+                datasetSource: "saved-local",
                 savedMeta
               });
             }).catch(error => {
@@ -8957,6 +8985,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             }, {
               sourceName: file.name,
               sourceSize: controller.fileSize,
+              datasetSource: "uploaded",
               rows: accumulators.parsedRows.length,
               datasetContext
             });
@@ -9183,6 +9212,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               parseCsvTextContent(csvText, {
                 sourceName: label,
                 sourceSize: csvText.length,
+                datasetSource: "sample",
                 skipPersistence: true
               });
             };

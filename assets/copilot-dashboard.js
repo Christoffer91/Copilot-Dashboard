@@ -1855,39 +1855,7 @@
             return primary + secondarySum;
           }
 
-          function resolveExclusiveMetricGroup(metrics, primaryFields = [], fallbackFields = []) {
-            const primaryTotal = sumPositiveMetricValues(metrics, primaryFields);
-            if (primaryTotal > 0) {
-              return primaryTotal;
-            }
-            return sumPositiveMetricValues(metrics, fallbackFields);
-          }
-
-          function resolveAdditiveDocumentsTotal(metrics) {
-            const wordTotal = resolveExclusiveMetricGroup(
-              metrics,
-              ["wordActions"],
-              ["documentSummaries", "draftWord", "rewriteTextWord", "visualizeTableWord"]
-            );
-            const powerpointTotal = resolveExclusiveMetricGroup(
-              metrics,
-              ["powerpointActions"],
-              ["presentationCreated", "addContentPresentation", "organizePresentation", "summarizePresentation"]
-            );
-            const excelTotal = resolveExclusiveMetricGroup(
-              metrics,
-              ["excelActions"],
-              ["excelAnalysis", "excelFormula", "excelFormatting"]
-            );
-            return wordTotal + powerpointTotal + excelTotal;
-          }
-
-          const additiveTooltipCategoryConfig = [
-            {
-              key: "meetings",
-              label: categoryLabels.meetings,
-              getValue: metrics => sumPositiveMetricValues(metrics, ["meetingRecap"])
-            },
+          const attributedTooltipCategoryConfig = [
             {
               key: "emails",
               label: categoryLabels.emails,
@@ -1907,29 +1875,19 @@
               key: "copilot-chat-work",
               label: categoryLabels["copilot-chat-work"],
               getValue: metrics => sumPositiveMetricValues(metrics, ["chatWorkActions"])
+            },
+            {
+              key: "copilot-chat-web",
+              label: categoryLabels["copilot-chat-web"],
+              getValue: metrics => sumPositiveMetricValues(metrics, ["chatPromptsWeb"])
             }
           ];
 
-          const residualTooltipDriverConfig = [
+          const informationalTooltipMetricConfig = [
             {
               key: "meetings-recapped",
               label: "Meetings recapped",
               getValue: metrics => sumPositiveMetricValues(metrics, ["meetingsRecappedByCopilot"])
-            },
-            {
-              key: "office-app-chat-prompts",
-              label: "Office app chat prompts",
-              getValue: metrics => sumPositiveMetricValues(metrics, ["wordChatPrompts", "powerpointChatPrompts", "excelChatPrompts"])
-            },
-            {
-              key: "emails-sent-with-copilot",
-              label: "Emails sent with Copilot",
-              getValue: metrics => sumPositiveMetricValues(metrics, ["emailTotalWithCopilot"])
-            },
-            {
-              key: "word-summaries",
-              label: "Word summaries",
-              getValue: metrics => sumPositiveMetricValues(metrics, ["documentSummaries"])
             }
           ];
       
@@ -2209,7 +2167,7 @@
             {
               id: "meetings",
               label: () => categoryLabels.meetings,
-              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.additiveCategories?.meetings || 0)),
+              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.informationalMetrics?.["meetings-recapped"] || 0)),
               borderColor: "rgba(9, 114, 136, 0.85)",
               backgroundColor: "transparent",
               borderWidth: 2,
@@ -2222,7 +2180,7 @@
             {
               id: "emails",
               label: () => categoryLabels.emails,
-              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.additiveCategories?.emails || 0)),
+              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.attributedCategories?.emails || 0)),
               borderColor: "rgba(81, 70, 214, 0.85)",
               backgroundColor: "transparent",
               borderWidth: 2,
@@ -2235,7 +2193,7 @@
             {
               id: "chats",
               label: () => categoryLabels.chats,
-              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.additiveCategories?.chats || 0)),
+              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.attributedCategories?.chats || 0)),
               borderColor: "rgba(58, 132, 193, 0.85)",
               backgroundColor: "transparent",
               borderWidth: 2,
@@ -2248,7 +2206,7 @@
             {
               id: "documents",
               label: () => categoryLabels.documents,
-              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.additiveCategories?.documents || 0)),
+              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.attributedCategories?.documents || 0)),
               borderColor: "rgba(246, 189, 24, 0.85)",
               backgroundColor: "transparent",
               borderWidth: 2,
@@ -2261,7 +2219,7 @@
             {
               id: "copilot-chat-work",
               label: () => categoryLabels["copilot-chat-work"],
-              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.additiveCategories?.["copilot-chat-work"] || 0)),
+              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.attributedCategories?.["copilot-chat-work"] || 0)),
               borderColor: "rgba(0, 138, 0, 0.75)",
               backgroundColor: "transparent",
               borderWidth: 2,
@@ -2274,7 +2232,7 @@
             {
               id: "copilot-chat-web",
               label: () => categoryLabels["copilot-chat-web"],
-              getValue: period => (state.filters.metric === "hours" ? 0 : ((period.categories && period.categories["copilot-chat"] && period.categories["copilot-chat"].secondary && period.categories["copilot-chat"].secondary[0]) || 0)),
+              getValue: period => (state.filters.metric === "hours" ? 0 : Number(period?.attributedCategories?.["copilot-chat-web"] || 0)),
               borderColor: "rgba(0, 138, 0, 0.5)",
               backgroundColor: "transparent",
               borderWidth: 2,
@@ -4016,45 +3974,22 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             return `${format(currentValue)} (${formatSignedActionDelta(currentValue - previous)})`;
           }
 
-          function buildAdditiveActionTooltipLines(period, previousPeriod) {
+          function buildAttributionActionTooltipLines(period, previousPeriod) {
             if (!period || state.filters.metric !== "actions" || state.trendView === "average") {
               return [];
             }
-            const currentCategories = period.additiveCategories && typeof period.additiveCategories === "object"
-              ? period.additiveCategories
+            const currentCategories = period.attributedCategories && typeof period.attributedCategories === "object"
+              ? period.attributedCategories
               : {};
-            const previousCategories = previousPeriod && previousPeriod.additiveCategories && typeof previousPeriod.additiveCategories === "object"
-              ? previousPeriod.additiveCategories
+            const previousCategories = previousPeriod && previousPeriod.attributedCategories && typeof previousPeriod.attributedCategories === "object"
+              ? previousPeriod.attributedCategories
               : {};
             const lines = [];
-            let totalCurrentFromGroups = 0;
-            let totalPreviousFromGroups = 0;
-            additiveTooltipCategoryConfig.forEach(entry => {
+            attributedTooltipCategoryConfig.forEach(entry => {
               const currentValue = Number(currentCategories[entry.key] || 0);
               const previousValue = Number(previousCategories[entry.key] || 0);
-              totalCurrentFromGroups += currentValue;
-              totalPreviousFromGroups += previousValue;
               lines.push(`${entry.label}: ${formatCurrentAndDelta(currentValue, previousValue)}`);
             });
-            const totalActions = Number(period.totalActions || 0);
-            const previousTotalActions = Number(previousPeriod?.totalActions || 0);
-            const residualCurrent = totalActions - totalCurrentFromGroups;
-            const residualPrevious = previousTotalActions - totalPreviousFromGroups;
-            const otherCurrent = Math.max(0, residualCurrent);
-            const otherPrevious = Math.max(0, residualPrevious);
-            const overlapCurrent = Math.max(0, -residualCurrent);
-            const overlapPrevious = Math.max(0, -residualPrevious);
-            const currentWebPrompts = Number(period?.categories?.["copilot-chat"]?.secondary?.[0] || 0);
-            const previousWebPrompts = Number(previousPeriod?.categories?.["copilot-chat"]?.secondary?.[0] || 0);
-            if (currentWebPrompts !== 0 || previousWebPrompts !== 0) {
-              lines.push(`Copilot chat (web, not in total): ${formatCurrentAndDelta(currentWebPrompts, previousWebPrompts)}`);
-            }
-            if (otherCurrent !== 0 || otherPrevious !== 0) {
-              lines.push(`Other: ${formatCurrentAndDelta(otherCurrent, otherPrevious)}`);
-            }
-            if (overlapCurrent !== 0 || overlapPrevious !== 0) {
-              lines.push(`Bucket overlap: ${formatCurrentAndDelta(overlapCurrent, overlapPrevious)}`);
-            }
             return lines;
           }
 
@@ -4105,7 +4040,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             chart.update("none");
           }
 
-          function createTrendChartOptions(getPeriods = () => state.latestTrendPeriods, includeAdditiveActionBreakdown = true, chartScope = "main") {
+          function createTrendChartOptions(getPeriods = () => state.latestTrendPeriods, includeAttributionBreakdown = true, chartScope = "main") {
             return {
               responsive: true,
               maintainAspectRatio: false,
@@ -4209,11 +4144,11 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                       }
                       const previousPeriod = index > 0 ? periods[index - 1] : null;
                       const datasetId = contexts[0]?.dataset?.__copilotDefinitionId || null;
-                      if (chartScope === "main" && includeAdditiveActionBreakdown && state.filters.metric === "actions" && state.trendView !== "average" && getHoveredTrendDatasetId() === "total" && datasetId === "total") {
+                      if (chartScope === "main" && includeAttributionBreakdown && state.filters.metric === "actions" && state.trendView !== "average" && getHoveredTrendDatasetId() === "total" && datasetId === "total") {
                         const enabled = Number.isFinite(period.enabledUsersCount) ? period.enabledUsersCount : 0;
                         const previousEnabled = Number(previousPeriod?.enabledUsersCount || 0);
-                        const additiveLines = buildAdditiveActionTooltipLines(period, previousPeriod);
-                        return [`Enabled users: ${formatCurrentAndDelta(enabled, previousEnabled)}`, ...additiveLines];
+                        const attributionLines = buildAttributionActionTooltipLines(period, previousPeriod);
+                        return [`Enabled users: ${formatCurrentAndDelta(enabled, previousEnabled)}`, ...attributionLines];
                       }
                       if (state.trendView === "average") {
                         const enabled = Number.isFinite(period.enabledUsersCount) ? period.enabledUsersCount : 0;
@@ -11654,11 +11589,11 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               secondary: categoryConfig[key].secondary.map(() => 0),
               total: 0
             }]));
-            const createAdditiveTooltipAccumulator = () => Object.fromEntries(
-              additiveTooltipCategoryConfig.map(entry => [entry.key, 0])
+            const createAttributedTooltipAccumulator = () => Object.fromEntries(
+              attributedTooltipCategoryConfig.map(entry => [entry.key, 0])
             );
-            const createResidualTooltipAccumulator = () => Object.fromEntries(
-              residualTooltipDriverConfig.map(entry => [entry.key, 0])
+            const createInformationalTooltipAccumulator = () => Object.fromEntries(
+              informationalTooltipMetricConfig.map(entry => [entry.key, 0])
             );
             const categoryTotals = {};
             categoryKeys.forEach(key => {
@@ -11885,8 +11820,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   returningUsers: new Set(),
                   enabledUsers: new Set(),
                   categories: createCategoryAccumulator(),
-                  additiveCategories: createAdditiveTooltipAccumulator(),
-                  residualDrivers: createResidualTooltipAccumulator()
+                  attributedCategories: createAttributedTooltipAccumulator(),
+                  informationalMetrics: createInformationalTooltipAccumulator()
                 };
                 periodMap.set(periodKey, periodBucket);
               }
@@ -11953,16 +11888,16 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   }
                 });
               });
-              additiveTooltipCategoryConfig.forEach(entry => {
+              attributedTooltipCategoryConfig.forEach(entry => {
                 const value = entry.getValue(metrics);
                 if (Number.isFinite(value) && value > 0) {
-                  periodBucket.additiveCategories[entry.key] = (periodBucket.additiveCategories[entry.key] || 0) + value;
+                  periodBucket.attributedCategories[entry.key] = (periodBucket.attributedCategories[entry.key] || 0) + value;
                 }
               });
-              residualTooltipDriverConfig.forEach(entry => {
+              informationalTooltipMetricConfig.forEach(entry => {
                 const value = entry.getValue(metrics);
                 if (Number.isFinite(value) && value > 0) {
-                  periodBucket.residualDrivers[entry.key] = (periodBucket.residualDrivers[entry.key] || 0) + value;
+                  periodBucket.informationalMetrics[entry.key] = (periodBucket.informationalMetrics[entry.key] || 0) + value;
                 }
               });
               adoptionEntries.forEach(entry => {
@@ -12024,8 +11959,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   assistedHours: values.assistedHours,
                   date: values.date,
                   categories: values.categories,
-                  additiveCategories: values.additiveCategories || createAdditiveTooltipAccumulator(),
-                  residualDrivers: values.residualDrivers || createResidualTooltipAccumulator(),
+                  attributedCategories: values.attributedCategories || createAttributedTooltipAccumulator(),
+                  informationalMetrics: values.informationalMetrics || createInformationalTooltipAccumulator(),
                   users: new Set(usersSet),
                   adoptionUsers: new Set(adoptionUsersSet),
                   returningUsers: values.returningUsers instanceof Set ? new Set(values.returningUsers) : new Set(),

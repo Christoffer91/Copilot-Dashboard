@@ -1862,6 +1862,22 @@
               chatIntentDraftBrainstorm: "Draft and brainstorm prompts — create new content"
             }
           };
+          const categoryDetailDisplayLabels = {
+            "copilot-chat": {
+              chatIntentAskFind: {
+                title: "Ask and find",
+                description: "Find information"
+              },
+              chatIntentCatchUp: {
+                title: "Catch up",
+                description: "Summaries and takeaways"
+              },
+              chatIntentDraftBrainstorm: {
+                title: "Draft and brainstorm",
+                description: "Create new content"
+              }
+            }
+          };
           const categoryHourFieldMap = {
             meetings: "meetingHours"
           };
@@ -12886,6 +12902,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 return;
               }
               statsContainer.innerHTML = "";
+              card.classList.remove("has-details");
               const totals = categoryTotals ? categoryTotals[key] : null;
               const labels = categoryMetricLabels[key] || {};
               if (!totals) {
@@ -12927,6 +12944,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 return;
               }
               let hasPositive = metrics.some(metric => metric.value > 0);
+              const summary = document.createElement("div");
+              summary.className = "category-card__summary";
               metrics.forEach((metric, index) => {
                 const stat = document.createElement("div");
                 stat.className = "category-card__stat";
@@ -12940,38 +12959,64 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 labelElement.className = "category-card__label";
                 labelElement.textContent = metric.label || metric.field;
                 stat.append(valueElement, labelElement);
-                statsContainer.append(stat);
+                summary.append(stat);
               });
+              statsContainer.append(summary);
               const detailFields = Array.isArray(config.details) ? config.details : [];
               const availableDetailFields = detailFields
                 .map((field, index) => ({ field, index }))
                 .filter(entry => isMetricFieldAvailable(entry.field));
               if (availableDetailFields.length) {
+                card.classList.add("has-details");
+                const detailLabels = categoryDetailDisplayLabels[key] || {};
+                const details = document.createElement("section");
+                details.className = "category-card__details";
+                details.setAttribute("aria-label", "Prompt purpose");
+                const detailsHeader = document.createElement("div");
+                detailsHeader.className = "category-card__details-header";
+                const detailsTitle = document.createElement("p");
+                detailsTitle.className = "category-card__details-title";
+                detailsTitle.textContent = "Prompt purpose";
                 const helper = document.createElement("p");
-                helper.className = "category-card__placeholder muted";
-                helper.textContent = "Prompt purpose from available Viva columns; blank values are excluded. These counts overlap with Copilot Chat totals and are not added to dashboard KPIs.";
-                statsContainer.append(helper);
+                helper.className = "category-card__details-note";
+                helper.textContent = "These counts overlap with Copilot Chat totals and are excluded from dashboard KPIs. Blank values are omitted.";
+                detailsHeader.append(detailsTitle, helper);
+                const detailList = document.createElement("div");
+                detailList.className = "category-card__details-list";
                 availableDetailFields.forEach(({ field, index }) => {
                   const observationCount = Array.isArray(totals.detailObservations)
                     ? totals.detailObservations[index] || 0
                     : 0;
                   const value = Array.isArray(totals.details) ? totals.details[index] || 0 : 0;
                   const stat = document.createElement("div");
-                  stat.className = "category-card__stat";
+                  stat.className = "category-card__stat category-card__detail-stat";
                   const valueElement = document.createElement("div");
-                  valueElement.className = "category-card__value";
+                  valueElement.className = "category-card__value category-card__detail-value";
                   valueElement.textContent = observationCount
                     ? numberFormatter.format(Math.round(value))
                     : "Not available";
+                  const displayLabel = detailLabels[field] || {};
                   const labelElement = document.createElement("div");
-                  labelElement.className = "category-card__label";
-                  labelElement.textContent = labels[field] || getMetricDisplayLabel(field);
+                  labelElement.className = "category-card__label category-card__detail-copy";
+                  labelElement.setAttribute("aria-label", labels[field] || getMetricDisplayLabel(field));
+                  const labelTitle = document.createElement("span");
+                  labelTitle.className = "category-card__detail-label";
+                  labelTitle.textContent = displayLabel.title || labels[field] || getMetricDisplayLabel(field);
+                  labelElement.append(labelTitle);
+                  if (displayLabel.description) {
+                    const description = document.createElement("span");
+                    description.className = "category-card__detail-description";
+                    description.textContent = displayLabel.description;
+                    labelElement.append(description);
+                  }
                   stat.append(valueElement, labelElement);
-                  statsContainer.append(stat);
+                  detailList.append(stat);
                   if (observationCount && value > 0) {
                     hasPositive = true;
                   }
                 });
+                details.append(detailsHeader, detailList);
+                statsContainer.append(details);
               }
               card.classList.toggle("is-empty", !hasPositive);
             });

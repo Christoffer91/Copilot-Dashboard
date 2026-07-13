@@ -54,6 +54,7 @@ Localization and dialect handling:
 - Header matching supports alias resolution plus schema index fallback, so translated headers can still be mapped when column layout matches a supported schema.
 - Number parsing handles both dot and comma decimals.
 - Slash dates (`x/x/yy`) are inferred as month-first or day-first from dataset evidence.
+- Copilot Chat intent columns (`Ask and find`, `Catch up`, and `Draft and brainstorm`) render as non-additive prompt-purpose details. Blank values remain unavailable instead of being reported as zero.
 
 Usage intensity and returning users behavior:
 - Usage intensity thresholds default to `25` (middle) and `50` (high).
@@ -115,6 +116,9 @@ Copyright (c) 2025 Christoffer Besler Hansen.
 Licensed under the GNU Affero General Public License v3.0 (see `LICENSE`).
 
 ## Changelog
+
+### 2026-07-13
+- Added non-additive Copilot Chat prompt-purpose details for the three new Viva Insights intent columns without changing dashboard KPI totals.
 
 ### 2026-04-06
 - Fixed `Impact trend` line hover/dimming so the highlighted series follows the cursor reliably across the chart, including edge points.

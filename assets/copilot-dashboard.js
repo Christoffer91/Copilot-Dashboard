@@ -267,6 +267,7 @@
           let lastParsedAgentCsvText = null;
           let lastParsedAgentMeta = null;
           let currentCsvFieldLookup = null;
+          let currentDatasetFieldKeys = new Set();
           let currentDatasetContext = null;
           let lastDatasetDetectionSummary = "";
           const MAX_DIMENSION_SERIES = 6;
@@ -406,6 +407,15 @@
             },
             chatPromptsTeams: {
               primary: ["Copilot Chat (work) prompts submitted in Teams"]
+            },
+            chatIntentAskFind: {
+              primary: ['Copilot Chat "Ask and find" prompts']
+            },
+            chatIntentCatchUp: {
+              primary: ['Copilot Chat "Catch up" prompts']
+            },
+            chatIntentDraftBrainstorm: {
+              primary: ['Copilot Chat "Draft and brainstorm" prompts']
             },
             documentSummaries: {
               primary: [
@@ -564,6 +574,12 @@
               primary: ["Chats sent"]
             }
           };
+          const CHAT_INTENT_METRIC_KEYS = [
+            "chatIntentAskFind",
+            "chatIntentCatchUp",
+            "chatIntentDraftBrainstorm"
+          ];
+          const CHAT_INTENT_METRIC_KEY_SET = new Set(CHAT_INTENT_METRIC_KEYS);
           const csvFieldEntries = Object.entries(csvFieldMap);
           const CSV_FIELD_ENTRIES_COUNT = csvFieldEntries.length;
           const DATASET_SCHEMA_LABELS = {
@@ -1725,6 +1741,22 @@
             const sumValue = getSumOfColumns(raw, mapping.sum);
             return sumValue != null ? sumValue : 0;
           }
+
+          function hasMetricObservation(raw, mapping) {
+            const candidates = collectMetricCandidates(mapping);
+            return candidates.some(candidate => getColumnValue(raw, candidate) != null);
+          }
+
+          function isMetricFieldAvailable(metricKey) {
+            if (!(currentDatasetFieldKeys instanceof Set) || !currentDatasetFieldKeys.size) {
+              return false;
+            }
+            const candidates = collectMetricCandidates(csvFieldMap[metricKey]);
+            return candidates.some(candidate => {
+              const normalized = normalizeHeaderKey(candidate);
+              return normalized && currentDatasetFieldKeys.has(normalized);
+            });
+          }
       
           function getMetricDisplayLabel(metricKey) {
             const mapping = csvFieldMap[metricKey];
@@ -1792,6 +1824,7 @@
             "copilot-chat": {
               primary: "chatWorkActions",
               secondary: ["chatPromptsWeb"],
+              details: CHAT_INTENT_METRIC_KEYS,
               formatters: [
                 value => numberFormatter.format(Math.round(value)),
                 value => numberFormatter.format(Math.round(value))
@@ -1824,6 +1857,9 @@
             "copilot-chat": {
               chatWorkActions: "Copilot actions taken in Copilot chat (work)",
               chatPromptsWeb: "Copilot Chat (web) prompts submitted",
+              chatIntentAskFind: "Ask and find prompts — find information",
+              chatIntentCatchUp: "Catch up prompts — summaries and takeaways",
+              chatIntentDraftBrainstorm: "Draft and brainstorm prompts — create new content"
             }
           };
           const categoryHourFieldMap = {
@@ -8328,11 +8364,15 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             if (!activeParseController) {
               return;
             }
-            activeParseController.aborted = true;
-            activeParseController.silentAbort = silent;
-            if (activeParseController.parser && typeof activeParseController.parser.abort === "function") {
+            const controller = activeParseController;
+            controller.aborted = true;
+            controller.silentAbort = silent;
+            if (typeof controller.restoreDatasetHeaders === "function") {
+              controller.restoreDatasetHeaders();
+            }
+            if (controller.parser && typeof controller.parser.abort === "function") {
               try {
-                activeParseController.parser.abort();
+                controller.parser.abort();
               } catch (error) {
                 logWarn("Unable to abort parser", error);
               }
@@ -8539,6 +8579,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
       
           function parseCsvTextContent(csvText, meta = {}) {
             currentCsvFieldLookup = null;
+            currentDatasetFieldKeys = new Set();
             currentDatasetContext = null;
             const parsedRows = [];
             const uniquePersons = new Set();
@@ -8598,6 +8639,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               error: error => {
                 const message = error && error.message ? error.message : String(error);
                 currentCsvFieldLookup = null;
+                currentDatasetFieldKeys = new Set();
                 currentDatasetContext = null;
                 dom.uploadStatus.textContent = `Saved dataset could not be loaded (${message}).`;
                 setDatasetMessage("Stored dataset was cleared. Load a CSV to continue.");
@@ -8607,6 +8649,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               complete: () => {
                 if (!parsedRows.length) {
                   currentCsvFieldLookup = null;
+                  currentDatasetFieldKeys = new Set();
                   currentDatasetContext = null;
                   dom.uploadStatus.textContent = "Saved dataset was empty or unreadable.";
                   setDatasetMessage("Stored dataset was cleared. Load a CSV to continue.");
@@ -8824,7 +8867,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             clearUploadError();
             startUploadProgress(file);
 
+            const previousDatasetFieldKeys = new Set(currentDatasetFieldKeys);
             currentCsvFieldLookup = null;
+            currentDatasetFieldKeys = new Set();
             currentDatasetContext = null;
             const controller = {
               file,
@@ -8832,7 +8877,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               rowsProcessed: 0,
               aborted: false,
               parser: null,
-              silentAbort: false
+              silentAbort: false,
+              headersRestored: false,
+              restoreDatasetHeaders: null
             };
             setActiveParseController(controller);
 
@@ -8847,6 +8894,20 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               skippedRows: 0,
               rowErrors: 0
             };
+
+            const restorePreviousDatasetHeaders = () => {
+              if (controller.headersRestored) {
+                return;
+              }
+              if (activeParseController && activeParseController !== controller) {
+                return;
+              }
+              currentCsvFieldLookup = null;
+              currentDatasetFieldKeys = new Set(previousDatasetFieldKeys);
+              currentDatasetContext = null;
+              controller.headersRestored = true;
+            };
+            controller.restoreDatasetHeaders = restorePreviousDatasetHeaders;
 
             const resetAccumulators = () => {
               accumulators.parsedRows.length = 0;
@@ -8897,6 +8958,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               setActiveParseController(null);
               finishUploadProgress(null);
             if (!accumulators.parsedRows.length) {
+              restorePreviousDatasetHeaders();
               showUploadError("No valid rows were found in the file.");
               return;
             }
@@ -8973,8 +9035,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
 
             const finishWithError = message => {
               setActiveParseController(null);
-              currentCsvFieldLookup = null;
-              currentDatasetContext = null;
+              restorePreviousDatasetHeaders();
               if (message) {
                 showUploadError(message);
               } else {
@@ -9048,6 +9109,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 error: error => {
                   flushProgressUpdates();
                   if (controller.aborted) {
+                    restorePreviousDatasetHeaders();
                     return;
                   }
                   const message = error && error.message ? error.message : String(error || "Unknown error");
@@ -9056,6 +9118,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 complete: () => {
                   flushProgressUpdates();
                   if (controller.aborted) {
+                    restorePreviousDatasetHeaders();
                     finishUploadProgress(controller.silentAbort ? null : "Import canceled.");
                     return;
                   }
@@ -9074,6 +9137,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
 
             const beginParsing = delimiter => {
               if (controller.aborted) {
+                restorePreviousDatasetHeaders();
                 return;
               }
               try {
@@ -9380,12 +9444,16 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             const isoInfo = toIsoWeek(weekEndDate);
             const monthKey = `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}`;
             const metrics = {};
+            const metricObservations = {};
             for (let index = 0; index < CSV_FIELD_ENTRIES_COUNT; index += 1) {
               const entry = csvFieldEntries[index];
               const key = entry[0];
               const mapping = entry[1];
               const value = extractMetricValue(raw, mapping);
               metrics[key] = Number.isFinite(value) ? value : 0;
+              if (CHAT_INTENT_METRIC_KEY_SET.has(key)) {
+                metricObservations[key] = hasMetricObservation(raw, mapping);
+              }
             }
             applyDerivedMetricFallbacks(metrics);
             applyDerivedEnablementMetrics(metrics);
@@ -9401,7 +9469,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               monthKey,
               totalActions: metrics.totalActions,
               assistedHours: metrics.assistedHours,
-              metrics
+              metrics,
+              metricObservations
             };
           }
       
@@ -11598,9 +11667,12 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             const categoryTotals = {};
             categoryKeys.forEach(key => {
               const config = categoryConfig[key];
+              const details = Array.isArray(config.details) ? config.details : [];
               categoryTotals[key] = {
                 primary: 0,
                 secondary: config.secondary.map(() => 0),
+                details: details.map(() => 0),
+                detailObservations: details.map(() => 0),
                 total: 0
               };
             });
@@ -11886,6 +11958,16 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   if (periodCategory) {
                     periodCategory.total = (periodCategory.total || 0) + value;
                   }
+                });
+                const detailFields = Array.isArray(config.details) ? config.details : [];
+                detailFields.forEach((field, index) => {
+                  const observations = row.metricObservations || {};
+                  if (observations[field] !== true) {
+                    return;
+                  }
+                  const value = row.metrics[field] || 0;
+                  totalsForCategory.details[index] += value;
+                  totalsForCategory.detailObservations[index] += 1;
                 });
               });
               attributedTooltipCategoryConfig.forEach(entry => {
@@ -12844,6 +12926,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 card.classList.add("is-empty");
                 return;
               }
+              let hasPositive = metrics.some(metric => metric.value > 0);
               metrics.forEach((metric, index) => {
                 const stat = document.createElement("div");
                 stat.className = "category-card__stat";
@@ -12859,7 +12942,37 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 stat.append(valueElement, labelElement);
                 statsContainer.append(stat);
               });
-              const hasPositive = metrics.some(metric => metric.value > 0);
+              const detailFields = Array.isArray(config.details) ? config.details : [];
+              const availableDetailFields = detailFields
+                .map((field, index) => ({ field, index }))
+                .filter(entry => isMetricFieldAvailable(entry.field));
+              if (availableDetailFields.length) {
+                const helper = document.createElement("p");
+                helper.className = "category-card__placeholder muted";
+                helper.textContent = "Prompt purpose from available Viva columns; blank values are excluded. These counts overlap with Copilot Chat totals and are not added to dashboard KPIs.";
+                statsContainer.append(helper);
+                availableDetailFields.forEach(({ field, index }) => {
+                  const observationCount = Array.isArray(totals.detailObservations)
+                    ? totals.detailObservations[index] || 0
+                    : 0;
+                  const value = Array.isArray(totals.details) ? totals.details[index] || 0 : 0;
+                  const stat = document.createElement("div");
+                  stat.className = "category-card__stat";
+                  const valueElement = document.createElement("div");
+                  valueElement.className = "category-card__value";
+                  valueElement.textContent = observationCount
+                    ? numberFormatter.format(Math.round(value))
+                    : "Not available";
+                  const labelElement = document.createElement("div");
+                  labelElement.className = "category-card__label";
+                  labelElement.textContent = labels[field] || getMetricDisplayLabel(field);
+                  stat.append(valueElement, labelElement);
+                  statsContainer.append(stat);
+                  if (observationCount && value > 0) {
+                    hasPositive = true;
+                  }
+                });
+              }
               card.classList.toggle("is-empty", !hasPositive);
             });
           };
@@ -16608,6 +16721,20 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                         catData.push([catLabel, labels[field] || field, totals.secondary[idx] || 0]);
                       });
                     }
+                    if (Array.isArray(totals.details)) {
+                      const labels = (typeof categoryMetricLabels !== "undefined" && categoryMetricLabels[category]) || {};
+                      const cfg = (typeof categoryConfig !== "undefined" && categoryConfig[category]) || {};
+                      (cfg.details || []).forEach((field, idx) => {
+                        if (!isMetricFieldAvailable(field)) {
+                          return;
+                        }
+                        const observationCount = Array.isArray(totals.detailObservations)
+                          ? totals.detailObservations[idx] || 0
+                          : 0;
+                        const value = observationCount ? totals.details[idx] || 0 : "Not available";
+                        catData.push([`${catLabel} — Prompt purpose`, labels[field] || field, value]);
+                      });
+                    }
                   });
                   if (catData.length) {
                     appsSections.push(addExcelSection(
@@ -17827,6 +17954,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
             if (!fieldList || !fieldList.length) {
               return;
             }
+            currentDatasetFieldKeys = new Set(fieldList.map(normalizeHeaderKey).filter(Boolean));
             const schemaInfo = resolveDatasetSchema(fieldList, sampleRowList);
             const mapping = resolveDatasetFieldMapping(fieldList, schemaInfo, sampleRowList);
             currentDatasetContext = mapping && mapping.context ? mapping.context : createDefaultDatasetContext();

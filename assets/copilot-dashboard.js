@@ -1862,22 +1862,6 @@
               chatIntentDraftBrainstorm: "Draft and brainstorm prompts — create new content"
             }
           };
-          const categoryDetailDisplayLabels = {
-            "copilot-chat": {
-              chatIntentAskFind: {
-                title: "Ask and find",
-                description: "Find information"
-              },
-              chatIntentCatchUp: {
-                title: "Catch up",
-                description: "Summaries and takeaways"
-              },
-              chatIntentDraftBrainstorm: {
-                title: "Draft and brainstorm",
-                description: "Create new content"
-              }
-            }
-          };
           const categoryHourFieldMap = {
             meetings: "meetingHours"
           };
@@ -2163,6 +2147,17 @@
               indicators: ["daysActiveChatWeb", "chatPromptsWeb"],
               features: [
                 { key: "chat-prompts-web", label: "Prompts submitted", metrics: ["chatPromptsWeb"] }
+              ]
+            },
+            chatPurpose: {
+              label: "Copilot Chat — prompt purpose",
+              color: "#5B5FC7",
+              indicators: CHAT_INTENT_METRIC_KEYS,
+              availabilityMetrics: CHAT_INTENT_METRIC_KEYS,
+              features: [
+                { key: "chat-intent-ask-find", label: "Ask and find", metrics: ["chatIntentAskFind"], availabilityMetric: "chatIntentAskFind" },
+                { key: "chat-intent-catch-up", label: "Catch up", metrics: ["chatIntentCatchUp"], availabilityMetric: "chatIntentCatchUp" },
+                { key: "chat-intent-draft-brainstorm", label: "Draft and brainstorm", metrics: ["chatIntentDraftBrainstorm"], availabilityMetric: "chatIntentDraftBrainstorm" }
               ]
             }
           };
@@ -11696,7 +11691,9 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               key,
               config,
               userSet: new Set(),
-              featureSets: Array.isArray(config.features) ? config.features.map(() => new Set()) : []
+              observationSet: new Set(),
+              featureSets: Array.isArray(config.features) ? config.features.map(() => new Set()) : [],
+              featureObservationSets: Array.isArray(config.features) ? config.features.map(() => new Set()) : []
             }));
       
             let periodEarliest = null;
@@ -11999,15 +11996,18 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 }
               });
               adoptionEntries.forEach(entry => {
-                const { config, userSet, featureSets } = entry;
+                const { config, userSet, observationSet, featureSets, featureObservationSets } = entry;
                 const metrics = row.metrics || {};
-                if (!actionActiveUsers.has(personKey)) {
-                  return;
-                }
                 let assignedToApp = false;
                 if (Array.isArray(config.features) && config.features.length) {
                   config.features.forEach((feature, featureIndex) => {
                     const fields = Array.isArray(feature.metrics) ? feature.metrics : [];
+                    const observations = row.metricObservations || {};
+                    const observed = fields.some(field => observations[field] === true);
+                    if (observed) {
+                      featureObservationSets[featureIndex]?.add(personKey);
+                      observationSet.add(personKey);
+                    }
                     const used = fields.some(field => (metrics[field] || 0) > 0);
                     if (used) {
                       featureSets[featureIndex]?.add(personKey);
@@ -12123,24 +12123,45 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               .filter(entry => (entry.totalActions || 0) > 0)
               .sort((a, b) => (b.totalActions || 0) - (a.totalActions || 0));
             const totalActiveUsersCount = actionActiveUsers.size;
+            const countEligibleUsers = set => {
+              if (!(set instanceof Set) || !set.size || !actionActiveUsers.size) {
+                return 0;
+              }
+              let count = 0;
+              set.forEach(personKey => {
+                if (actionActiveUsers.has(personKey)) {
+                  count += 1;
+                }
+              });
+              return count;
+            };
             const adoptionApps = [];
             adoptionEntries.forEach(entry => {
-              const appUsers = entry.userSet.size;
+              const appUsers = countEligibleUsers(entry.userSet);
               const shareDenominator = totalActiveUsersCount || 0;
+              const availabilityMetrics = Array.isArray(entry.config.availabilityMetrics)
+                ? entry.config.availabilityMetrics
+                : [];
+              const isAvailabilityAware = availabilityMetrics.length > 0;
+              const isAvailable = !isAvailabilityAware || availabilityMetrics.some(isMetricFieldAvailable);
+              const hasObservations = !isAvailabilityAware || countEligibleUsers(entry.observationSet) > 0;
               const featureDetails = Array.isArray(entry.config.features)
                 ? entry.config.features.map((feature, index) => {
                   const featureSet = entry.featureSets[index];
-                  const count = featureSet instanceof Set ? featureSet.size : 0;
+                  const featureObservationSet = entry.featureObservationSets[index];
+                  const count = countEligibleUsers(featureSet);
                   return {
                     key: feature.key,
                     label: feature.label,
                     users: count,
-                    share: shareDenominator ? (count / shareDenominator) * 100 : 0
+                    share: shareDenominator ? (count / shareDenominator) * 100 : 0,
+                    available: !feature.availabilityMetric || isMetricFieldAvailable(feature.availabilityMetric),
+                    hasObservations: !feature.availabilityMetric || countEligibleUsers(featureObservationSet) > 0
                   };
-                }).filter(feature => feature.users > 0 || feature.alwaysShow)
+                }).filter(feature => feature.available && (isAvailabilityAware || feature.users > 0))
                 : [];
               featureDetails.sort((a, b) => b.users - a.users);
-              const shouldInclude = appUsers > 0 || featureDetails.length > 0 || entry.config.alwaysShow;
+              const shouldInclude = isAvailable && (isAvailabilityAware || appUsers > 0 || featureDetails.length > 0 || entry.config.alwaysShow);
               if (!shouldInclude) {
                 return;
               }
@@ -12150,6 +12171,7 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 color: entry.config.color || null,
                 users: appUsers,
                 share: shareDenominator ? (appUsers / shareDenominator) * 100 : 0,
+                hasObservations,
                 features: featureDetails
               });
             });
@@ -12902,7 +12924,6 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 return;
               }
               statsContainer.innerHTML = "";
-              card.classList.remove("has-details");
               const totals = categoryTotals ? categoryTotals[key] : null;
               const labels = categoryMetricLabels[key] || {};
               if (!totals) {
@@ -12944,8 +12965,6 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 return;
               }
               let hasPositive = metrics.some(metric => metric.value > 0);
-              const summary = document.createElement("div");
-              summary.className = "category-card__summary";
               metrics.forEach((metric, index) => {
                 const stat = document.createElement("div");
                 stat.className = "category-card__stat";
@@ -12959,65 +12978,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                 labelElement.className = "category-card__label";
                 labelElement.textContent = metric.label || metric.field;
                 stat.append(valueElement, labelElement);
-                summary.append(stat);
+                statsContainer.append(stat);
               });
-              statsContainer.append(summary);
-              const detailFields = Array.isArray(config.details) ? config.details : [];
-              const availableDetailFields = detailFields
-                .map((field, index) => ({ field, index }))
-                .filter(entry => isMetricFieldAvailable(entry.field));
-              if (availableDetailFields.length) {
-                card.classList.add("has-details");
-                const detailLabels = categoryDetailDisplayLabels[key] || {};
-                const details = document.createElement("section");
-                details.className = "category-card__details";
-                details.setAttribute("aria-label", "Prompt purpose");
-                const detailsHeader = document.createElement("div");
-                detailsHeader.className = "category-card__details-header";
-                const detailsTitle = document.createElement("p");
-                detailsTitle.className = "category-card__details-title";
-                detailsTitle.textContent = "Prompt purpose";
-                const helper = document.createElement("p");
-                helper.className = "category-card__details-note";
-                helper.textContent = "These counts overlap with Copilot Chat totals and are excluded from dashboard KPIs. Blank values are omitted.";
-                detailsHeader.append(detailsTitle, helper);
-                const detailList = document.createElement("div");
-                detailList.className = "category-card__details-list";
-                availableDetailFields.forEach(({ field, index }) => {
-                  const observationCount = Array.isArray(totals.detailObservations)
-                    ? totals.detailObservations[index] || 0
-                    : 0;
-                  const value = Array.isArray(totals.details) ? totals.details[index] || 0 : 0;
-                  const stat = document.createElement("div");
-                  stat.className = "category-card__stat category-card__detail-stat";
-                  const valueElement = document.createElement("div");
-                  valueElement.className = "category-card__value category-card__detail-value";
-                  valueElement.textContent = observationCount
-                    ? numberFormatter.format(Math.round(value))
-                    : "Not available";
-                  const displayLabel = detailLabels[field] || {};
-                  const labelElement = document.createElement("div");
-                  labelElement.className = "category-card__label category-card__detail-copy";
-                  labelElement.setAttribute("aria-label", labels[field] || getMetricDisplayLabel(field));
-                  const labelTitle = document.createElement("span");
-                  labelTitle.className = "category-card__detail-label";
-                  labelTitle.textContent = displayLabel.title || labels[field] || getMetricDisplayLabel(field);
-                  labelElement.append(labelTitle);
-                  if (displayLabel.description) {
-                    const description = document.createElement("span");
-                    description.className = "category-card__detail-description";
-                    description.textContent = displayLabel.description;
-                    labelElement.append(description);
-                  }
-                  stat.append(valueElement, labelElement);
-                  detailList.append(stat);
-                  if (observationCount && value > 0) {
-                    hasPositive = true;
-                  }
-                });
-                details.append(detailsHeader, detailList);
-                statsContainer.append(details);
-              }
               card.classList.toggle("is-empty", !hasPositive);
             });
           };
@@ -13196,16 +13158,20 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               const usersCell = document.createElement("td");
               usersCell.className = "is-numeric";
               usersCell.dataset.label = "Active users";
-              usersCell.textContent = numberFormatter.format(app.users || 0);
+              usersCell.textContent = app.hasObservations === false
+                ? "Not available"
+                : numberFormatter.format(app.users || 0);
               const shareCell = document.createElement("td");
               shareCell.className = "is-numeric";
               shareCell.dataset.label = "% of active users";
               const appShare = Number.isFinite(app.share) ? app.share : 0;
-              shareCell.appendChild(createAdoptionMetric(
-                `${Math.max(0, Math.min(100, appShare)).toFixed(1)}%`,
-                appShare,
-                accentColor
-              ));
+              shareCell.appendChild(app.hasObservations === false
+                ? createAdoptionMetric("—", 0, accentColor)
+                : createAdoptionMetric(
+                  `${Math.max(0, Math.min(100, appShare)).toFixed(1)}%`,
+                  appShare,
+                  accentColor
+                ));
               appRow.append(nameCell, usersCell, shareCell);
               fragment.append(appRow);
       
@@ -13232,17 +13198,21 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   const featureUsersCell = document.createElement("td");
                   featureUsersCell.className = "is-numeric";
                   featureUsersCell.dataset.label = "Active users";
-                  featureUsersCell.textContent = numberFormatter.format(Math.round(feature.users || 0));
+                  featureUsersCell.textContent = feature.hasObservations === false
+                    ? "Not available"
+                    : numberFormatter.format(Math.round(feature.users || 0));
 
                   const featureShareCell = document.createElement("td");
                   featureShareCell.className = "is-numeric";
                   featureShareCell.dataset.label = "% of active users";
                   const featureShare = Number.isFinite(feature.share) ? feature.share : 0;
-                  featureShareCell.appendChild(createAdoptionMetric(
-                    `${Math.max(0, Math.min(100, featureShare)).toFixed(1)}%`,
-                    featureShare,
-                    accentColor
-                  ));
+                  featureShareCell.appendChild(feature.hasObservations === false
+                    ? createAdoptionMetric("—", 0, accentColor)
+                    : createAdoptionMetric(
+                      `${Math.max(0, Math.min(100, featureShare)).toFixed(1)}%`,
+                      featureShare,
+                      accentColor
+                    ));
 
                   featureRow.append(featureNameCell, featureUsersCell, featureShareCell);
                   fragment.append(featureRow);
@@ -15576,8 +15546,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
               "App",
               appLabel,
               "",
-              Math.round(appUsers),
-              `${appShareValue.toFixed(1)}%`
+              app.hasObservations === false ? "Not available" : Math.round(appUsers),
+              app.hasObservations === false ? "" : `${appShareValue.toFixed(1)}%`
             ]);
             if (Array.isArray(app.features)) {
               app.features.forEach(feature => {
@@ -15588,8 +15558,8 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                   "Capability",
                   featureLabel,
                   appLabel,
-                  Math.round(featureUsers),
-                  `${featureShareValue.toFixed(1)}%`
+                  feature.hasObservations === false ? "Not available" : Math.round(featureUsers),
+                  feature.hasObservations === false ? "" : `${featureShareValue.toFixed(1)}%`
                 ]);
               });
             }
@@ -16678,13 +16648,25 @@ SYN-EXP-00002,11/9/25,0,3,1,0,1,0,0.3,1,7,2,7,Workplace Innovation Hub,Sales`
                     const appLabel = app.label || app.key || "App";
                     const appUsers = Number.isFinite(app.users) ? app.users : 0;
                     const appShareValue = Number.isFinite(app.share) ? app.share : 0;
-                    adpData.push(["App", appLabel, "", appUsers, appShareValue]);
+                    adpData.push([
+                      "App",
+                      appLabel,
+                      "",
+                      app.hasObservations === false ? "Not available" : appUsers,
+                      app.hasObservations === false ? "" : appShareValue
+                    ]);
                     if (Array.isArray(app.features)) {
                       app.features.forEach(feature => {
                         const featureLabel = feature.label || feature.key || "Capability";
                         const featureUsers = Number.isFinite(feature.users) ? feature.users : 0;
                         const featureShareValue = Number.isFinite(feature.share) ? feature.share : 0;
-                        adpData.push(["Capability", featureLabel, appLabel, featureUsers, featureShareValue]);
+                        adpData.push([
+                          "Capability",
+                          featureLabel,
+                          appLabel,
+                          feature.hasObservations === false ? "Not available" : featureUsers,
+                          feature.hasObservations === false ? "" : featureShareValue
+                        ]);
                       });
                     }
                   });

@@ -5811,13 +5811,6 @@ body.is-custom-theme {
       min-width: 0;
     }
 
-    .category-card__summary {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      min-width: 0;
-    }
-
     .category-card__stat {
       display: flex;
       align-items: baseline;

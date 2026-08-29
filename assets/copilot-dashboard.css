@@ -5807,7 +5807,8 @@ body.is-custom-theme {
     .category-card__stats {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: var(--space-lg);
+      min-width: 0;
     }
 
     .category-card__stat {
@@ -5875,6 +5876,13 @@ body.is-custom-theme {
       .category-card__value {
         font-size: var(--font-size-xl);
         min-width: 0;
+      }
+      .category-card__detail-stat {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+      }
+      .category-card__detail-value {
+        font-size: var(--font-size-xl);
       }
     }
 
